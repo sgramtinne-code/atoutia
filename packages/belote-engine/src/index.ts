@@ -19,6 +19,21 @@ export {
 export { shuffleDeck } from "./deck.js";
 
 export {
+  INITIAL_DEAL_PATTERNS,
+  createInitialDeal,
+  type InitialDeal,
+  type InitialDealPattern,
+  type PlayerHands,
+} from "./deal.js";
+
+export {
+  PLAYER_POSITIONS,
+  getPlayOrderAfter,
+  nextPlayer,
+  type PlayerPosition,
+} from "./players.js";
+
+export {
   Mulberry32Random,
   type RandomSource,
 } from "./random.js";
