@@ -57,6 +57,15 @@ export {
 } from "./random.js";
 
 export {
+  TEAMS,
+  getCompletedTrickPoints,
+  getPlayerTeam,
+  scoreCompletedDealTricks,
+  type Team,
+  type TeamPoints,
+} from "./scoring.js";
+
+export {
   getTrickWinner,
   type PlayedCard,
   type TrickWinner,
