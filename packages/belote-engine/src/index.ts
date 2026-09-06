@@ -17,6 +17,16 @@ export {
 } from "./cardRules.js";
 
 export {
+  BELOTE_EVENTS,
+  applyBeloteCardPlayed,
+  createBeloteState,
+  type BeloteEvent,
+  type BeloteEventType,
+  type BelotePlayResult,
+  type BeloteState,
+} from "./belote.js";
+
+export {
   BIDDING_ROUNDS,
   applyBiddingAction,
   createBiddingState,
