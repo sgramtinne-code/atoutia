@@ -9,4 +9,11 @@ export {
   type Suit,
 } from "./cards.js";
 
+export {
+  compareSameSuitCards,
+  getCardPoints,
+  getCardStrength,
+  isTrump,
+} from "./cardRules.js";
+
 export const BELOTE_ENGINE_VERSION = "0.1.0";
