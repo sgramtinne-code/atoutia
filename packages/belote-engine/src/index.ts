@@ -63,6 +63,13 @@ export {
 export { getLegalCards } from "./legalPlays.js";
 
 export {
+  createLitigeState,
+  resolveLitigeForDeal,
+  type LitigeResolution,
+  type LitigeState,
+} from "./litige.js";
+
+export {
   PLAYER_POSITIONS,
   getPlayOrderAfter,
   nextPlayer,
