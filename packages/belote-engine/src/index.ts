@@ -16,4 +16,11 @@ export {
   isTrump,
 } from "./cardRules.js";
 
+export { shuffleDeck } from "./deck.js";
+
+export {
+  Mulberry32Random,
+  type RandomSource,
+} from "./random.js";
+
 export const BELOTE_ENGINE_VERSION = "0.1.0";
