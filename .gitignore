@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+
+# pnpm
+.pnpm-store/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Test artifacts
+.nyc_output/
+test-results/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# AI / datasets / models
+ai-lab/data/
+ai-lab/datasets/
+ai-lab/models/
+ai-lab/checkpoints/
+
+# Android / React Native
+android/.gradle/
+android/app/build/
+*.keystore
+*.jks
+
+# Expo
+.expo/
+.expo-shared/
+
+# Local tooling
+.cache/
