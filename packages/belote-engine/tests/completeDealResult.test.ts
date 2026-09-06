@@ -6,13 +6,21 @@ import {
   createCard,
   createDeck,
   createLitigeState,
-  getTrickWinner,
   resolveCompleteDeal,
   type CompletedTrick,
   type PlayedCard,
   type PlayerHands,
   type PlayerPosition,
 } from "../src/index.js";
+
+function createEmptyHands(): PlayerHands {
+  return Object.freeze({
+    PLAYER_0: Object.freeze([]),
+    PLAYER_1: Object.freeze([]),
+    PLAYER_2: Object.freeze([]),
+    PLAYER_3: Object.freeze([]),
+  });
+}
 
 function createBeloteHands(
   player: PlayerPosition,
@@ -27,6 +35,7 @@ function createBeloteHands(
             createCard("HEARTS", "QUEEN"),
           ])
         : empty,
+
     PLAYER_1:
       player === "PLAYER_1"
         ? Object.freeze([
@@ -34,6 +43,7 @@ function createBeloteHands(
             createCard("HEARTS", "QUEEN"),
           ])
         : empty,
+
     PLAYER_2:
       player === "PLAYER_2"
         ? Object.freeze([
@@ -41,6 +51,7 @@ function createBeloteHands(
             createCard("HEARTS", "QUEEN"),
           ])
         : empty,
+
     PLAYER_3:
       player === "PLAYER_3"
         ? Object.freeze([
@@ -86,7 +97,11 @@ function createCompletedTricks(
   const deck = createDeck();
   const tricks: CompletedTrick[] = [];
 
-  for (let trickIndex = 0; trickIndex < 8; trickIndex += 1) {
+  for (
+    let trickIndex = 0;
+    trickIndex < 8;
+    trickIndex += 1
+  ) {
     const winnerPlayer = winners[trickIndex];
 
     if (winnerPlayer === undefined) {
@@ -123,18 +138,11 @@ function createCompletedTricks(
         })),
       );
 
-    const computedWinner = getTrickWinner(
-      plays,
-      "HEARTS",
-    );
-
     const winner = Object.freeze({
       player: winnerPlayer,
       card: plays[0]!.card,
       playIndex: 0,
     });
-
-    void computedWinner;
 
     tricks.push(
       Object.freeze({
@@ -155,29 +163,22 @@ function createCompletedTricks(
 }
 
 describe("complete deal resolution", () => {
-  it("resolves a normal successful contract", () => {
-    const tricks = createCompletedTricks([
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_1",
-      "PLAYER_1",
-      "PLAYER_1",
-    ]);
-
+  it("resolves a normal deal", () => {
     const result = resolveCompleteDeal(
-      tricks,
+      createCompletedTricks([
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
       "HEARTS",
       "PLAYER_0",
       createBeloteState(
-        Object.freeze({
-          PLAYER_0: Object.freeze([]),
-          PLAYER_1: Object.freeze([]),
-          PLAYER_2: Object.freeze([]),
-          PLAYER_3: Object.freeze([]),
-        }),
+        createEmptyHands(),
         "HEARTS",
       ),
       createLitigeState(),
@@ -188,19 +189,17 @@ describe("complete deal resolution", () => {
   });
 
   it("includes completed Belote in the final resolution", () => {
-    const tricks = createCompletedTricks([
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_1",
-      "PLAYER_1",
-      "PLAYER_1",
-    ]);
-
     const result = resolveCompleteDeal(
-      tricks,
+      createCompletedTricks([
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
       "HEARTS",
       "PLAYER_0",
       completeBelote("PLAYER_0"),
@@ -225,19 +224,17 @@ describe("complete deal resolution", () => {
       createCard("HEARTS", "KING"),
     ).state;
 
-    const tricks = createCompletedTricks([
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_1",
-      "PLAYER_1",
-      "PLAYER_1",
-    ]);
-
     const result = resolveCompleteDeal(
-      tricks,
+      createCompletedTricks([
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
       "HEARTS",
       "PLAYER_0",
       belote,
@@ -247,7 +244,7 @@ describe("complete deal resolution", () => {
     expect(result.dealResult.beloteBonus).toBeNull();
   });
 
-  it("detects and scores a capot", () => {
+  it("scores a taker capot as a successful contract", () => {
     const result = resolveCompleteDeal(
       createCompletedTricks([
         "PLAYER_0",
@@ -262,12 +259,7 @@ describe("complete deal resolution", () => {
       "HEARTS",
       "PLAYER_0",
       createBeloteState(
-        Object.freeze({
-          PLAYER_0: Object.freeze([]),
-          PLAYER_1: Object.freeze([]),
-          PLAYER_2: Object.freeze([]),
-          PLAYER_3: Object.freeze([]),
-        }),
+        createEmptyHands(),
         "HEARTS",
       ),
       createLitigeState(),
@@ -275,10 +267,48 @@ describe("complete deal resolution", () => {
 
     expect(result.capot.isCapot).toBe(true);
     expect(result.capot.team).toBe("TEAM_0");
-    expect(result.finalAwardedPoints.TEAM_0).toBe(252);
+    expect(result.dealResult.status).toBe(
+      "CONTRACT_MADE",
+    );
+    expect(result.finalAwardedPoints).toEqual({
+      TEAM_0: 252,
+      TEAM_1: 0,
+    });
   });
 
-  it("adds Belote to a capot", () => {
+  it("scores a defense capot as a failed contract", () => {
+    const result = resolveCompleteDeal(
+      createCompletedTricks([
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
+      "HEARTS",
+      "PLAYER_0",
+      createBeloteState(
+        createEmptyHands(),
+        "HEARTS",
+      ),
+      createLitigeState(),
+    );
+
+    expect(result.capot.isCapot).toBe(true);
+    expect(result.capot.team).toBe("TEAM_1");
+    expect(result.dealResult.status).toBe(
+      "CONTRACT_FAILED",
+    );
+    expect(result.finalAwardedPoints).toEqual({
+      TEAM_0: 0,
+      TEAM_1: 252,
+    });
+  });
+
+  it("adds Belote to a taker capot", () => {
     const result = resolveCompleteDeal(
       createCompletedTricks([
         "PLAYER_0",
@@ -296,7 +326,62 @@ describe("complete deal resolution", () => {
       createLitigeState(),
     );
 
-    expect(result.finalAwardedPoints.TEAM_0).toBe(272);
+    expect(result.finalAwardedPoints).toEqual({
+      TEAM_0: 272,
+      TEAM_1: 0,
+    });
+  });
+
+  it("preserves taker Belote when the defense makes capot", () => {
+    const result = resolveCompleteDeal(
+      createCompletedTricks([
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
+      "HEARTS",
+      "PLAYER_0",
+      completeBelote("PLAYER_0"),
+      createLitigeState(),
+    );
+
+    expect(result.dealResult.status).toBe(
+      "CONTRACT_FAILED",
+    );
+
+    expect(result.finalAwardedPoints).toEqual({
+      TEAM_0: 20,
+      TEAM_1: 252,
+    });
+  });
+
+  it("adds Belote to a defending capot team", () => {
+    const result = resolveCompleteDeal(
+      createCompletedTricks([
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
+      "HEARTS",
+      "PLAYER_0",
+      completeBelote("PLAYER_1"),
+      createLitigeState(),
+    );
+
+    expect(result.finalAwardedPoints).toEqual({
+      TEAM_0: 0,
+      TEAM_1: 272,
+    });
   });
 
   it("rejects a Belote state with another trump suit", () => {
@@ -312,12 +397,7 @@ describe("complete deal resolution", () => {
     ]);
 
     const belote = createBeloteState(
-      Object.freeze({
-        PLAYER_0: Object.freeze([]),
-        PLAYER_1: Object.freeze([]),
-        PLAYER_2: Object.freeze([]),
-        PLAYER_3: Object.freeze([]),
-      }),
+      createEmptyHands(),
       "SPADES",
     );
 
@@ -334,29 +414,22 @@ describe("complete deal resolution", () => {
     );
   });
 
-  it("applies pending litige points to a normal resolved deal", () => {
-    const tricks = createCompletedTricks([
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_0",
-      "PLAYER_1",
-      "PLAYER_1",
-      "PLAYER_1",
-    ]);
-
+  it("applies pending litige points to a resolved deal", () => {
     const result = resolveCompleteDeal(
-      tricks,
+      createCompletedTricks([
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_0",
+        "PLAYER_1",
+        "PLAYER_1",
+        "PLAYER_1",
+      ]),
       "HEARTS",
       "PLAYER_0",
       createBeloteState(
-        Object.freeze({
-          PLAYER_0: Object.freeze([]),
-          PLAYER_1: Object.freeze([]),
-          PLAYER_2: Object.freeze([]),
-          PLAYER_3: Object.freeze([]),
-        }),
+        createEmptyHands(),
         "HEARTS",
       ),
       Object.freeze({
@@ -385,12 +458,7 @@ describe("complete deal resolution", () => {
       "HEARTS",
       "PLAYER_0",
       createBeloteState(
-        Object.freeze({
-          PLAYER_0: Object.freeze([]),
-          PLAYER_1: Object.freeze([]),
-          PLAYER_2: Object.freeze([]),
-          PLAYER_3: Object.freeze([]),
-        }),
+        createEmptyHands(),
         "HEARTS",
       ),
       createLitigeState(),
