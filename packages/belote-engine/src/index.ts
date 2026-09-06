@@ -54,4 +54,10 @@ export {
   type RandomSource,
 } from "./random.js";
 
+export {
+  getTrickWinner,
+  type PlayedCard,
+  type TrickWinner,
+} from "./trick.js";
+
 export const BELOTE_ENGINE_VERSION = "0.1.0";
