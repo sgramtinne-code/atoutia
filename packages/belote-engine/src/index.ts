@@ -16,6 +16,17 @@ export {
   isTrump,
 } from "./cardRules.js";
 
+export {
+  BIDDING_ROUNDS,
+  applyBiddingAction,
+  createBiddingState,
+  getAllowedTrumpSuits,
+  type BiddingAction,
+  type BiddingRound,
+  type BiddingState,
+  type BiddingStatus,
+} from "./bidding.js";
+
 export { shuffleDeck } from "./deck.js";
 
 export {
