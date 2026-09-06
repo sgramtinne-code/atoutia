@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   advanceToNextTrick,
+  createBeloteState,
   createCard,
   createTrickSequence,
   playCard,
@@ -62,6 +63,10 @@ describe("trick sequence", () => {
 
     let hands = state.hands;
     let trick = state.currentTrick;
+    let belote = createBeloteState(
+      hands,
+      "HEARTS",
+    );
 
     const sequence = [
       ["PLAYER_0", createCard("CLUBS", "ACE")],
@@ -77,10 +82,12 @@ describe("trick sequence", () => {
         player,
         card,
         "HEARTS",
+        belote,
       );
 
       hands = result.hands;
       trick = result.trick;
+      belote = result.beloteState;
     }
 
     state = Object.freeze({
@@ -105,6 +112,10 @@ describe("trick sequence", () => {
 
     let hands = state.hands;
     let trick = state.currentTrick;
+    let belote = createBeloteState(
+      hands,
+      "HEARTS",
+    );
 
     const sequence = [
       ["PLAYER_0", createCard("CLUBS", "ACE")],
@@ -120,10 +131,12 @@ describe("trick sequence", () => {
         player,
         card,
         "HEARTS",
+        belote,
       );
 
       hands = result.hands;
       trick = result.trick;
+      belote = result.beloteState;
     }
 
     state = Object.freeze({
@@ -147,6 +160,10 @@ describe("trick sequence", () => {
 
     let hands = state.hands;
     let trick = state.currentTrick;
+    let belote = createBeloteState(
+      hands,
+      "HEARTS",
+    );
 
     const sequence = [
       ["PLAYER_0", createCard("CLUBS", "ACE")],
@@ -162,10 +179,12 @@ describe("trick sequence", () => {
         player,
         card,
         "HEARTS",
+        belote,
       );
 
       hands = result.hands;
       trick = result.trick;
+      belote = result.beloteState;
     }
 
     state = Object.freeze({

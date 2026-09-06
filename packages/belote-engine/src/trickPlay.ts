@@ -1,3 +1,8 @@
+import {
+  applyBeloteCardPlayed,
+  type BeloteEvent,
+  type BeloteState,
+} from "./belote.js";
 import { cardKey, type Card, type Suit } from "./cards.js";
 import type { PlayerHands } from "./deal.js";
 import { getLegalCards } from "./legalPlays.js";
@@ -22,6 +27,8 @@ export interface TrickState {
 export interface TrickPlayResult {
   readonly hands: PlayerHands;
   readonly trick: TrickState;
+  readonly beloteState: BeloteState;
+  readonly beloteEvent: BeloteEvent | null;
 }
 
 function freezeHands(
@@ -99,6 +106,7 @@ function removeCardFromHand(
   card: Card,
 ): Card[] {
   const wantedKey = cardKey(card);
+
   const index = hand.findIndex(
     (candidate) => cardKey(candidate) === wantedKey,
   );
@@ -119,6 +127,7 @@ export function playCard(
   player: PlayerPosition,
   card: Card,
   trumpSuit: Suit,
+  beloteState: BeloteState,
 ): TrickPlayResult {
   if (trick.completed) {
     throw new Error("Trick is already completed.");
@@ -126,6 +135,12 @@ export function playCard(
 
   if (player !== trick.currentPlayer) {
     throw new Error("It is not this player's turn.");
+  }
+
+  if (beloteState.trumpSuit !== trumpSuit) {
+    throw new Error(
+      "Belote state trump suit must match trick trump suit.",
+    );
   }
 
   const playerHand = hands[player];
@@ -137,6 +152,12 @@ export function playCard(
     player,
     trick.plays,
     trumpSuit,
+    card,
+  );
+
+  const beloteResult = applyBeloteCardPlayed(
+    beloteState,
+    player,
     card,
   );
 
@@ -170,6 +191,8 @@ export function playCard(
         winner,
         completed: true,
       }),
+      beloteState: beloteResult.state,
+      beloteEvent: beloteResult.event,
     });
   }
 
@@ -182,5 +205,7 @@ export function playCard(
       winner: null,
       completed: false,
     }),
+    beloteState: beloteResult.state,
+    beloteEvent: beloteResult.event,
   });
 }
