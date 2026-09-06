@@ -42,6 +42,8 @@ export {
   type CompletedDeal,
 } from "./dealCompletion.js";
 
+export { getLegalCards } from "./legalPlays.js";
+
 export {
   PLAYER_POSITIONS,
   getPlayOrderAfter,
