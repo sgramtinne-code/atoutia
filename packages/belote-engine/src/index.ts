@@ -37,6 +37,13 @@ export {
   type BiddingStatus,
 } from "./bidding.js";
 
+export {
+  CAPOT_POINTS,
+  applyCapotPoints,
+  detectCapot,
+  type CapotResult,
+} from "./capot.js";
+
 export { shuffleDeck } from "./deck.js";
 
 export {
