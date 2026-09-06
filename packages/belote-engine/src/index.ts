@@ -52,6 +52,14 @@ export {
   type CompletedDeal,
 } from "./dealCompletion.js";
 
+export {
+  DEAL_RESULTS,
+  resolveDealResult,
+  type BeloteBonus,
+  type DealResult,
+  type DealResultStatus,
+} from "./dealResult.js";
+
 export { getLegalCards } from "./legalPlays.js";
 
 export {
