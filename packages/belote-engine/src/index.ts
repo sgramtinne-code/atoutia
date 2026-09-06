@@ -69,4 +69,11 @@ export {
   type TrickState,
 } from "./trickPlay.js";
 
+export {
+  advanceToNextTrick,
+  createTrickSequence,
+  type CompletedTrick,
+  type TrickSequenceState,
+} from "./trickSequence.js";
+
 export const BELOTE_ENGINE_VERSION = "0.1.0";
