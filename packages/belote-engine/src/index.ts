@@ -82,6 +82,12 @@ export {
 } from "./litige.js";
 
 export {
+  addDealPointsToMatch,
+  createMatchScoreState,
+  type MatchScoreState,
+} from "./matchScore.js";
+
+export {
   PLAYER_POSITIONS,
   getPlayOrderAfter,
   nextPlayer,
