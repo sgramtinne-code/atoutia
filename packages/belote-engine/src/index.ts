@@ -38,6 +38,11 @@ export {
 } from "./deal.js";
 
 export {
+  completeDealAfterTake,
+  type CompletedDeal,
+} from "./dealCompletion.js";
+
+export {
   PLAYER_POSITIONS,
   getPlayOrderAfter,
   nextPlayer,
