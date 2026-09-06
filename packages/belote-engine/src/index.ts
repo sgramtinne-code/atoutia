@@ -44,6 +44,11 @@ export {
   type CapotResult,
 } from "./capot.js";
 
+export {
+  resolveCompleteDeal,
+  type CompleteDealResolution,
+} from "./completeDealResult.js";
+
 export { shuffleDeck } from "./deck.js";
 
 export {
