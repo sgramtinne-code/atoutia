@@ -186,3 +186,8 @@ export {
   validateAndReplayMatchReplayJson,
   type ValidatedMatchReplay,
 } from "./matchReplayValidation.js";
+
+export {
+  createCanonicalMatchReplayJson,
+  hashMatchReplayDocument,
+} from "./matchReplayHash.js";
