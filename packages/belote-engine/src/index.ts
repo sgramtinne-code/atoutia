@@ -181,3 +181,8 @@ export {
   parseMatchReplayDocument,
   serializeMatchReplayDocument,
 } from "./matchReplayJson.js";
+
+export {
+  validateAndReplayMatchReplayJson,
+  type ValidatedMatchReplay,
+} from "./matchReplayValidation.js";
