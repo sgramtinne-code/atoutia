@@ -94,8 +94,11 @@ export {
 
 export {
   advanceMatchToNextDeal,
+  applyMatchBiddingAction,
+  applyMatchCardPlay,
   createMatchMachine,
   type CreateMatchMachineOptions,
+  type MatchMachineCardPlayResult,
   type MatchMachineState,
 } from "./matchMachine.js";
 

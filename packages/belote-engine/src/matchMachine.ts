@@ -1,16 +1,21 @@
+import type { BiddingAction } from "./bidding.js";
+import type { Card } from "./cards.js";
 import {
+  applyDealMachineBiddingAction,
+  applyDealMachineCardPlay,
   createDealMachine,
+  type DealMachineCardPlayResult,
   type DealMachineState,
 } from "./dealMachine.js";
+import {
+  createLitigeState,
+  type LitigeState,
+} from "./litige.js";
 import {
   addDealPointsToMatch,
   createMatchScoreState,
   type MatchScoreState,
 } from "./matchScore.js";
-import {
-  createLitigeState,
-  type LitigeState,
-} from "./litige.js";
 import {
   nextPlayer,
   type PlayerPosition,
@@ -29,6 +34,11 @@ export interface CreateMatchMachineOptions {
   readonly baseSeed: number;
   readonly firstDealer?: PlayerPosition;
   readonly targetScore?: number;
+}
+
+export interface MatchMachineCardPlayResult {
+  readonly state: MatchMachineState;
+  readonly dealPlay: DealMachineCardPlayResult;
 }
 
 function assertBaseSeed(baseSeed: number): void {
@@ -78,6 +88,58 @@ export function createMatchMachine(
     score,
     litigeState,
     currentDeal,
+  });
+}
+
+export function applyMatchBiddingAction(
+  state: MatchMachineState,
+  action: BiddingAction,
+): MatchMachineState {
+  if (state.score.completed) {
+    throw new Error(
+      "Match is already completed.",
+    );
+  }
+
+  const currentDeal =
+    applyDealMachineBiddingAction(
+      state.currentDeal,
+      action,
+    );
+
+  return Object.freeze({
+    ...state,
+    currentDeal,
+  });
+}
+
+export function applyMatchCardPlay(
+  state: MatchMachineState,
+  player: PlayerPosition,
+  card: Card,
+): MatchMachineCardPlayResult {
+  if (state.score.completed) {
+    throw new Error(
+      "Match is already completed.",
+    );
+  }
+
+  const dealPlay =
+    applyDealMachineCardPlay(
+      state.currentDeal,
+      player,
+      card,
+    );
+
+  const nextState: MatchMachineState =
+    Object.freeze({
+      ...state,
+      currentDeal: dealPlay.state,
+    });
+
+  return Object.freeze({
+    state: nextState,
+    dealPlay,
   });
 }
 
