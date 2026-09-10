@@ -1,15 +1,23 @@
+import type { BiddingAction } from "./bidding.js";
 import {
-  PLAYER_POSITIONS,
-  type PlayerPosition,
-} from "./players.js";
-import {
-  MATCH_REPLAY_FORMAT_VERSION,
-  type MatchReplayDocument,
-} from "./matchReplayFormat.js";
+  RANKS,
+  SUITS,
+  type Card,
+  type Rank,
+  type Suit,
+} from "./cards.js";
 import type {
   MatchHistory,
   MatchHistoryEvent,
 } from "./matchHistory.js";
+import {
+  MATCH_REPLAY_FORMAT_VERSION,
+  type MatchReplayDocument,
+} from "./matchReplayFormat.js";
+import {
+  PLAYER_POSITIONS,
+  type PlayerPosition,
+} from "./players.js";
 import { BELOTE_ENGINE_VERSION } from "./version.js";
 
 function isRecord(
@@ -29,6 +37,28 @@ function isPlayerPosition(
     typeof value === "string" &&
     PLAYER_POSITIONS.includes(
       value as PlayerPosition,
+    )
+  );
+}
+
+function isSuit(
+  value: unknown,
+): value is Suit {
+  return (
+    typeof value === "string" &&
+    SUITS.includes(
+      value as Suit,
+    )
+  );
+}
+
+function isRank(
+  value: unknown,
+): value is Rank {
+  return (
+    typeof value === "string" &&
+    RANKS.includes(
+      value as Rank,
     )
   );
 }
@@ -58,6 +88,82 @@ function assertInteger(
   }
 }
 
+function validateCard(
+  value: unknown,
+): Card {
+  if (!isRecord(value)) {
+    throw new Error(
+      "Replay card play must contain a card.",
+    );
+  }
+
+  if (!isSuit(value.suit)) {
+    throw new Error(
+      "Replay card suit is invalid.",
+    );
+  }
+
+  if (!isRank(value.rank)) {
+    throw new Error(
+      "Replay card rank is invalid.",
+    );
+  }
+
+  return Object.freeze({
+    suit: value.suit,
+    rank: value.rank,
+  });
+}
+
+function validateBiddingAction(
+  value: unknown,
+): BiddingAction {
+  if (!isRecord(value)) {
+    throw new Error(
+      "Replay bidding event must contain an action.",
+    );
+  }
+
+  if (
+    !isPlayerPosition(value.player)
+  ) {
+    throw new Error(
+      "Replay bidding action player is invalid.",
+    );
+  }
+
+  if (value.type === "PASS") {
+    if ("suit" in value) {
+      throw new Error(
+        "Replay PASS action must not contain a suit.",
+      );
+    }
+
+    return Object.freeze({
+      type: "PASS",
+      player: value.player,
+    });
+  }
+
+  if (value.type === "TAKE") {
+    if (!isSuit(value.suit)) {
+      throw new Error(
+        "Replay TAKE action suit is invalid.",
+      );
+    }
+
+    return Object.freeze({
+      type: "TAKE",
+      player: value.player,
+      suit: value.suit,
+    });
+  }
+
+  throw new Error(
+    "Replay bidding action type is invalid.",
+  );
+}
+
 function validateHistoryEvent(
   event: unknown,
   expectedIndex: number,
@@ -80,32 +186,14 @@ function validateHistoryEvent(
   );
 
   if (event.type === "BIDDING_ACTION") {
-    if (!isRecord(event.action)) {
-      throw new Error(
-        "Replay bidding event must contain an action.",
-      );
-    }
-
-    if (
-      event.action.type !== "PASS" &&
-      event.action.type !== "TAKE"
-    ) {
-      throw new Error(
-        "Replay bidding action type is invalid.",
-      );
-    }
-
-    if (
-      !isPlayerPosition(
-        event.action.player,
-      )
-    ) {
-      throw new Error(
-        "Replay bidding action player is invalid.",
-      );
-    }
-
-    return event as unknown as MatchHistoryEvent;
+    return Object.freeze({
+      index: expectedIndex,
+      type: "BIDDING_ACTION",
+      dealNumber: event.dealNumber,
+      action: validateBiddingAction(
+        event.action,
+      ),
+    });
   }
 
   if (event.type === "CARD_PLAY") {
@@ -117,13 +205,13 @@ function validateHistoryEvent(
       );
     }
 
-    if (!isRecord(event.card)) {
-      throw new Error(
-        "Replay card play must contain a card.",
-      );
-    }
-
-    return event as unknown as MatchHistoryEvent;
+    return Object.freeze({
+      index: expectedIndex,
+      type: "CARD_PLAY",
+      dealNumber: event.dealNumber,
+      player: event.player,
+      card: validateCard(event.card),
+    });
   }
 
   throw new Error(
@@ -140,14 +228,13 @@ function validateHistory(
     );
   }
 
-  const events =
-    value.map(
-      (event, index) =>
-        validateHistoryEvent(
-          event,
-          index,
-        ),
-    );
+  const events = value.map(
+    (event, index) =>
+      validateHistoryEvent(
+        event,
+        index,
+      ),
+  );
 
   return Object.freeze(events);
 }

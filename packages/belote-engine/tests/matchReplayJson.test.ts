@@ -10,6 +10,19 @@ import {
   serializeMatchReplayDocument,
 } from "../src/index.js";
 
+function createBaseReplay() {
+  return {
+    formatVersion:
+      MATCH_REPLAY_FORMAT_VERSION,
+    engineVersion:
+      BELOTE_ENGINE_VERSION,
+    baseSeed: 1000,
+    firstDealer: "PLAYER_0",
+    targetScore: 1000,
+    history: [],
+  };
+}
+
 describe("match replay JSON", () => {
   it("serializes a replay document to JSON", () => {
     const state = createMatchMachine({
@@ -41,13 +54,12 @@ describe("match replay JSON", () => {
     const document =
       createMatchReplayDocument(state);
 
-    const json =
-      serializeMatchReplayDocument(
-        document,
-      );
-
     const parsed =
-      parseMatchReplayDocument(json);
+      parseMatchReplayDocument(
+        serializeMatchReplayDocument(
+          document,
+        ),
+      );
 
     expect(parsed).toEqual(document);
   });
@@ -104,13 +116,8 @@ describe("match replay JSON", () => {
 
   it("rejects an unsupported format version", () => {
     const json = JSON.stringify({
+      ...createBaseReplay(),
       formatVersion: 999,
-      engineVersion:
-        BELOTE_ENGINE_VERSION,
-      baseSeed: 1000,
-      firstDealer: "PLAYER_0",
-      targetScore: 1000,
-      history: [],
     });
 
     expect(() =>
@@ -122,13 +129,8 @@ describe("match replay JSON", () => {
 
   it("rejects an unsupported engine version", () => {
     const json = JSON.stringify({
-      formatVersion:
-        MATCH_REPLAY_FORMAT_VERSION,
+      ...createBaseReplay(),
       engineVersion: "999.0.0",
-      baseSeed: 1000,
-      firstDealer: "PLAYER_0",
-      targetScore: 1000,
-      history: [],
     });
 
     expect(() =>
@@ -140,14 +142,8 @@ describe("match replay JSON", () => {
 
   it("rejects an invalid base seed", () => {
     const json = JSON.stringify({
-      formatVersion:
-        MATCH_REPLAY_FORMAT_VERSION,
-      engineVersion:
-        BELOTE_ENGINE_VERSION,
+      ...createBaseReplay(),
       baseSeed: 1.5,
-      firstDealer: "PLAYER_0",
-      targetScore: 1000,
-      history: [],
     });
 
     expect(() =>
@@ -159,14 +155,8 @@ describe("match replay JSON", () => {
 
   it("rejects an invalid first dealer", () => {
     const json = JSON.stringify({
-      formatVersion:
-        MATCH_REPLAY_FORMAT_VERSION,
-      engineVersion:
-        BELOTE_ENGINE_VERSION,
-      baseSeed: 1000,
+      ...createBaseReplay(),
       firstDealer: "PLAYER_9",
-      targetScore: 1000,
-      history: [],
     });
 
     expect(() =>
@@ -178,14 +168,8 @@ describe("match replay JSON", () => {
 
   it("rejects an invalid target score", () => {
     const json = JSON.stringify({
-      formatVersion:
-        MATCH_REPLAY_FORMAT_VERSION,
-      engineVersion:
-        BELOTE_ENGINE_VERSION,
-      baseSeed: 1000,
-      firstDealer: "PLAYER_0",
+      ...createBaseReplay(),
       targetScore: 0,
-      history: [],
     });
 
     expect(() =>
@@ -197,13 +181,7 @@ describe("match replay JSON", () => {
 
   it("rejects a non-array history", () => {
     const json = JSON.stringify({
-      formatVersion:
-        MATCH_REPLAY_FORMAT_VERSION,
-      engineVersion:
-        BELOTE_ENGINE_VERSION,
-      baseSeed: 1000,
-      firstDealer: "PLAYER_0",
-      targetScore: 1000,
+      ...createBaseReplay(),
       history: {},
     });
 
@@ -216,13 +194,7 @@ describe("match replay JSON", () => {
 
   it("rejects broken history indexes", () => {
     const json = JSON.stringify({
-      formatVersion:
-        MATCH_REPLAY_FORMAT_VERSION,
-      engineVersion:
-        BELOTE_ENGINE_VERSION,
-      baseSeed: 1000,
-      firstDealer: "PLAYER_0",
-      targetScore: 1000,
+      ...createBaseReplay(),
       history: [
         {
           index: 3,
@@ -241,6 +213,243 @@ describe("match replay JSON", () => {
     ).toThrow(
       "Replay history indexes must be continuous and start at zero.",
     );
+  });
+
+  it("rejects invalid history event types", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "UNKNOWN",
+          dealNumber: 1,
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay history event type is invalid.",
+    );
+  });
+
+  it("rejects invalid bidding players", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "BIDDING_ACTION",
+          dealNumber: 1,
+          action: {
+            type: "PASS",
+            player: "PLAYER_9",
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay bidding action player is invalid.",
+    );
+  });
+
+  it("rejects PASS actions containing a suit", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "BIDDING_ACTION",
+          dealNumber: 1,
+          action: {
+            type: "PASS",
+            player: "PLAYER_1",
+            suit: "HEARTS",
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay PASS action must not contain a suit.",
+    );
+  });
+
+  it("rejects TAKE actions without a valid suit", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "BIDDING_ACTION",
+          dealNumber: 1,
+          action: {
+            type: "TAKE",
+            player: "PLAYER_1",
+            suit: "STARS",
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay TAKE action suit is invalid.",
+    );
+  });
+
+  it("rejects invalid card players", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "CARD_PLAY",
+          dealNumber: 1,
+          player: "PLAYER_9",
+          card: {
+            suit: "HEARTS",
+            rank: "ACE",
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay card play player is invalid.",
+    );
+  });
+
+  it("rejects invalid card suits", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "CARD_PLAY",
+          dealNumber: 1,
+          player: "PLAYER_1",
+          card: {
+            suit: "STARS",
+            rank: "ACE",
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay card suit is invalid.",
+    );
+  });
+
+  it("rejects invalid card ranks", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "CARD_PLAY",
+          dealNumber: 1,
+          player: "PLAYER_1",
+          card: {
+            suit: "HEARTS",
+            rank: "JOKER",
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      parseMatchReplayDocument(json),
+    ).toThrow(
+      "Replay card rank is invalid.",
+    );
+  });
+
+  it("rebuilds parsed bidding actions immutably", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "BIDDING_ACTION",
+          dealNumber: 1,
+          action: {
+            type: "PASS",
+            player: "PLAYER_1",
+          },
+        },
+      ],
+    });
+
+    const parsed =
+      parseMatchReplayDocument(json);
+
+    const event = parsed.history[0];
+
+    expect(
+      Object.isFrozen(event),
+    ).toBe(true);
+
+    if (
+      event?.type ===
+      "BIDDING_ACTION"
+    ) {
+      expect(
+        Object.isFrozen(event.action),
+      ).toBe(true);
+    }
+  });
+
+  it("rebuilds parsed cards immutably", () => {
+    const json = JSON.stringify({
+      ...createBaseReplay(),
+      history: [
+        {
+          index: 0,
+          type: "CARD_PLAY",
+          dealNumber: 1,
+          player: "PLAYER_1",
+          card: {
+            suit: "HEARTS",
+            rank: "ACE",
+          },
+        },
+      ],
+    });
+
+    const parsed =
+      parseMatchReplayDocument(json);
+
+    const event = parsed.history[0];
+
+    if (
+      event?.type !==
+      "CARD_PLAY"
+    ) {
+      throw new Error(
+        "Missing card play event.",
+      );
+    }
+
+    expect(
+      Object.isFrozen(event),
+    ).toBe(true);
+
+    expect(
+      Object.isFrozen(event.card),
+    ).toBe(true);
   });
 
   it("returns an immutable parsed document", () => {
