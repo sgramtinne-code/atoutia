@@ -65,6 +65,14 @@ export {
 } from "./dealCompletion.js";
 
 export {
+  DEAL_PHASES,
+  createDealMachine,
+  type CreateDealMachineOptions,
+  type DealMachineState,
+  type DealPhase,
+} from "./dealMachine.js";
+
+export {
   DEAL_RESULTS,
   resolveDealResult,
   type BeloteBonus,
