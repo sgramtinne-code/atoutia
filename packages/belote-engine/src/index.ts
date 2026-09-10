@@ -103,6 +103,11 @@ export {
 } from "./matchMachine.js";
 
 export {
+  replayMatch,
+  type ReplayMatchOptions,
+} from "./matchReplay.js";
+
+export {
   addDealPointsToMatch,
   createMatchScoreState,
   type MatchScoreState,
