@@ -176,3 +176,8 @@ export {
   createMatchReplayDocument,
   type MatchReplayDocument,
 } from "./matchReplayFormat.js";
+
+export {
+  parseMatchReplayDocument,
+  serializeMatchReplayDocument,
+} from "./matchReplayJson.js";
