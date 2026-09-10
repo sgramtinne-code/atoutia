@@ -9,6 +9,10 @@ import {
   type CreateMatchMachineOptions,
   type MatchMachineState,
 } from "./matchMachine.js";
+import {
+  MATCH_REPLAY_FORMAT_VERSION,
+  type MatchReplayDocument,
+} from "./matchReplayFormat.js";
 
 export interface ReplayMatchOptions
   extends CreateMatchMachineOptions {
@@ -38,11 +42,13 @@ export function replayMatch(
 ): MatchMachineState {
   let state = createMatchMachine({
     baseSeed: options.baseSeed,
+
     ...(options.firstDealer === undefined
       ? {}
       : {
           firstDealer: options.firstDealer,
         }),
+
     ...(options.targetScore === undefined
       ? {}
       : {
@@ -87,4 +93,24 @@ export function replayMatch(
   }
 
   return state;
+}
+
+export function replayMatchDocument(
+  document: MatchReplayDocument,
+): MatchMachineState {
+  if (
+    document.formatVersion !==
+    MATCH_REPLAY_FORMAT_VERSION
+  ) {
+    throw new Error(
+      "Unsupported match replay format version.",
+    );
+  }
+
+  return replayMatch({
+    baseSeed: document.baseSeed,
+    firstDealer: document.firstDealer,
+    targetScore: document.targetScore,
+    history: document.history,
+  });
 }

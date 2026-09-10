@@ -104,6 +104,7 @@ export {
 
 export {
   replayMatch,
+  replayMatchDocument,
   type ReplayMatchOptions,
 } from "./matchReplay.js";
 
@@ -166,4 +167,12 @@ export {
   type MatchHistoryEventType,
 } from "./matchHistory.js";
 
-export const BELOTE_ENGINE_VERSION = "0.1.0";
+export {
+  BELOTE_ENGINE_VERSION,
+} from "./version.js";
+
+export {
+  MATCH_REPLAY_FORMAT_VERSION,
+  createMatchReplayDocument,
+  type MatchReplayDocument,
+} from "./matchReplayFormat.js";

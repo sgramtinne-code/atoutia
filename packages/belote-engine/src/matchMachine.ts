@@ -29,6 +29,7 @@ import {
 
 export interface MatchMachineState {
   readonly baseSeed: number;
+  readonly firstDealer: PlayerPosition;
   readonly dealNumber: number;
   readonly dealer: PlayerPosition;
   readonly score: MatchScoreState;
@@ -120,8 +121,10 @@ export function createMatchMachine(
 ): MatchMachineState {
   assertBaseSeed(options.baseSeed);
 
-  const dealer =
-    options.firstDealer ?? "PLAYER_0";
+  const firstDealer =
+  options.firstDealer ?? "PLAYER_0";
+
+const dealer = firstDealer;
 
   const score = createMatchScoreState(
     options.targetScore ?? 1000,
@@ -143,6 +146,7 @@ export function createMatchMachine(
 
   return Object.freeze({
     baseSeed: options.baseSeed,
+    firstDealer,
     dealNumber,
     dealer,
     score,
