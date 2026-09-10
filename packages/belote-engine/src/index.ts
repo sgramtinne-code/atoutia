@@ -149,4 +149,16 @@ export {
   type TrickSequenceState,
 } from "./trickSequence.js";
 
+export {
+  MATCH_HISTORY_EVENT_TYPES,
+  appendBiddingHistoryEvent,
+  appendCardPlayHistoryEvent,
+  createMatchHistory,
+  type MatchHistory,
+  type MatchHistoryBiddingEvent,
+  type MatchHistoryCardPlayEvent,
+  type MatchHistoryEvent,
+  type MatchHistoryEventType,
+} from "./matchHistory.js";
+
 export const BELOTE_ENGINE_VERSION = "0.1.0";

@@ -12,6 +12,12 @@ import {
   type LitigeState,
 } from "./litige.js";
 import {
+  appendBiddingHistoryEvent,
+  appendCardPlayHistoryEvent,
+  createMatchHistory,
+  type MatchHistory,
+} from "./matchHistory.js";
+import {
   addDealPointsToMatch,
   createMatchScoreState,
   type MatchScoreState,
@@ -28,6 +34,7 @@ export interface MatchMachineState {
   readonly score: MatchScoreState;
   readonly litigeState: LitigeState;
   readonly currentDeal: DealMachineState;
+  readonly history: MatchHistory;
 }
 
 export interface CreateMatchMachineOptions {
@@ -132,6 +139,8 @@ export function createMatchMachine(
     litigeState,
   });
 
+  const history = createMatchHistory();
+
   return Object.freeze({
     baseSeed: options.baseSeed,
     dealNumber,
@@ -139,6 +148,7 @@ export function createMatchMachine(
     score,
     litigeState,
     currentDeal,
+    history,
   });
 }
 
@@ -158,17 +168,28 @@ export function applyMatchBiddingAction(
       action,
     );
 
+  const history =
+    appendBiddingHistoryEvent(
+      state.history,
+      state.dealNumber,
+      action,
+    );
+
+  const stateWithAction =
+    Object.freeze({
+      ...state,
+      currentDeal,
+      history,
+    });
+
   if (currentDeal.phase === "FINISHED") {
     return finalizeFinishedDeal(
-      state,
+      stateWithAction,
       currentDeal,
     );
   }
 
-  return Object.freeze({
-    ...state,
-    currentDeal,
-  });
+  return stateWithAction;
 }
 
 export function applyMatchCardPlay(
@@ -189,16 +210,28 @@ export function applyMatchCardPlay(
       card,
     );
 
+  const history =
+    appendCardPlayHistoryEvent(
+      state.history,
+      state.dealNumber,
+      player,
+      card,
+    );
+
+  const stateWithAction =
+    Object.freeze({
+      ...state,
+      currentDeal: dealPlay.state,
+      history,
+    });
+
   const nextState =
     dealPlay.state.phase === "FINISHED"
       ? finalizeFinishedDeal(
-          state,
+          stateWithAction,
           dealPlay.state,
         )
-      : Object.freeze({
-          ...state,
-          currentDeal: dealPlay.state,
-        });
+      : stateWithAction;
 
   return Object.freeze({
     state: nextState,
