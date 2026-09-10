@@ -93,6 +93,13 @@ export {
 } from "./litige.js";
 
 export {
+  advanceMatchToNextDeal,
+  createMatchMachine,
+  type CreateMatchMachineOptions,
+  type MatchMachineState,
+} from "./matchMachine.js";
+
+export {
   addDealPointsToMatch,
   createMatchScoreState,
   type MatchScoreState,

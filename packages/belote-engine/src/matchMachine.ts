@@ -1,0 +1,143 @@
+import {
+  createDealMachine,
+  type DealMachineState,
+} from "./dealMachine.js";
+import {
+  addDealPointsToMatch,
+  createMatchScoreState,
+  type MatchScoreState,
+} from "./matchScore.js";
+import {
+  createLitigeState,
+  type LitigeState,
+} from "./litige.js";
+import {
+  nextPlayer,
+  type PlayerPosition,
+} from "./players.js";
+
+export interface MatchMachineState {
+  readonly baseSeed: number;
+  readonly dealNumber: number;
+  readonly dealer: PlayerPosition;
+  readonly score: MatchScoreState;
+  readonly litigeState: LitigeState;
+  readonly currentDeal: DealMachineState;
+}
+
+export interface CreateMatchMachineOptions {
+  readonly baseSeed: number;
+  readonly firstDealer?: PlayerPosition;
+  readonly targetScore?: number;
+}
+
+function assertBaseSeed(baseSeed: number): void {
+  if (!Number.isInteger(baseSeed)) {
+    throw new Error(
+      "Match machine base seed must be an integer.",
+    );
+  }
+}
+
+function getDealSeed(
+  baseSeed: number,
+  dealNumber: number,
+): number {
+  return baseSeed + dealNumber - 1;
+}
+
+export function createMatchMachine(
+  options: CreateMatchMachineOptions,
+): MatchMachineState {
+  assertBaseSeed(options.baseSeed);
+
+  const dealer =
+    options.firstDealer ?? "PLAYER_0";
+
+  const score = createMatchScoreState(
+    options.targetScore ?? 1000,
+  );
+
+  const litigeState = createLitigeState();
+
+  const dealNumber = 1;
+
+  const currentDeal = createDealMachine({
+    seed: getDealSeed(
+      options.baseSeed,
+      dealNumber,
+    ),
+    dealer,
+    litigeState,
+  });
+
+  return Object.freeze({
+    baseSeed: options.baseSeed,
+    dealNumber,
+    dealer,
+    score,
+    litigeState,
+    currentDeal,
+  });
+}
+
+export function advanceMatchToNextDeal(
+  state: MatchMachineState,
+): MatchMachineState {
+  if (state.currentDeal.phase !== "FINISHED") {
+    throw new Error(
+      "Current deal must be finished before starting the next deal.",
+    );
+  }
+
+  if (state.score.completed) {
+    throw new Error(
+      "Match is already completed.",
+    );
+  }
+
+  let score = state.score;
+
+  if (state.currentDeal.resolution !== null) {
+    score = addDealPointsToMatch(
+      state.score,
+      state.currentDeal.resolution
+        .finalAwardedPoints,
+    );
+  }
+
+  const litigeState =
+    state.currentDeal.litigeState;
+
+  if (score.completed) {
+    return Object.freeze({
+      ...state,
+      score,
+      litigeState,
+    });
+  }
+
+  const dealNumber =
+    state.dealNumber + 1;
+
+  const dealer =
+    nextPlayer(state.dealer);
+
+  const currentDeal = createDealMachine({
+    seed: getDealSeed(
+      state.baseSeed,
+      dealNumber,
+    ),
+    dealer,
+    litigeState,
+  });
+
+  return Object.freeze({
+    ...state,
+    dealNumber,
+    dealer,
+    score,
+    litigeState,
+    currentDeal,
+  });
+}
