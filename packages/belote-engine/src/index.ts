@@ -191,3 +191,9 @@ export {
   createCanonicalMatchReplayJson,
   hashMatchReplayDocument,
 } from "./matchReplayHash.js";
+
+export {
+  createMatchReplayIntegrityDocument,
+  verifyMatchReplayIntegrity,
+  type MatchReplayIntegrityDocument,
+} from "./matchReplayIntegrity.js";
