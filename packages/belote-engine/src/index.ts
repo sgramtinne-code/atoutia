@@ -66,6 +66,7 @@ export {
 
 export {
   DEAL_PHASES,
+  applyDealMachineBiddingAction,
   createDealMachine,
   type CreateDealMachineOptions,
   type DealMachineState,

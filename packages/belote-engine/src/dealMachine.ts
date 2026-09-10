@@ -1,12 +1,20 @@
-import type { BiddingState } from "./bidding.js";
-import { createBiddingState } from "./bidding.js";
-import type { Card } from "./cards.js";
+import {
+  applyBiddingAction,
+  createBiddingState,
+  type BiddingAction,
+  type BiddingState,
+} from "./bidding.js";
+import type { Card, Suit } from "./cards.js";
 import { createDeck } from "./cards.js";
 import {
   createInitialDeal,
   type InitialDeal,
   type InitialDealPattern,
 } from "./deal.js";
+import {
+  completeDealAfterTake,
+  type CompletedDeal,
+} from "./dealCompletion.js";
 import { shuffleDeck } from "./deck.js";
 import type { PlayerPosition } from "./players.js";
 import { Mulberry32Random } from "./random.js";
@@ -27,6 +35,9 @@ export interface DealMachineState {
   readonly shuffledDeck: readonly Card[];
   readonly initialDeal: InitialDeal;
   readonly bidding: BiddingState;
+  readonly completedDeal: CompletedDeal | null;
+  readonly taker: PlayerPosition | null;
+  readonly trumpSuit: Suit | null;
 }
 
 export interface CreateDealMachineOptions {
@@ -73,6 +84,66 @@ export function createDealMachine(
     phase: "BIDDING",
     shuffledDeck,
     initialDeal,
+    bidding,
+    completedDeal: null,
+    taker: null,
+    trumpSuit: null,
+  });
+}
+
+export function applyDealMachineBiddingAction(
+  state: DealMachineState,
+  action: BiddingAction,
+): DealMachineState {
+  if (state.phase !== "BIDDING") {
+    throw new Error(
+      "Bidding actions are only allowed during the bidding phase.",
+    );
+  }
+
+  const bidding = applyBiddingAction(
+    state.bidding,
+    action,
+  );
+
+  if (bidding.status === "TAKEN") {
+    if (
+      bidding.taker === null ||
+      bidding.trumpSuit === null
+    ) {
+      throw new Error(
+        "Taken bidding must define both taker and trump suit.",
+      );
+    }
+
+    const completedDeal = completeDealAfterTake(
+      state.initialDeal,
+      bidding.taker,
+    );
+
+    return Object.freeze({
+      ...state,
+      phase: "PLAYING",
+      bidding,
+      completedDeal,
+      taker: bidding.taker,
+      trumpSuit: bidding.trumpSuit,
+    });
+  }
+
+  if (bidding.status === "ALL_PASSED") {
+    return Object.freeze({
+      ...state,
+      phase: "FINISHED",
+      bidding,
+      completedDeal: null,
+      taker: null,
+      trumpSuit: null,
+    });
+  }
+
+  return Object.freeze({
+    ...state,
     bidding,
   });
 }
