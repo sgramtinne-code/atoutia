@@ -56,6 +56,58 @@ function getDealSeed(
   return baseSeed + dealNumber - 1;
 }
 
+function finalizeFinishedDeal(
+  state: MatchMachineState,
+  finishedDeal: DealMachineState,
+): MatchMachineState {
+  if (finishedDeal.phase !== "FINISHED") {
+    throw new Error(
+      "Only a finished deal can be finalized.",
+    );
+  }
+
+  let score = state.score;
+
+  if (finishedDeal.resolution !== null) {
+    score = addDealPointsToMatch(
+      score,
+      finishedDeal.resolution.finalAwardedPoints,
+    );
+  }
+
+  const litigeState = finishedDeal.litigeState;
+
+  if (score.completed) {
+    return Object.freeze({
+      ...state,
+      score,
+      litigeState,
+      currentDeal: finishedDeal,
+    });
+  }
+
+  const dealNumber = state.dealNumber + 1;
+  const dealer = nextPlayer(state.dealer);
+
+  const currentDeal = createDealMachine({
+    seed: getDealSeed(
+      state.baseSeed,
+      dealNumber,
+    ),
+    dealer,
+    litigeState,
+  });
+
+  return Object.freeze({
+    ...state,
+    dealNumber,
+    dealer,
+    score,
+    litigeState,
+    currentDeal,
+  });
+}
+
 export function createMatchMachine(
   options: CreateMatchMachineOptions,
 ): MatchMachineState {
@@ -69,7 +121,6 @@ export function createMatchMachine(
   );
 
   const litigeState = createLitigeState();
-
   const dealNumber = 1;
 
   const currentDeal = createDealMachine({
@@ -107,6 +158,13 @@ export function applyMatchBiddingAction(
       action,
     );
 
+  if (currentDeal.phase === "FINISHED") {
+    return finalizeFinishedDeal(
+      state,
+      currentDeal,
+    );
+  }
+
   return Object.freeze({
     ...state,
     currentDeal,
@@ -131,11 +189,16 @@ export function applyMatchCardPlay(
       card,
     );
 
-  const nextState: MatchMachineState =
-    Object.freeze({
-      ...state,
-      currentDeal: dealPlay.state,
-    });
+  const nextState =
+    dealPlay.state.phase === "FINISHED"
+      ? finalizeFinishedDeal(
+          state,
+          dealPlay.state,
+        )
+      : Object.freeze({
+          ...state,
+          currentDeal: dealPlay.state,
+        });
 
   return Object.freeze({
     state: nextState,
@@ -158,48 +221,8 @@ export function advanceMatchToNextDeal(
     );
   }
 
-  let score = state.score;
-
-  if (state.currentDeal.resolution !== null) {
-    score = addDealPointsToMatch(
-      state.score,
-      state.currentDeal.resolution
-        .finalAwardedPoints,
-    );
-  }
-
-  const litigeState =
-    state.currentDeal.litigeState;
-
-  if (score.completed) {
-    return Object.freeze({
-      ...state,
-      score,
-      litigeState,
-    });
-  }
-
-  const dealNumber =
-    state.dealNumber + 1;
-
-  const dealer =
-    nextPlayer(state.dealer);
-
-  const currentDeal = createDealMachine({
-    seed: getDealSeed(
-      state.baseSeed,
-      dealNumber,
-    ),
-    dealer,
-    litigeState,
-  });
-
-  return Object.freeze({
-    ...state,
-    dealNumber,
-    dealer,
-    score,
-    litigeState,
-    currentDeal,
-  });
+  return finalizeFinishedDeal(
+    state,
+    state.currentDeal,
+  );
 }
