@@ -67,8 +67,10 @@ export {
 export {
   DEAL_PHASES,
   applyDealMachineBiddingAction,
+  applyDealMachineCardPlay,
   createDealMachine,
   type CreateDealMachineOptions,
+  type DealMachineCardPlayResult,
   type DealMachineState,
   type DealPhase,
 } from "./dealMachine.js";

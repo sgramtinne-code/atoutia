@@ -1,13 +1,14 @@
 import {
+  createBeloteState,
+  type BeloteEvent,
+  type BeloteState,
+} from "./belote.js";
+import {
   applyBiddingAction,
   createBiddingState,
   type BiddingAction,
   type BiddingState,
 } from "./bidding.js";
-import {
-  createBeloteState,
-  type BeloteState,
-} from "./belote.js";
 import type { Card, Suit } from "./cards.js";
 import { createDeck } from "./cards.js";
 import {
@@ -26,7 +27,13 @@ import {
 } from "./players.js";
 import { Mulberry32Random } from "./random.js";
 import {
+  playCard,
+  type TrickPlayResult,
+} from "./trickPlay.js";
+import {
+  advanceToNextTrick,
   createTrickSequence,
+  type CompletedTrick,
   type TrickSequenceState,
 } from "./trickSequence.js";
 
@@ -59,6 +66,11 @@ export interface CreateDealMachineOptions {
   readonly seed: number;
   readonly dealer: PlayerPosition;
   readonly initialDealPattern?: InitialDealPattern;
+}
+
+export interface DealMachineCardPlayResult {
+  readonly state: DealMachineState;
+  readonly beloteEvent: BeloteEvent | null;
 }
 
 function assertSeed(seed: number): void {
@@ -186,5 +198,107 @@ export function applyDealMachineBiddingAction(
   return Object.freeze({
     ...state,
     bidding,
+  });
+}
+
+function createSequenceAfterPlay(
+  previousSequence: TrickSequenceState,
+  playResult: TrickPlayResult,
+): TrickSequenceState {
+  const sequenceAfterPlay: TrickSequenceState =
+    Object.freeze({
+      hands: playResult.hands,
+      currentTrick: playResult.trick,
+      completedTricks:
+        previousSequence.completedTricks,
+    });
+
+  if (!playResult.trick.completed) {
+    return sequenceAfterPlay;
+  }
+
+  if (
+    previousSequence.completedTricks.length < 7
+  ) {
+    return advanceToNextTrick(
+      sequenceAfterPlay,
+    );
+  }
+
+  if (playResult.trick.winner === null) {
+    throw new Error(
+      "A completed final trick must have a winner.",
+    );
+  }
+
+  const finalCompletedTrick: CompletedTrick =
+    Object.freeze({
+      leader: playResult.trick.leader,
+      winner: playResult.trick.winner,
+      trick: playResult.trick,
+    });
+
+  return Object.freeze({
+    hands: playResult.hands,
+    currentTrick: playResult.trick,
+    completedTricks: Object.freeze([
+      ...previousSequence.completedTricks,
+      finalCompletedTrick,
+    ]),
+  });
+}
+
+export function applyDealMachineCardPlay(
+  state: DealMachineState,
+  player: PlayerPosition,
+  card: Card,
+): DealMachineCardPlayResult {
+  if (state.phase !== "PLAYING") {
+    throw new Error(
+      "Cards can only be played during the playing phase.",
+    );
+  }
+
+  if (
+    state.trumpSuit === null ||
+    state.belote === null ||
+    state.trickSequence === null
+  ) {
+    throw new Error(
+      "Playing phase requires trump, Belote and trick sequence state.",
+    );
+  }
+
+  const playResult = playCard(
+    state.trickSequence.hands,
+    state.trickSequence.currentTrick,
+    player,
+    card,
+    state.trumpSuit,
+    state.belote,
+  );
+
+  const trickSequence =
+    createSequenceAfterPlay(
+      state.trickSequence,
+      playResult,
+    );
+
+  const finished =
+    trickSequence.completedTricks.length === 8;
+
+  const nextState: DealMachineState =
+    Object.freeze({
+      ...state,
+      phase: finished
+        ? "FINISHED"
+        : "PLAYING",
+      belote: playResult.beloteState,
+      trickSequence,
+    });
+
+  return Object.freeze({
+    state: nextState,
+    beloteEvent: playResult.beloteEvent,
   });
 }
