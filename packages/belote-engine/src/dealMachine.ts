@@ -4,6 +4,10 @@ import {
   type BiddingAction,
   type BiddingState,
 } from "./bidding.js";
+import {
+  createBeloteState,
+  type BeloteState,
+} from "./belote.js";
 import type { Card, Suit } from "./cards.js";
 import { createDeck } from "./cards.js";
 import {
@@ -16,8 +20,15 @@ import {
   type CompletedDeal,
 } from "./dealCompletion.js";
 import { shuffleDeck } from "./deck.js";
-import type { PlayerPosition } from "./players.js";
+import {
+  nextPlayer,
+  type PlayerPosition,
+} from "./players.js";
 import { Mulberry32Random } from "./random.js";
+import {
+  createTrickSequence,
+  type TrickSequenceState,
+} from "./trickSequence.js";
 
 export const DEAL_PHASES = [
   "BIDDING",
@@ -35,9 +46,13 @@ export interface DealMachineState {
   readonly shuffledDeck: readonly Card[];
   readonly initialDeal: InitialDeal;
   readonly bidding: BiddingState;
+
   readonly completedDeal: CompletedDeal | null;
   readonly taker: PlayerPosition | null;
   readonly trumpSuit: Suit | null;
+
+  readonly belote: BeloteState | null;
+  readonly trickSequence: TrickSequenceState | null;
 }
 
 export interface CreateDealMachineOptions {
@@ -85,9 +100,13 @@ export function createDealMachine(
     shuffledDeck,
     initialDeal,
     bidding,
+
     completedDeal: null,
     taker: null,
     trumpSuit: null,
+
+    belote: null,
+    trickSequence: null,
   });
 }
 
@@ -121,13 +140,31 @@ export function applyDealMachineBiddingAction(
       bidding.taker,
     );
 
+    const belote = createBeloteState(
+      completedDeal.hands,
+      bidding.trumpSuit,
+    );
+
+    const firstLeader = nextPlayer(
+      state.dealer,
+    );
+
+    const trickSequence = createTrickSequence(
+      completedDeal.hands,
+      firstLeader,
+    );
+
     return Object.freeze({
       ...state,
       phase: "PLAYING",
       bidding,
+
       completedDeal,
       taker: bidding.taker,
       trumpSuit: bidding.trumpSuit,
+
+      belote,
+      trickSequence,
     });
   }
 
@@ -136,9 +173,13 @@ export function applyDealMachineBiddingAction(
       ...state,
       phase: "FINISHED",
       bidding,
+
       completedDeal: null,
       taker: null,
       trumpSuit: null,
+
+      belote: null,
+      trickSequence: null,
     });
   }
 
