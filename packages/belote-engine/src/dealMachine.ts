@@ -12,6 +12,10 @@ import {
 import type { Card, Suit } from "./cards.js";
 import { createDeck } from "./cards.js";
 import {
+  resolveCompleteDeal,
+  type CompleteDealResolution,
+} from "./completeDealResult.js";
+import {
   createInitialDeal,
   type InitialDeal,
   type InitialDealPattern,
@@ -21,6 +25,10 @@ import {
   type CompletedDeal,
 } from "./dealCompletion.js";
 import { shuffleDeck } from "./deck.js";
+import {
+  createLitigeState,
+  type LitigeState,
+} from "./litige.js";
 import {
   nextPlayer,
   type PlayerPosition,
@@ -60,12 +68,16 @@ export interface DealMachineState {
 
   readonly belote: BeloteState | null;
   readonly trickSequence: TrickSequenceState | null;
+
+  readonly litigeState: LitigeState;
+  readonly resolution: CompleteDealResolution | null;
 }
 
 export interface CreateDealMachineOptions {
   readonly seed: number;
   readonly dealer: PlayerPosition;
   readonly initialDealPattern?: InitialDealPattern;
+  readonly litigeState?: LitigeState;
 }
 
 export interface DealMachineCardPlayResult {
@@ -81,10 +93,29 @@ function assertSeed(seed: number): void {
   }
 }
 
+function assertLitigeState(
+  state: LitigeState,
+): void {
+  if (
+    !Number.isInteger(state.pendingPoints) ||
+    state.pendingPoints < 0
+  ) {
+    throw new Error(
+      "Pending litige points must be a non-negative integer.",
+    );
+  }
+}
+
 export function createDealMachine(
   options: CreateDealMachineOptions,
 ): DealMachineState {
   assertSeed(options.seed);
+
+  const litigeState =
+    options.litigeState ??
+    createLitigeState();
+
+  assertLitigeState(litigeState);
 
   const sourceDeck = createDeck();
 
@@ -119,6 +150,9 @@ export function createDealMachine(
 
     belote: null,
     trickSequence: null,
+
+    litigeState,
+    resolution: null,
   });
 }
 
@@ -177,6 +211,8 @@ export function applyDealMachineBiddingAction(
 
       belote,
       trickSequence,
+
+      resolution: null,
     });
   }
 
@@ -192,6 +228,8 @@ export function applyDealMachineBiddingAction(
 
       belote: null,
       trickSequence: null,
+
+      resolution: null,
     });
   }
 
@@ -261,11 +299,12 @@ export function applyDealMachineCardPlay(
 
   if (
     state.trumpSuit === null ||
+    state.taker === null ||
     state.belote === null ||
     state.trickSequence === null
   ) {
     throw new Error(
-      "Playing phase requires trump, Belote and trick sequence state.",
+      "Playing phase requires taker, trump, Belote and trick sequence state.",
     );
   }
 
@@ -287,14 +326,40 @@ export function applyDealMachineCardPlay(
   const finished =
     trickSequence.completedTricks.length === 8;
 
+  if (finished) {
+    const resolution = resolveCompleteDeal(
+      trickSequence.completedTricks,
+      state.trumpSuit,
+      state.taker,
+      playResult.beloteState,
+      state.litigeState,
+    );
+
+    const nextState: DealMachineState =
+      Object.freeze({
+        ...state,
+        phase: "FINISHED",
+        belote: playResult.beloteState,
+        trickSequence,
+        litigeState:
+          resolution.litigeResolution
+            .nextLitigeState,
+        resolution,
+      });
+
+    return Object.freeze({
+      state: nextState,
+      beloteEvent: playResult.beloteEvent,
+    });
+  }
+
   const nextState: DealMachineState =
     Object.freeze({
       ...state,
-      phase: finished
-        ? "FINISHED"
-        : "PLAYING",
+      phase: "PLAYING",
       belote: playResult.beloteState,
       trickSequence,
+      resolution: null,
     });
 
   return Object.freeze({
