@@ -202,3 +202,9 @@ export {
   parseAndVerifyMatchReplayIntegrityJson,
   serializeMatchReplayIntegrityDocument,
 } from "./matchReplayIntegrityJson.js";
+
+export {
+  MATCH_REPLAY_ID_PREFIX,
+  createMatchReplayId,
+  isMatchReplayId,
+} from "./matchReplayId.js";
