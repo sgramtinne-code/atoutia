@@ -215,3 +215,8 @@ export {
   type PublicMatchScoreSnapshot,
   type PublicMatchSnapshot,
 } from "./publicMatchSnapshot.js";
+
+export {
+  createPlayerMatchSnapshot,
+  type PlayerMatchSnapshot,
+} from "./playerMatchSnapshot.js";
