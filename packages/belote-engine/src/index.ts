@@ -227,3 +227,8 @@ export {
   type PlayerActionMode,
   type PlayerAvailableActions,
 } from "./playerAvailableActions.js";
+
+export {
+  createPlayerClientSnapshot,
+  type PlayerClientSnapshot,
+} from "./playerClientSnapshot.js";
