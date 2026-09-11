@@ -197,3 +197,8 @@ export {
   verifyMatchReplayIntegrity,
   type MatchReplayIntegrityDocument,
 } from "./matchReplayIntegrity.js";
+
+export {
+  parseAndVerifyMatchReplayIntegrityJson,
+  serializeMatchReplayIntegrityDocument,
+} from "./matchReplayIntegrityJson.js";
