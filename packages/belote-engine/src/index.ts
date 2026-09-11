@@ -232,3 +232,9 @@ export {
   createPlayerClientSnapshot,
   type PlayerClientSnapshot,
 } from "./playerClientSnapshot.js";
+
+export {
+  PLAYER_CLIENT_SNAPSHOT_FORMAT_VERSION,
+  createPlayerClientSnapshotDocument,
+  type PlayerClientSnapshotDocument,
+} from "./playerClientSnapshotFormat.js";
