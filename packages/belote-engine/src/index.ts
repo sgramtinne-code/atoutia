@@ -220,3 +220,10 @@ export {
   createPlayerMatchSnapshot,
   type PlayerMatchSnapshot,
 } from "./playerMatchSnapshot.js";
+
+export {
+  PLAYER_ACTION_MODES,
+  createPlayerAvailableActions,
+  type PlayerActionMode,
+  type PlayerAvailableActions,
+} from "./playerAvailableActions.js";
