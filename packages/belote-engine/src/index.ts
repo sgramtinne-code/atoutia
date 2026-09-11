@@ -238,3 +238,8 @@ export {
   createPlayerClientSnapshotDocument,
   type PlayerClientSnapshotDocument,
 } from "./playerClientSnapshotFormat.js";
+
+export {
+  parsePlayerClientSnapshotDocument,
+  serializePlayerClientSnapshotDocument,
+} from "./playerClientSnapshotJson.js";
