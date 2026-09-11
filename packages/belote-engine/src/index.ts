@@ -208,3 +208,10 @@ export {
   createMatchReplayId,
   isMatchReplayId,
 } from "./matchReplayId.js";
+
+export {
+  createPublicMatchSnapshot,
+  type PublicCurrentTrickSnapshot,
+  type PublicMatchScoreSnapshot,
+  type PublicMatchSnapshot,
+} from "./publicMatchSnapshot.js";
