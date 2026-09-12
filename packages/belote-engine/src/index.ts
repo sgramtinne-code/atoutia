@@ -337,3 +337,18 @@ export {
   type ManagedLiveMatchRoom,
   type ReleaseManagedLiveMatchRoomSeatOptions,
 } from "./liveMatchRoomLifecycle.js";
+
+export {
+  applyRevisionedLiveMatchRoomCommand,
+  claimRevisionedLiveMatchRoomSeat,
+  createRevisionedLiveMatchRoom,
+  createRevisionedLiveMatchRoomParticipantSnapshot,
+  releaseRevisionedLiveMatchRoomSeat,
+  startRevisionedLiveMatchRoom,
+  type ApplyRevisionedLiveMatchRoomCommandOptions,
+  type ApplyRevisionedLiveMatchRoomCommandResult,
+  type ClaimRevisionedLiveMatchRoomSeatOptions,
+  type ReleaseRevisionedLiveMatchRoomSeatOptions,
+  type RevisionedLiveMatchRoom,
+  type StartRevisionedLiveMatchRoomOptions,
+} from "./liveMatchRoomRevision.js";
