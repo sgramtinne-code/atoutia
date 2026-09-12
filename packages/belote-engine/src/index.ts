@@ -264,3 +264,9 @@ export {
 export {
   applyPlayerCommandDocument,
 } from "./playerCommandApply.js";
+
+export {
+  applyMatchSessionCommand,
+  type ApplyMatchSessionCommandOptions,
+  type MatchSessionCommandResult,
+} from "./matchSession.js";
