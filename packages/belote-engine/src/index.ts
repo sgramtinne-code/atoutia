@@ -364,3 +364,14 @@ export {
   parseLiveMatchRoomSnapshotDocument,
   serializeLiveMatchRoomSnapshotDocument,
 } from "./liveMatchRoomSnapshotJson.js";
+
+export {
+  LIVE_MATCH_ROOM_COMMAND_FORMAT_VERSION,
+  createLiveMatchRoomCommandDocument,
+  type LiveMatchRoomCommandDocument,
+} from "./liveMatchRoomCommandFormat.js";
+
+export {
+  parseLiveMatchRoomCommandDocument,
+  serializeLiveMatchRoomCommandDocument,
+} from "./liveMatchRoomCommandJson.js";
