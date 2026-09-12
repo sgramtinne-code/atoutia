@@ -359,3 +359,8 @@ export {
   type LiveMatchRoomSeatSnapshot,
   type LiveMatchRoomSnapshotDocument,
 } from "./liveMatchRoomSnapshotFormat.js";
+
+export {
+  parseLiveMatchRoomSnapshotDocument,
+  serializeLiveMatchRoomSnapshotDocument,
+} from "./liveMatchRoomSnapshotJson.js";
