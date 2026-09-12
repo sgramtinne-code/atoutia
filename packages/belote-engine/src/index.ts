@@ -300,3 +300,11 @@ export {
   type LiveMatchSeats,
   type ReleaseLiveMatchSeatOptions,
 } from "./liveMatchSeats.js";
+
+export {
+  applyParticipantCommand,
+  createParticipantSnapshot,
+  type ApplyParticipantCommandOptions,
+  type ApplyParticipantCommandResult,
+  type LiveMatchParticipantContext,
+} from "./liveMatchParticipantSession.js";
