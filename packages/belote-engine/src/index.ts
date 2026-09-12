@@ -260,3 +260,7 @@ export {
   parsePlayerCommandDocument,
   serializePlayerCommandDocument,
 } from "./playerCommandJson.js";
+
+export {
+  applyPlayerCommandDocument,
+} from "./playerCommandApply.js";
