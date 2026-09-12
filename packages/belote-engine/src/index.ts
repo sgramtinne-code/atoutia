@@ -277,3 +277,13 @@ export {
   isMatchSessionId,
   type MatchSessionRandomBytes,
 } from "./matchSessionId.js";
+
+export {
+  createLiveMatchSession,
+  createLiveMatchSessionSnapshot,
+  applyLiveMatchSessionCommand,
+  type ApplyLiveMatchSessionCommandOptions,
+  type CreateLiveMatchSessionOptions,
+  type LiveMatchSession,
+  type LiveMatchSessionCommandResult,
+} from "./liveMatchSession.js";
