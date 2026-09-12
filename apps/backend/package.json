@@ -1,0 +1,25 @@
+{
+  "name": "@atoutia/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend autoritaire Atoutia.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.20.0 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@atoutia/belote-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

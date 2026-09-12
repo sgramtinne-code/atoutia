@@ -8,8 +8,25 @@
   "engines": {
     "node": ">=24.20.0 <25"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
     "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.4",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
   }
 }
