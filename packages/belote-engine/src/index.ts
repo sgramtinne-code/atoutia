@@ -287,3 +287,16 @@ export {
   type LiveMatchSession,
   type LiveMatchSessionCommandResult,
 } from "./liveMatchSession.js";
+
+export {
+  areAllLiveMatchSeatsOccupied,
+  claimLiveMatchSeat,
+  createEmptyLiveMatchSeats,
+  getLiveMatchSeatForParticipant,
+  getLiveMatchSeatParticipant,
+  isLiveMatchSeatOccupied,
+  releaseLiveMatchSeat,
+  type ClaimLiveMatchSeatOptions,
+  type LiveMatchSeats,
+  type ReleaseLiveMatchSeatOptions,
+} from "./liveMatchSeats.js";
