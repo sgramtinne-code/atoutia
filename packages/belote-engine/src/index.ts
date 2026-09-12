@@ -270,3 +270,10 @@ export {
   type ApplyMatchSessionCommandOptions,
   type MatchSessionCommandResult,
 } from "./matchSession.js";
+
+export {
+  MATCH_SESSION_ID_PREFIX,
+  createMatchSessionId,
+  isMatchSessionId,
+  type MatchSessionRandomBytes,
+} from "./matchSessionId.js";
