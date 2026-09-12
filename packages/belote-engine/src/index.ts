@@ -352,3 +352,10 @@ export {
   type RevisionedLiveMatchRoom,
   type StartRevisionedLiveMatchRoomOptions,
 } from "./liveMatchRoomRevision.js";
+
+export {
+  LIVE_MATCH_ROOM_SNAPSHOT_FORMAT_VERSION,
+  createLiveMatchRoomSnapshotDocument,
+  type LiveMatchRoomSeatSnapshot,
+  type LiveMatchRoomSnapshotDocument,
+} from "./liveMatchRoomSnapshotFormat.js";
