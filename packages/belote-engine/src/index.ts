@@ -375,3 +375,9 @@ export {
   parseLiveMatchRoomCommandDocument,
   serializeLiveMatchRoomCommandDocument,
 } from "./liveMatchRoomCommandJson.js";
+
+export {
+  applyLiveMatchRoomNetworkCommand,
+  type ApplyLiveMatchRoomNetworkCommandOptions,
+  type ApplyLiveMatchRoomNetworkCommandResult,
+} from "./liveMatchRoomNetworkAdapter.js";
