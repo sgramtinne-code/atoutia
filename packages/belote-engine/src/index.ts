@@ -321,3 +321,19 @@ export {
   type LiveMatchRoom,
   type ReleaseLiveMatchRoomSeatOptions,
 } from "./liveMatchRoom.js";
+
+export {
+  LIVE_MATCH_ROOM_PHASES,
+  applyManagedLiveMatchRoomCommand,
+  claimManagedLiveMatchRoomSeat,
+  createManagedLiveMatchRoom,
+  createManagedLiveMatchRoomParticipantSnapshot,
+  releaseManagedLiveMatchRoomSeat,
+  startManagedLiveMatchRoom,
+  type ApplyManagedLiveMatchRoomCommandOptions,
+  type ApplyManagedLiveMatchRoomCommandResult,
+  type ClaimManagedLiveMatchRoomSeatOptions,
+  type LiveMatchRoomPhase,
+  type ManagedLiveMatchRoom,
+  type ReleaseManagedLiveMatchRoomSeatOptions,
+} from "./liveMatchRoomLifecycle.js";
