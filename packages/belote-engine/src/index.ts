@@ -308,3 +308,16 @@ export {
   type ApplyParticipantCommandResult,
   type LiveMatchParticipantContext,
 } from "./liveMatchParticipantSession.js";
+
+export {
+  applyLiveMatchRoomParticipantCommand,
+  claimLiveMatchRoomSeat,
+  createLiveMatchRoom,
+  createLiveMatchRoomParticipantSnapshot,
+  releaseLiveMatchRoomSeat,
+  type ApplyLiveMatchRoomParticipantCommandOptions,
+  type ApplyLiveMatchRoomParticipantCommandResult,
+  type ClaimLiveMatchRoomSeatOptions,
+  type LiveMatchRoom,
+  type ReleaseLiveMatchRoomSeatOptions,
+} from "./liveMatchRoom.js";
