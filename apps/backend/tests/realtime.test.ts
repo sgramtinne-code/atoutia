@@ -1,10 +1,10 @@
 import type {
-  AddressInfo,
-} from "node:net";
-
-import type {
   Server,
 } from "node:http";
+
+import type {
+  AddressInfo,
+} from "node:net";
 
 import {
   afterEach,
@@ -31,13 +31,61 @@ import {
 } from "../src/server.js";
 
 interface RunningServer {
-  readonly server: Server;
+  readonly server:
+    Server;
+
   readonly realtime:
     RealtimeServer;
+
   readonly roomStore:
     LiveRoomStore;
-  readonly baseUrl: string;
-  readonly wsUrl: string;
+
+  readonly wsUrl:
+    string;
+}
+
+interface SnapshotEnvelope {
+  readonly protocolVersion:
+    number;
+
+  readonly type:
+    "SNAPSHOT";
+
+  readonly snapshot: {
+    readonly sessionId:
+      string;
+
+    readonly revision:
+      number;
+
+    readonly player:
+      string;
+
+    readonly game: {
+      readonly match: {
+        readonly public: {
+          readonly biddingPlayer:
+            string | null;
+        };
+      };
+
+      readonly actions: {
+        readonly mode:
+          string;
+      };
+    };
+  };
+}
+
+interface ErrorEnvelope {
+  readonly protocolVersion:
+    number;
+
+  readonly type:
+    "ERROR";
+
+  readonly code:
+    string;
 }
 
 const runningServers:
@@ -72,7 +120,9 @@ async function startServer():
       server.listen(
         0,
         "127.0.0.1",
-        () => resolve(),
+        () => {
+          resolve();
+        },
       );
     },
   );
@@ -85,23 +135,20 @@ async function startServer():
     typeof address === "string"
   ) {
     throw new Error(
-      "Expected TCP server address",
+      "Expected TCP server address.",
     );
   }
 
-  const {
-    port,
-  } =
-    address as AddressInfo;
+  const port =
+    (address as AddressInfo).port;
 
   const result:
     RunningServer = {
       server,
-      realtime,
-      roomStore,
 
-      baseUrl:
-        `http://127.0.0.1:${port}`,
+      realtime,
+
+      roomStore,
 
       wsUrl:
         `ws://127.0.0.1:${port}/ws`,
@@ -160,7 +207,9 @@ function waitForOpen(
     ) => {
       socket.once(
         "open",
-        () => resolve(),
+        () => {
+          resolve();
+        },
       );
 
       socket.once(
@@ -171,10 +220,10 @@ function waitForOpen(
   );
 }
 
-function waitForMessage(
+function waitForMessage<T>(
   socket: WebSocket,
-): Promise<unknown> {
-  return new Promise(
+): Promise<T> {
+  return new Promise<T>(
     (
       resolve,
       reject,
@@ -185,10 +234,13 @@ function waitForMessage(
           data,
         ) => {
           try {
-            resolve(
+            const parsed =
               JSON.parse(
                 data.toString(),
-              ),
+              ) as T;
+
+            resolve(
+              parsed,
             );
           } catch (
             error: unknown
@@ -218,9 +270,11 @@ function waitForClose(
         "close",
         (
           code,
-        ) => resolve(
-          code,
-        ),
+        ) => {
+          resolve(
+            code,
+          );
+        },
       );
 
       socket.once(
@@ -231,10 +285,129 @@ function waitForClose(
   );
 }
 
+function createStartedRoom(
+  roomStore:
+    LiveRoomStore,
+): string {
+  const room =
+    roomStore.create();
+
+  const sessionId =
+    room.managedRoom.room.session
+      .sessionId;
+
+  roomStore.claimSeat({
+    sessionId,
+    expectedRevision:
+      0,
+    player:
+      "PLAYER_0",
+    participantId:
+      "participant-0",
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+    expectedRevision:
+      1,
+    player:
+      "PLAYER_1",
+    participantId:
+      "participant-1",
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+    expectedRevision:
+      2,
+    player:
+      "PLAYER_2",
+    participantId:
+      "participant-2",
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+    expectedRevision:
+      3,
+    player:
+      "PLAYER_3",
+    participantId:
+      "participant-3",
+  });
+
+  roomStore.start({
+    sessionId,
+    expectedRevision:
+      4,
+  });
+
+  return sessionId;
+}
+
+function createSocket(
+  running:
+    RunningServer,
+  sessionId: string,
+  participantId: string,
+): WebSocket {
+  return new WebSocket(
+    `${running.wsUrl}?sessionId=${sessionId}&participantId=${participantId}`,
+  );
+}
+
+function sendCommand(
+  socket: WebSocket,
+  options: {
+    readonly sessionId:
+      string;
+
+    readonly expectedRevision:
+      number;
+
+    readonly command:
+      Readonly<
+        Record<
+          string,
+          unknown
+        >
+      >;
+  },
+): void {
+  socket.send(
+    JSON.stringify({
+      protocolVersion:
+        1,
+
+      type:
+        "COMMAND",
+
+      document: {
+        formatVersion:
+          1,
+
+        engineVersion:
+          "0.1.0",
+
+        sessionId:
+          options.sessionId,
+
+        expectedRevision:
+          options.expectedRevision,
+
+        command:
+          options.command,
+      },
+    }),
+  );
+}
+
 afterEach(
   async () => {
     const servers =
-      runningServers.splice(0);
+      runningServers.splice(
+        0,
+      );
 
     for (
       const running
@@ -251,34 +424,25 @@ describe(
   "realtime server",
   () => {
     it(
-      "sends the initial secure snapshot to a seated participant",
+      "sends a versioned initial secure snapshot",
       async () => {
         const running =
           await startServer();
 
-        const room =
-          running.roomStore.create();
-
         const sessionId =
-          room.managedRoom.room
-            .session.sessionId;
-
-        running.roomStore
-          .claimSeat({
-            sessionId,
-            expectedRevision: 0,
-            player: "PLAYER_0",
-            participantId:
-              "participant-0",
-          });
+          createStartedRoom(
+            running.roomStore,
+          );
 
         const socket =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=participant-0`,
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
           );
 
         const messagePromise =
-          waitForMessage(
+          waitForMessage<SnapshotEnvelope>(
             socket,
           );
 
@@ -287,60 +451,58 @@ describe(
         );
 
         const message =
-          await messagePromise as {
-            readonly sessionId:
-              string;
-            readonly revision:
-              number;
-            readonly player:
-              string;
-          };
+          await messagePromise;
 
         expect(
-          message.sessionId,
-        ).toBe(sessionId);
-
-        expect(
-          message.revision,
+          message.protocolVersion,
         ).toBe(1);
 
         expect(
-          message.player,
-        ).toBe("PLAYER_0");
+          message.type,
+        ).toBe(
+          "SNAPSHOT",
+        );
+
+        expect(
+          message.snapshot.sessionId,
+        ).toBe(
+          sessionId,
+        );
+
+        expect(
+          message.snapshot.revision,
+        ).toBe(5);
+
+        expect(
+          message.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
 
         socket.close();
       },
     );
 
     it(
-      "pushes a fresh participant-specific snapshot after a room mutation",
+      "applies a PASS command received by WebSocket",
       async () => {
         const running =
           await startServer();
 
-        const room =
-          running.roomStore.create();
-
         const sessionId =
-          room.managedRoom.room
-            .session.sessionId;
-
-        running.roomStore
-          .claimSeat({
-            sessionId,
-            expectedRevision: 0,
-            player: "PLAYER_0",
-            participantId:
-              "participant-0",
-          });
+          createStartedRoom(
+            running.roomStore,
+          );
 
         const socket =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=participant-0`,
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
           );
 
         const initialPromise =
-          waitForMessage(
+          waitForMessage<SnapshotEnvelope>(
             socket,
           );
 
@@ -351,50 +513,234 @@ describe(
         await initialPromise;
 
         const updatePromise =
-          waitForMessage(
+          waitForMessage<SnapshotEnvelope>(
             socket,
           );
 
-        running.roomStore
-          .claimSeat({
+        sendCommand(
+          socket,
+          {
             sessionId,
-            expectedRevision: 1,
-            player: "PLAYER_1",
-            participantId:
-              "participant-1",
-          });
+            expectedRevision:
+              5,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        );
 
         const update =
-          await updatePromise as {
-            readonly revision:
-              number;
-
-            readonly player:
-              string;
-
-            readonly seats:
-              readonly {
-                readonly player:
-                  string;
-
-                readonly occupied:
-                  boolean;
-              }[];
-          };
+          await updatePromise;
 
         expect(
-          update.revision,
-        ).toBe(2);
+          update.type,
+        ).toBe(
+          "SNAPSHOT",
+        );
 
         expect(
-          update.player,
-        ).toBe("PLAYER_0");
+          update.snapshot.revision,
+        ).toBe(6);
 
         expect(
-          update.seats,
-        ).toContainEqual({
-          player: "PLAYER_1",
-          occupied: true,
+          update.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        expect(
+          update.snapshot.game.match
+            .public.biddingPlayer,
+        ).toBe(
+          "PLAYER_2",
+        );
+
+        expect(
+          update.snapshot.game.actions
+            .mode,
+        ).toBe(
+          "WAIT",
+        );
+
+        socket.close();
+      },
+    );
+
+    it(
+      "broadcasts participant-specific snapshots after a WebSocket command",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const socket1 =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const socket2 =
+          createSocket(
+            running,
+            sessionId,
+            "participant-2",
+          );
+
+        const initial1 =
+          waitForMessage<SnapshotEnvelope>(
+            socket1,
+          );
+
+        const initial2 =
+          waitForMessage<SnapshotEnvelope>(
+            socket2,
+          );
+
+        await Promise.all([
+          waitForOpen(
+            socket1,
+          ),
+          waitForOpen(
+            socket2,
+          ),
+        ]);
+
+        await Promise.all([
+          initial1,
+          initial2,
+        ]);
+
+        const update1Promise =
+          waitForMessage<SnapshotEnvelope>(
+            socket1,
+          );
+
+        const update2Promise =
+          waitForMessage<SnapshotEnvelope>(
+            socket2,
+          );
+
+        sendCommand(
+          socket1,
+          {
+            sessionId,
+            expectedRevision:
+              5,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        );
+
+        const [
+          update1,
+          update2,
+        ] =
+          await Promise.all([
+            update1Promise,
+            update2Promise,
+          ]);
+
+        expect(
+          update1.snapshot.revision,
+        ).toBe(6);
+
+        expect(
+          update2.snapshot.revision,
+        ).toBe(6);
+
+        expect(
+          update1.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        expect(
+          update2.snapshot.player,
+        ).toBe(
+          "PLAYER_2",
+        );
+
+        expect(
+          update1.snapshot.game.actions
+            .mode,
+        ).toBe(
+          "WAIT",
+        );
+
+        expect(
+          update2.snapshot.game.actions
+            .mode,
+        ).toBe(
+          "BID",
+        );
+
+        socket1.close();
+        socket2.close();
+      },
+    );
+
+    it(
+      "returns INVALID_MESSAGE for invalid JSON",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const socket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        await waitForOpen(
+          socket,
+        );
+
+        await initialPromise;
+
+        const errorPromise =
+          waitForMessage<ErrorEnvelope>(
+            socket,
+          );
+
+        socket.send(
+          "{",
+        );
+
+        const message =
+          await errorPromise;
+
+        expect(
+          message,
+        ).toEqual({
+          protocolVersion:
+            1,
+
+          type:
+            "ERROR",
+
+          code:
+            "INVALID_MESSAGE",
         });
 
         socket.close();
@@ -402,94 +748,207 @@ describe(
     );
 
     it(
-      "sends different secure snapshots to different participants",
+      "returns SESSION_MISMATCH for another room identifier",
       async () => {
         const running =
           await startServer();
 
-        const room =
-          running.roomStore.create();
-
         const sessionId =
-          room.managedRoom.room
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const otherRoom =
+          running.roomStore
+            .create();
+
+        const otherSessionId =
+          otherRoom.managedRoom.room
             .session.sessionId;
 
-        running.roomStore
-          .claimSeat({
+        const socket =
+          createSocket(
+            running,
             sessionId,
-            expectedRevision: 0,
-            player: "PLAYER_0",
-            participantId:
-              "participant-0",
-          });
-
-        running.roomStore
-          .claimSeat({
-            sessionId,
-            expectedRevision: 1,
-            player: "PLAYER_1",
-            participantId:
-              "participant-1",
-          });
-
-        const socket0 =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=participant-0`,
+            "participant-1",
           );
 
-        const socket1 =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=participant-1`,
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
           );
 
-        const message0Promise =
-          waitForMessage(
-            socket0,
+        await waitForOpen(
+          socket,
+        );
+
+        await initialPromise;
+
+        const errorPromise =
+          waitForMessage<ErrorEnvelope>(
+            socket,
           );
 
-        const message1Promise =
-          waitForMessage(
-            socket1,
-          );
+        sendCommand(
+          socket,
+          {
+            sessionId:
+              otherSessionId,
 
-        await Promise.all([
-          waitForOpen(
-            socket0,
-          ),
+            expectedRevision:
+              5,
 
-          waitForOpen(
-            socket1,
-          ),
-        ]);
-
-        const [
-          message0,
-          message1,
-        ] =
-          await Promise.all([
-            message0Promise,
-            message1Promise,
-          ]) as [
-            {
-              readonly player:
-                string;
+            command: {
+              type:
+                "PASS",
             },
-            {
-              readonly player:
-                string;
-            },
-          ];
+          },
+        );
+
+        const message =
+          await errorPromise;
 
         expect(
-          message0.player,
-        ).toBe("PLAYER_0");
+          message.code,
+        ).toBe(
+          "SESSION_MISMATCH",
+        );
+
+        socket.close();
+      },
+    );
+
+    it(
+      "returns REVISION_MISMATCH for a stale command",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const socket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        await waitForOpen(
+          socket,
+        );
+
+        await initialPromise;
+
+        const errorPromise =
+          waitForMessage<ErrorEnvelope>(
+            socket,
+          );
+
+        sendCommand(
+          socket,
+          {
+            sessionId,
+            expectedRevision:
+              4,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        );
+
+        const message =
+          await errorPromise;
 
         expect(
-          message1.player,
-        ).toBe("PLAYER_1");
+          message.code,
+        ).toBe(
+          "REVISION_MISMATCH",
+        );
 
-        socket0.close();
-        socket1.close();
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(5);
+
+        socket.close();
+      },
+    );
+
+    it(
+      "returns COMMAND_REJECTED when the participant is not the active player",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const socket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-0",
+          );
+
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        await waitForOpen(
+          socket,
+        );
+
+        await initialPromise;
+
+        const errorPromise =
+          waitForMessage<ErrorEnvelope>(
+            socket,
+          );
+
+        sendCommand(
+          socket,
+          {
+            sessionId,
+            expectedRevision:
+              5,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        );
+
+        const message =
+          await errorPromise;
+
+        expect(
+          message.code,
+        ).toBe(
+          "COMMAND_REJECTED",
+        );
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(5);
+
+        socket.close();
       },
     );
 
@@ -499,16 +958,16 @@ describe(
         const running =
           await startServer();
 
-        const room =
-          running.roomStore.create();
-
         const sessionId =
-          room.managedRoom.room
-            .session.sessionId;
+          createStartedRoom(
+            running.roomStore,
+          );
 
         const socket =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=unknown`,
+          createSocket(
+            running,
+            sessionId,
+            "intruder",
           );
 
         const closePromise =
