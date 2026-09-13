@@ -58,7 +58,7 @@ describe(
     );
 
     it(
-      "creates a versioned PRESENCE message with connection and absence states",
+      "creates a versioned PRESENCE message with connection absence and resolution states",
       () => {
         const message =
           createRealtimePresenceMessage(
@@ -75,6 +75,7 @@ describe(
                 lastSeenAtMs:
                   1234,
               },
+
               {
                 player:
                   "PLAYER_1",
@@ -101,6 +102,7 @@ describe(
                 graceDeadlineAtMs:
                   null,
               },
+
               {
                 player:
                   "PLAYER_1",
@@ -136,6 +138,7 @@ describe(
                 remainingMs:
                   null,
               },
+
               {
                 player:
                   "PLAYER_1",
@@ -181,6 +184,7 @@ describe(
               lastSeenAtMs:
                 1234,
             },
+
             {
               player:
                 "PLAYER_1",
@@ -207,6 +211,7 @@ describe(
               graceDeadlineAtMs:
                 null,
             },
+
             {
               player:
                 "PLAYER_1",
@@ -242,6 +247,7 @@ describe(
               remainingMs:
                 null,
             },
+
             {
               player:
                 "PLAYER_1",
@@ -262,6 +268,30 @@ describe(
                 180000,
             },
           ],
+
+          resolutions: [
+            {
+              player:
+                "PLAYER_0",
+
+              action:
+                "NONE",
+
+              automatic:
+                false,
+            },
+
+            {
+              player:
+                "PLAYER_1",
+
+              action:
+                "NONE",
+
+              automatic:
+                false,
+            },
+          ],
         });
 
         expect(
@@ -273,6 +303,159 @@ describe(
         ).toEqual(
           message,
         );
+      },
+    );
+
+    it(
+      "exposes MANUAL_ONLY for a waiting PRIVATE absence",
+      () => {
+        const message =
+          createRealtimePresenceMessage(
+            "ms1_0123456789abcdef0123456789abcdef",
+
+            [],
+
+            [],
+
+            [
+              {
+                player:
+                  "PLAYER_0",
+
+                status:
+                  "WAITING",
+
+                mode:
+                  "PRIVATE",
+
+                absentSinceMs:
+                  121000,
+
+                eligibleAtMs:
+                  null,
+
+                remainingMs:
+                  null,
+              },
+            ],
+          );
+
+        expect(
+          message.resolutions,
+        ).toEqual([
+          {
+            player:
+              "PLAYER_0",
+
+            action:
+              "MANUAL_ONLY",
+
+            automatic:
+              false,
+          },
+        ]);
+      },
+    );
+
+    it(
+      "exposes BOT_TAKEOVER for an eligible CASUAL absence",
+      () => {
+        const message =
+          createRealtimePresenceMessage(
+            "ms1_0123456789abcdef0123456789abcdef",
+
+            [],
+
+            [],
+
+            [
+              {
+                player:
+                  "PLAYER_1",
+
+                status:
+                  "ELIGIBLE",
+
+                mode:
+                  "CASUAL",
+
+                absentSinceMs:
+                  121000,
+
+                eligibleAtMs:
+                  301000,
+
+                remainingMs:
+                  0,
+              },
+            ],
+          );
+
+        expect(
+          message.resolutions,
+        ).toEqual([
+          {
+            player:
+              "PLAYER_1",
+
+            action:
+              "BOT_TAKEOVER",
+
+            automatic:
+              true,
+          },
+        ]);
+      },
+    );
+
+    it(
+      "exposes TEAM_FORFEIT for an eligible RANKED absence",
+      () => {
+        const message =
+          createRealtimePresenceMessage(
+            "ms1_0123456789abcdef0123456789abcdef",
+
+            [],
+
+            [],
+
+            [
+              {
+                player:
+                  "PLAYER_2",
+
+                status:
+                  "ELIGIBLE",
+
+                mode:
+                  "RANKED",
+
+                absentSinceMs:
+                  121000,
+
+                eligibleAtMs:
+                  301000,
+
+                remainingMs:
+                  0,
+              },
+            ],
+          );
+
+        expect(
+          message.resolutions,
+        ).toEqual([
+          {
+            player:
+              "PLAYER_2",
+
+            action:
+              "TEAM_FORFEIT",
+
+            automatic:
+              true,
+          },
+        ]);
       },
     );
   },

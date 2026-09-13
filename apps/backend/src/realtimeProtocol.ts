@@ -10,25 +10,42 @@ import type {
   MatchAbsenceMode,
 } from "./absencePolicy.js";
 
+import {
+  decideAbsenceResolution,
+  type AbsenceResolutionAction,
+} from "./absenceResolution.js";
+
 export const REALTIME_PROTOCOL_VERSION =
   1;
 
 export interface RealtimeCommandMessage {
-  readonly protocolVersion: 1;
-  readonly type: "COMMAND";
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "COMMAND";
+
   readonly document:
     LiveMatchRoomCommandDocument;
 }
 
 export interface RealtimeResyncMessage {
-  readonly protocolVersion: 1;
-  readonly type: "RESYNC";
-  readonly knownRevision: number;
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "RESYNC";
+
+  readonly knownRevision:
+    number;
 }
 
 export interface RealtimeHeartbeatMessage {
-  readonly protocolVersion: 1;
-  readonly type: "HEARTBEAT";
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "HEARTBEAT";
 }
 
 export type RealtimeClientMessage =
@@ -37,8 +54,12 @@ export type RealtimeClientMessage =
   | RealtimeHeartbeatMessage;
 
 export interface RealtimeSnapshotMessage {
-  readonly protocolVersion: 1;
-  readonly type: "SNAPSHOT";
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "SNAPSHOT";
+
   readonly snapshot:
     LiveMatchRoomSnapshotDocument;
 }
@@ -93,9 +114,23 @@ export interface RealtimeAbsencePlayer {
     number | null;
 }
 
+export interface RealtimeAbsenceResolutionPlayer {
+  readonly player:
+    PlayerPosition;
+
+  readonly action:
+    AbsenceResolutionAction;
+
+  readonly automatic:
+    boolean;
+}
+
 export interface RealtimePresenceMessage {
-  readonly protocolVersion: 1;
-  readonly type: "PRESENCE";
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "PRESENCE";
 
   readonly sessionId:
     string;
@@ -108,6 +143,9 @@ export interface RealtimePresenceMessage {
 
   readonly absences:
     readonly RealtimeAbsencePlayer[];
+
+  readonly resolutions:
+    readonly RealtimeAbsenceResolutionPlayer[];
 }
 
 export type RealtimeErrorCode =
@@ -120,8 +158,12 @@ export type RealtimeErrorCode =
   | "INTERNAL_SERVER_ERROR";
 
 export interface RealtimeErrorMessage {
-  readonly protocolVersion: 1;
-  readonly type: "ERROR";
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "ERROR";
+
   readonly code:
     RealtimeErrorCode;
 }
@@ -132,24 +174,32 @@ export type RealtimeServerMessage =
   | RealtimeErrorMessage;
 
 function isObject(
-  value: unknown,
+  value:
+    unknown,
 ): value is Record<
   string,
   unknown
 > {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
+    typeof value ===
+      "object" &&
+    value !==
+      null &&
+    !Array.isArray(
+      value,
+    )
   );
 }
 
 function hasExactKeys(
-  value: Record<
-    string,
-    unknown
-  >,
-  keys: readonly string[],
+  value:
+    Record<
+      string,
+      unknown
+    >,
+
+  keys:
+    readonly string[],
 ): boolean {
   const actualKeys =
     Object.keys(
@@ -157,7 +207,9 @@ function hasExactKeys(
     ).sort();
 
   const expectedKeys =
-    [...keys].sort();
+    [
+      ...keys,
+    ].sort();
 
   return (
     actualKeys.length ===
@@ -168,28 +220,34 @@ function hasExactKeys(
         index,
       ) =>
         key ===
-        expectedKeys[index],
+        expectedKeys[
+          index
+        ],
     )
   );
 }
 
 function isValidRevision(
-  value: unknown,
+  value:
+    unknown,
 ): value is number {
   return (
-    typeof value === "number" &&
+    typeof value ===
+      "number" &&
     Number.isSafeInteger(
       value,
     ) &&
-    value >= 0
+    value >=
+      0
   );
 }
 
 function parseCommandMessage(
-  value: Record<
-    string,
-    unknown
-  >,
+  value:
+    Record<
+      string,
+      unknown
+    >,
 ): RealtimeCommandMessage {
   if (
     !hasExactKeys(
@@ -234,10 +292,11 @@ function parseCommandMessage(
 }
 
 function parseResyncMessage(
-  value: Record<
-    string,
-    unknown
-  >,
+  value:
+    Record<
+      string,
+      unknown
+    >,
 ): RealtimeResyncMessage {
   if (
     !hasExactKeys(
@@ -277,10 +336,11 @@ function parseResyncMessage(
 }
 
 function parseHeartbeatMessage(
-  value: Record<
-    string,
-    unknown
-  >,
+  value:
+    Record<
+      string,
+      unknown
+    >,
 ): RealtimeHeartbeatMessage {
   if (
     !hasExactKeys(
@@ -306,9 +366,11 @@ function parseHeartbeatMessage(
 }
 
 export function parseRealtimeClientMessage(
-  text: string,
+  text:
+    string,
 ): RealtimeClientMessage {
-  let value: unknown;
+  let value:
+    unknown;
 
   try {
     value =
@@ -321,7 +383,11 @@ export function parseRealtimeClientMessage(
     );
   }
 
-  if (!isObject(value)) {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
     throw new Error(
       "Realtime message must be an object.",
     );
@@ -383,8 +449,39 @@ export function createRealtimeSnapshotMessage(
   });
 }
 
+function createRealtimeAbsenceResolutions(
+  absences:
+    readonly RealtimeAbsencePlayer[],
+): readonly RealtimeAbsenceResolutionPlayer[] {
+  return Object.freeze(
+    absences.map(
+      (
+        absence,
+      ):
+        RealtimeAbsenceResolutionPlayer => {
+        const decision =
+          decideAbsenceResolution(
+            absence,
+          );
+
+        return Object.freeze({
+          player:
+            absence.player,
+
+          action:
+            decision.action,
+
+          automatic:
+            decision.automatic,
+        });
+      },
+    ),
+  );
+}
+
 export function createRealtimePresenceMessage(
-  sessionId: string,
+  sessionId:
+    string,
 
   players:
     readonly RealtimePresencePlayer[],
@@ -408,17 +505,28 @@ export function createRealtimePresenceMessage(
 
     players:
       Object.freeze(
-        [...players],
+        [
+          ...players,
+        ],
       ),
 
     connectionStates:
       Object.freeze(
-        [...connectionStates],
+        [
+          ...connectionStates,
+        ],
       ),
 
     absences:
       Object.freeze(
-        [...absences],
+        [
+          ...absences,
+        ],
+      ),
+
+    resolutions:
+      createRealtimeAbsenceResolutions(
+        absences,
       ),
   });
 }
