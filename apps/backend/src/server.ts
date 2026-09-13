@@ -95,6 +95,11 @@ interface CommandBody {
     LiveMatchRoomCommandDocument;
 }
 
+interface AuthenticatedCommandBody {
+  readonly document:
+    LiveMatchRoomCommandDocument;
+}
+
 function getPathname(
   request:
     IncomingMessage,
@@ -512,6 +517,23 @@ function parseParticipantBody(
   });
 }
 
+function parseCommandDocument(
+  value:
+    unknown,
+):
+  | LiveMatchRoomCommandDocument
+  | null {
+  try {
+    return parseLiveMatchRoomCommandDocument(
+      JSON.stringify(
+        value,
+      ),
+    );
+  } catch {
+    return null;
+  }
+}
+
 function parseCommandBody(
   value:
     unknown,
@@ -546,23 +568,66 @@ function parseCommandBody(
     return null;
   }
 
-  try {
-    const document =
-      parseLiveMatchRoomCommandDocument(
-        JSON.stringify(
-          value.document,
-        ),
-      );
+  const document =
+    parseCommandDocument(
+      value.document,
+    );
 
-    return Object.freeze({
-      participantId:
-        value.participantId,
-
-      document,
-    });
-  } catch {
+  if (
+    document ===
+      null
+  ) {
     return null;
   }
+
+  return Object.freeze({
+    participantId:
+      value.participantId,
+
+    document,
+  });
+}
+
+function parseAuthenticatedCommandBody(
+  value:
+    unknown,
+):
+  | AuthenticatedCommandBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "document",
+      ],
+    )
+  ) {
+    return null;
+  }
+
+  const document =
+    parseCommandDocument(
+      value.document,
+    );
+
+  if (
+    document ===
+      null
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    document,
+  });
 }
 
 function handleHealth(
@@ -1200,7 +1265,114 @@ async function handleCommand(
 
   sessionId:
     string,
+
+  authService:
+    AuthService | undefined,
 ): Promise<void> {
+  if (
+    authService !==
+      undefined
+  ) {
+    const authentication =
+      authenticateHttpParticipant(
+        request,
+        authService,
+      );
+
+    if (
+      authentication.status ===
+        "MISSING"
+    ) {
+      sendJson(
+        response,
+        401,
+        {
+          error:
+            "AUTH_REQUIRED",
+        },
+      );
+
+      return;
+    }
+
+    if (
+      authentication.status ===
+        "INVALID"
+    ) {
+      sendJson(
+        response,
+        401,
+        {
+          error:
+            "AUTH_INVALID",
+        },
+      );
+
+      return;
+    }
+
+    const body =
+      parseAuthenticatedCommandBody(
+        await readJsonBody(
+          request,
+        ),
+      );
+
+    if (
+      body ===
+        null
+    ) {
+      sendJson(
+        response,
+        400,
+        {
+          error:
+            "INVALID_COMMAND",
+        },
+      );
+
+      return;
+    }
+
+    if (
+      body.document
+        .sessionId !==
+      sessionId
+    ) {
+      sendJson(
+        response,
+        409,
+        {
+          error:
+            "SESSION_MISMATCH",
+        },
+      );
+
+      return;
+    }
+
+    const result =
+      roomStore.applyCommand({
+        sessionId,
+
+        participantId:
+          authentication
+            .identity
+            .participantId,
+
+        document:
+          body.document,
+      });
+
+    sendJson(
+      response,
+      200,
+      result.snapshot,
+    );
+
+    return;
+  }
+
   const body =
     parseCommandBody(
       await readJsonBody(
@@ -1733,6 +1905,7 @@ async function handleRequest(
       response,
       roomStore,
       sessionId,
+      authService,
     );
 
     return;
