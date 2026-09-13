@@ -1,4 +1,8 @@
 import {
+  createBotCycleScheduler,
+} from "./botCycleScheduler.js";
+
+import {
   loadBackendConfig,
 } from "./config.js";
 
@@ -19,6 +23,11 @@ const config =
 
 const roomStore =
   new LiveRoomStore();
+
+const botCycleScheduler =
+  createBotCycleScheduler({
+    roomStore,
+  });
 
 const server =
   createBackendServer({
@@ -51,23 +60,32 @@ let shuttingDown =
 async function shutdown(
   signal: string,
 ): Promise<void> {
-  if (shuttingDown) {
+  if (
+    shuttingDown
+  ) {
     return;
   }
 
-  shuttingDown = true;
+  shuttingDown =
+    true;
 
   console.log(
     `Received ${signal}, shutting down.`,
   );
+
+  botCycleScheduler.close();
 
   try {
     await realtime.close();
   } catch (
     error: unknown
   ) {
-    console.error(error);
-    process.exitCode = 1;
+    console.error(
+      error,
+    );
+
+    process.exitCode =
+      1;
   }
 
   await new Promise<void>(
@@ -79,10 +97,15 @@ async function shutdown(
           error,
         ) => {
           if (
-            error !== undefined
+            error !==
+            undefined
           ) {
-            console.error(error);
-            process.exitCode = 1;
+            console.error(
+              error,
+            );
+
+            process.exitCode =
+              1;
           }
 
           resolve();
