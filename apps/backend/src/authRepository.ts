@@ -8,7 +8,7 @@ import type {
   AuthIdentityProvider,
 } from "./authIdentity.js";
 
-export interface AuthRepository {
+export interface AuthRepositoryTransaction {
   saveAccount(
     account:
       AuthAccount,
@@ -61,6 +61,17 @@ export interface AuthRepository {
   ):
     | AuthIdentity
     | undefined;
+}
+
+export interface AuthRepository
+  extends AuthRepositoryTransaction {
+  transaction<T>(
+    operation:
+      (
+        repository:
+          AuthRepositoryTransaction,
+      ) => T,
+  ): T;
 
   close():
     void;

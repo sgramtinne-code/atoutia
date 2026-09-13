@@ -18,6 +18,7 @@ import {
 
 import type {
   AuthRepository,
+  AuthRepositoryTransaction,
 } from "./authRepository.js";
 
 export interface AuthServiceOptions {
@@ -113,31 +114,10 @@ export class AuthService {
       );
     }
 
-    const baseOptions = {
-      accountId,
-
-      createdAtMs:
-        this.#now(),
-    };
-
-    const created =
-      this.#sessionDurationMs ===
-        undefined
-        ? createAuthSession(
-            baseOptions,
-          )
-        : createAuthSession({
-            ...baseOptions,
-
-            durationMs:
-              this.#sessionDurationMs,
-          });
-
-    this.#repository.saveSession(
-      created.session,
+    return this.#createAndSaveSession(
+      account,
+      this.#repository,
     );
-
-    return created;
   }
 
   public createSessionForVerifiedExternalIdentity(
@@ -150,96 +130,104 @@ export class AuthService {
         verifiedIdentity.providerSubject,
       );
 
-    const existingIdentity =
-      this.#repository
-        .findIdentityByProviderAndSubjectHash(
-          verifiedIdentity.provider,
-          subjectHash,
+    return this.#repository.transaction(
+      (
+        repository,
+      ) => {
+        const existingIdentity =
+          repository
+            .findIdentityByProviderAndSubjectHash(
+              verifiedIdentity.provider,
+              subjectHash,
+            );
+
+        if (
+          existingIdentity !==
+            undefined
+        ) {
+          const account =
+            repository.getAccount(
+              existingIdentity.accountId,
+            );
+
+          if (
+            account ===
+              undefined ||
+            account.status !==
+              "ACTIVE"
+          ) {
+            throw new Error(
+              "External authentication identity account is not available.",
+            );
+          }
+
+          const createdSession =
+            this.#createAndSaveSession(
+              account,
+              repository,
+            );
+
+          return Object.freeze({
+            account,
+
+            identity:
+              existingIdentity,
+
+            createdSession,
+
+            accountCreated:
+              false,
+          });
+        }
+
+        const createdAtMs =
+          this.#now();
+
+        const account =
+          createAuthAccount({
+            createdAtMs,
+          });
+
+        const identity =
+          createAuthIdentity({
+            accountId:
+              account.accountId,
+
+            provider:
+              verifiedIdentity.provider,
+
+            providerSubject:
+              verifiedIdentity.providerSubject,
+
+            createdAtMs,
+          });
+
+        repository.saveAccount(
+          account,
         );
 
-    if (
-      existingIdentity !==
-        undefined
-    ) {
-      const account =
-        this.#repository.getAccount(
-          existingIdentity.accountId,
+        repository.saveIdentity(
+          identity,
         );
 
-      if (
-        account ===
-          undefined ||
-        account.status !==
-          "ACTIVE"
-      ) {
-        throw new Error(
-          "External authentication identity account is not available.",
-        );
-      }
+        const createdSession =
+          this.#createAndSaveSession(
+            account,
+            repository,
+          );
 
-      const createdSession =
-        this.createSession(
-          account.accountId,
-        );
+        return Object.freeze({
+          account,
 
-      return Object.freeze({
-        account,
+          identity,
 
-        identity:
-          existingIdentity,
+          createdSession,
 
-        createdSession,
-
-        accountCreated:
-          false,
-      });
-    }
-
-    const createdAtMs =
-      this.#now();
-
-    const account =
-      createAuthAccount({
-        createdAtMs,
-      });
-
-    const identity =
-      createAuthIdentity({
-        accountId:
-          account.accountId,
-
-        provider:
-          verifiedIdentity.provider,
-
-        providerSubject:
-          verifiedIdentity.providerSubject,
-
-        createdAtMs,
-      });
-
-    this.#repository.saveAccount(
-      account,
+          accountCreated:
+            true,
+        });
+      },
     );
-
-    this.#repository.saveIdentity(
-      identity,
-    );
-
-    const createdSession =
-      this.createSession(
-        account.accountId,
-      );
-
-    return Object.freeze({
-      account,
-
-      identity,
-
-      createdSession,
-
-      accountCreated:
-        true,
-    });
   }
 
   public authenticate(
@@ -332,5 +320,49 @@ export class AuthService {
     }
 
     return true;
+  }
+
+  #createAndSaveSession(
+    account:
+      AuthAccount,
+
+    repository:
+      AuthRepositoryTransaction,
+  ): CreatedAuthSession {
+    if (
+      account.status !==
+        "ACTIVE"
+    ) {
+      throw new Error(
+        "Auth account is not available.",
+      );
+    }
+
+    const baseOptions = {
+      accountId:
+        account.accountId,
+
+      createdAtMs:
+        this.#now(),
+    };
+
+    const created =
+      this.#sessionDurationMs ===
+        undefined
+        ? createAuthSession(
+            baseOptions,
+          )
+        : createAuthSession({
+            ...baseOptions,
+
+            durationMs:
+              this.#sessionDurationMs,
+          });
+
+    repository.saveSession(
+      created.session,
+    );
+
+    return created;
   }
 }

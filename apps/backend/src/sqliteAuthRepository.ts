@@ -16,6 +16,7 @@ import {
 
 import type {
   AuthRepository,
+  AuthRepositoryTransaction,
 } from "./authRepository.js";
 
 interface AuthAccountRow {
@@ -179,6 +180,9 @@ export class SQLiteAuthRepository
   #closed =
     false;
 
+  #transactionActive =
+    false;
+
   public constructor(
     options:
       SQLiteAuthRepositoryOptions,
@@ -190,6 +194,7 @@ export class SQLiteAuthRepository
 
     this.#database.exec(`
       PRAGMA foreign_keys = ON;
+      PRAGMA busy_timeout = 5000;
 
       CREATE TABLE IF NOT EXISTS auth_accounts (
         account_id TEXT PRIMARY KEY NOT NULL,
@@ -505,12 +510,75 @@ export class SQLiteAuthRepository
         );
   }
 
+  public transaction<T>(
+    operation:
+      (
+        repository:
+          AuthRepositoryTransaction,
+      ) => T,
+  ): T {
+    this.#assertOpen();
+
+    if (
+      this.#transactionActive
+    ) {
+      throw new Error(
+        "Nested SQLite auth transactions are not supported.",
+      );
+    }
+
+    this.#transactionActive =
+      true;
+
+    try {
+      this.#database.exec(
+        "BEGIN IMMEDIATE;",
+      );
+
+      try {
+        const result =
+          operation(
+            this,
+          );
+
+        this.#database.exec(
+          "COMMIT;",
+        );
+
+        return result;
+      } catch (
+        error
+      ) {
+        try {
+          this.#database.exec(
+            "ROLLBACK;",
+          );
+        } catch {
+          // Preserve the original transaction error.
+        }
+
+        throw error;
+      }
+    } finally {
+      this.#transactionActive =
+        false;
+    }
+  }
+
   public close():
     void {
     if (
       this.#closed
     ) {
       return;
+    }
+
+    if (
+      this.#transactionActive
+    ) {
+      throw new Error(
+        "Cannot close SQLite auth repository during a transaction.",
+      );
     }
 
     this.#database.close();

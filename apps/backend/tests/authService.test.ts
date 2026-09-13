@@ -703,5 +703,105 @@ describe(
         repository.close();
       },
     );
+
+    it(
+      "rolls back account and external identity when session creation fails",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const providerSubject =
+          "google-user-rollback";
+
+        const subjectHash =
+          createAuthIdentitySubjectHash(
+            "GOOGLE",
+            providerSubject,
+          );
+
+        const failingService =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                1_000,
+
+            sessionDurationMs:
+              Number.MAX_SAFE_INTEGER,
+          });
+
+        expect(
+          () =>
+            failingService
+              .createSessionForVerifiedExternalIdentity({
+                provider:
+                  "GOOGLE",
+
+                providerSubject,
+              }),
+        ).toThrow(
+          "Auth session expiration is outside the safe integer range.",
+        );
+
+        expect(
+          repository
+            .findIdentityByProviderAndSubjectHash(
+              "GOOGLE",
+              subjectHash,
+            ),
+        ).toBeUndefined();
+
+        const workingService =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                2_000,
+
+            sessionDurationMs:
+              10_000,
+          });
+
+        const result =
+          workingService
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject,
+            });
+
+        expect(
+          result.accountCreated,
+        ).toBe(
+          true,
+        );
+
+        expect(
+          repository
+            .findIdentityByProviderAndSubjectHash(
+              "GOOGLE",
+              subjectHash,
+            ),
+        ).toEqual(
+          result.identity,
+        );
+
+        expect(
+          workingService.authenticate(
+            result.createdSession.token,
+          )?.accountId,
+        ).toBe(
+          result.account.accountId,
+        );
+
+        repository.close();
+      },
+    );
   },
 );
