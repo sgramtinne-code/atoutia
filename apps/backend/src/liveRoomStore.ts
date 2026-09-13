@@ -15,29 +15,51 @@ import {
   type RevisionedLiveMatchRoom,
 } from "@atoutia/belote-engine";
 
+import {
+  createPendingAbsenceResolution,
+  resolveLiveRoomAbsenceResolution,
+  type LiveRoomAbsenceResolution,
+  type PendingAbsenceResolutionAction,
+  type ResolvedLiveRoomAbsenceResolutionStatus,
+} from "./liveRoomAbsenceResolution.js";
+
 import type {
   MatchMode,
 } from "./matchMode.js";
 
 export interface LiveRoomSeatSummary {
-  readonly PLAYER_0: boolean;
-  readonly PLAYER_1: boolean;
-  readonly PLAYER_2: boolean;
-  readonly PLAYER_3: boolean;
+  readonly PLAYER_0:
+    boolean;
+
+  readonly PLAYER_1:
+    boolean;
+
+  readonly PLAYER_2:
+    boolean;
+
+  readonly PLAYER_3:
+    boolean;
 }
 
 export interface LiveRoomSummary {
-  readonly sessionId: string;
+  readonly sessionId:
+    string;
 
   readonly mode:
     MatchMode;
 
-  readonly revision: number;
+  readonly revision:
+    number;
 
   readonly phase:
-    RevisionedLiveMatchRoom["managedRoom"]["phase"];
+    RevisionedLiveMatchRoom[
+      "managedRoom"
+    ][
+      "phase"
+    ];
 
-  readonly occupiedSeats: number;
+  readonly occupiedSeats:
+    number;
 
   readonly seats:
     LiveRoomSeatSummary;
@@ -49,49 +71,109 @@ export interface CreateLiveRoomOptions {
 }
 
 export interface ClaimLiveRoomSeatOptions {
-  readonly sessionId: string;
-  readonly expectedRevision: number;
-  readonly player: PlayerPosition;
-  readonly participantId: string;
+  readonly sessionId:
+    string;
+
+  readonly expectedRevision:
+    number;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly participantId:
+    string;
 }
 
 export interface ReleaseLiveRoomSeatOptions {
-  readonly sessionId: string;
-  readonly expectedRevision: number;
-  readonly player: PlayerPosition;
-  readonly participantId: string;
+  readonly sessionId:
+    string;
+
+  readonly expectedRevision:
+    number;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly participantId:
+    string;
 }
 
 export interface StartLiveRoomOptions {
-  readonly sessionId: string;
-  readonly expectedRevision: number;
+  readonly sessionId:
+    string;
+
+  readonly expectedRevision:
+    number;
 }
 
 export interface CreateParticipantSnapshotOptions {
-  readonly sessionId: string;
-  readonly participantId: string;
+  readonly sessionId:
+    string;
+
+  readonly participantId:
+    string;
 }
 
 export interface ApplyLiveRoomCommandOptions {
-  readonly sessionId: string;
-  readonly participantId: string;
-  readonly document: LiveMatchRoomCommandDocument;
+  readonly sessionId:
+    string;
+
+  readonly participantId:
+    string;
+
+  readonly document:
+    LiveMatchRoomCommandDocument;
 }
 
 export interface ApplyLiveRoomCommandResult {
-  readonly room: RevisionedLiveMatchRoom;
-  readonly snapshot: LiveMatchRoomSnapshotDocument;
+  readonly room:
+    RevisionedLiveMatchRoom;
+
+  readonly snapshot:
+    LiveMatchRoomSnapshotDocument;
+}
+
+export interface MarkLiveRoomAbsenceResolutionPendingOptions {
+  readonly sessionId:
+    string;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly action:
+    PendingAbsenceResolutionAction;
+}
+
+export interface ResolveStoredLiveRoomAbsenceResolutionOptions {
+  readonly sessionId:
+    string;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly status:
+    ResolvedLiveRoomAbsenceResolutionStatus;
+}
+
+export interface ClearLiveRoomAbsenceResolutionOptions {
+  readonly sessionId:
+    string;
+
+  readonly player:
+    PlayerPosition;
 }
 
 export type LiveRoomStoreListener =
   (
-    room: RevisionedLiveMatchRoom,
+    room:
+      RevisionedLiveMatchRoom,
   ) => void;
 
 export class LiveRoomNotFoundError
   extends Error {
   public constructor(
-    sessionId: string,
+    sessionId:
+      string,
   ) {
     super(
       `Live room not found: ${sessionId}`,
@@ -99,6 +181,24 @@ export class LiveRoomNotFoundError
 
     this.name =
       "LiveRoomNotFoundError";
+  }
+}
+
+export class LiveRoomAbsenceResolutionNotFoundError
+  extends Error {
+  public constructor(
+    sessionId:
+      string,
+
+    player:
+      PlayerPosition,
+  ) {
+    super(
+      `Live room absence resolution not found: ${sessionId} ${player}`,
+    );
+
+    this.name =
+      "LiveRoomAbsenceResolutionNotFoundError";
   }
 }
 
@@ -113,6 +213,15 @@ export class LiveRoomStore {
     new Map<
       string,
       MatchMode
+    >();
+
+  readonly #absenceResolutions =
+    new Map<
+      string,
+      Map<
+        PlayerPosition,
+        LiveRoomAbsenceResolution
+      >
     >();
 
   readonly #listeners =
@@ -154,11 +263,20 @@ export class LiveRoomStore {
       mode,
     );
 
+    this.#absenceResolutions.set(
+      sessionId,
+      new Map<
+        PlayerPosition,
+        LiveRoomAbsenceResolution
+      >(),
+    );
+
     return room;
   }
 
   public get(
-    sessionId: string,
+    sessionId:
+      string,
   ):
     | RevisionedLiveMatchRoom
     | undefined {
@@ -168,7 +286,8 @@ export class LiveRoomStore {
   }
 
   public getMode(
-    sessionId: string,
+    sessionId:
+      string,
   ):
     | MatchMode
     | undefined {
@@ -178,7 +297,8 @@ export class LiveRoomStore {
   }
 
   public requireMode(
-    sessionId: string,
+    sessionId:
+      string,
   ): MatchMode {
     this.#requireRoom(
       sessionId,
@@ -189,7 +309,10 @@ export class LiveRoomStore {
         sessionId,
       );
 
-    if (mode === undefined) {
+    if (
+      mode ===
+      undefined
+    ) {
       throw new Error(
         `Live room mode not found: ${sessionId}`,
       );
@@ -354,6 +477,181 @@ export class LiveRoomStore {
     });
   }
 
+  public getAbsenceResolution(
+    sessionId:
+      string,
+
+    player:
+      PlayerPosition,
+  ):
+    | LiveRoomAbsenceResolution
+    | undefined {
+    return this.#absenceResolutions
+      .get(
+        sessionId,
+      )
+      ?.get(
+        player,
+      );
+  }
+
+  public listAbsenceResolutions(
+    sessionId:
+      string,
+  ): readonly LiveRoomAbsenceResolution[] {
+    this.#requireRoom(
+      sessionId,
+    );
+
+    const resolutions =
+      this.#requireAbsenceResolutionMap(
+        sessionId,
+      );
+
+    return Object.freeze(
+      [
+        ...resolutions.values(),
+      ],
+    );
+  }
+
+  public markAbsenceResolutionPending(
+    options:
+      MarkLiveRoomAbsenceResolutionPendingOptions,
+  ): LiveRoomAbsenceResolution {
+    this.#requireRoom(
+      options.sessionId,
+    );
+
+    const resolutions =
+      this.#requireAbsenceResolutionMap(
+        options.sessionId,
+      );
+
+    const existing =
+      resolutions.get(
+        options.player,
+      );
+
+    if (
+      existing !==
+      undefined
+    ) {
+      if (
+        existing.action !==
+        options.action
+      ) {
+        throw new Error(
+          `Live room absence resolution action conflict for ${options.player}: ${existing.action} !== ${options.action}.`,
+        );
+      }
+
+      return existing;
+    }
+
+    const resolution =
+      createPendingAbsenceResolution({
+        player:
+          options.player,
+
+        action:
+          options.action,
+      });
+
+    resolutions.set(
+      options.player,
+      resolution,
+    );
+
+    return resolution;
+  }
+
+  public resolveAbsenceResolution(
+    options:
+      ResolveStoredLiveRoomAbsenceResolutionOptions,
+  ): LiveRoomAbsenceResolution {
+    this.#requireRoom(
+      options.sessionId,
+    );
+
+    const resolutions =
+      this.#requireAbsenceResolutionMap(
+        options.sessionId,
+      );
+
+    const existing =
+      resolutions.get(
+        options.player,
+      );
+
+    if (
+      existing ===
+      undefined
+    ) {
+      throw new LiveRoomAbsenceResolutionNotFoundError(
+        options.sessionId,
+        options.player,
+      );
+    }
+
+    const resolved =
+      resolveLiveRoomAbsenceResolution({
+        resolution:
+          existing,
+
+        status:
+          options.status,
+      });
+
+    resolutions.set(
+      options.player,
+      resolved,
+    );
+
+    return resolved;
+  }
+
+  public clearAbsenceResolution(
+    options:
+      ClearLiveRoomAbsenceResolutionOptions,
+  ): boolean {
+    this.#requireRoom(
+      options.sessionId,
+    );
+
+    const resolutions =
+      this.#requireAbsenceResolutionMap(
+        options.sessionId,
+      );
+
+    const existing =
+      resolutions.get(
+        options.player,
+      );
+
+    if (
+      existing ===
+      undefined
+    ) {
+      return false;
+    }
+
+    if (
+      existing.status !==
+      "PENDING"
+    ) {
+      throw new Error(
+        `Resolved absence resolution cannot be cleared for ${options.player}.`,
+      );
+    }
+
+    resolutions.delete(
+      options.player,
+    );
+
+    return true;
+  }
+
   public subscribe(
     listener:
       LiveRoomStoreListener,
@@ -369,12 +667,14 @@ export class LiveRoomStore {
     };
   }
 
-  public count(): number {
+  public count():
+    number {
     return this.#rooms.size;
   }
 
   #storeMutation(
-    sessionId: string,
+    sessionId:
+      string,
 
     previousRoom:
       RevisionedLiveMatchRoom,
@@ -404,8 +704,33 @@ export class LiveRoomStore {
     }
   }
 
+  #requireAbsenceResolutionMap(
+    sessionId:
+      string,
+  ): Map<
+    PlayerPosition,
+    LiveRoomAbsenceResolution
+  > {
+    const resolutions =
+      this.#absenceResolutions.get(
+        sessionId,
+      );
+
+    if (
+      resolutions ===
+      undefined
+    ) {
+      throw new Error(
+        `Live room absence resolution state not found: ${sessionId}`,
+      );
+    }
+
+    return resolutions;
+  }
+
   #requireRoom(
-    sessionId: string,
+    sessionId:
+      string,
   ): RevisionedLiveMatchRoom {
     const room =
       this.#rooms.get(
