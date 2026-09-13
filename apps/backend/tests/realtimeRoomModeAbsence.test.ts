@@ -44,11 +44,33 @@ interface AbsenceState {
     "PRIVATE"
     | "CASUAL"
     | "RANKED";
+
+  readonly absentSinceMs:
+    number | null;
+
+  readonly eligibleAtMs:
+    number | null;
+
+  readonly remainingMs:
+    number | null;
+}
+
+interface ConnectionState {
+  readonly player:
+    string;
+
+  readonly state:
+    "CONNECTED"
+    | "RECONNECTING"
+    | "ABSENT";
 }
 
 interface PresenceEnvelope {
   readonly type:
     "PRESENCE";
+
+  readonly connectionStates:
+    readonly ConnectionState[];
 
   readonly absences:
     readonly AbsenceState[];
@@ -68,11 +90,19 @@ interface RunningServer {
     string;
 }
 
+type MatchMode =
+  "PRIVATE"
+  | "CASUAL"
+  | "RANKED";
+
 const runningServers:
   RunningServer[] = [];
 
-async function startServer():
-  Promise<RunningServer> {
+async function startServer(
+  now:
+    () => number =
+      Date.now,
+): Promise<RunningServer> {
   const roomStore =
     new LiveRoomStore();
 
@@ -85,9 +115,10 @@ async function startServer():
     createRealtimeServer({
       server,
       roomStore,
+      now,
 
       heartbeatTimeoutMs:
-        100_000,
+        1_000_000,
 
       heartbeatCheckIntervalMs:
         5,
@@ -197,9 +228,7 @@ function createRoomWithParticipant(
     LiveRoomStore,
 
   mode:
-    "PRIVATE"
-    | "CASUAL"
-    | "RANKED",
+    MatchMode,
 
   participantId:
     string,
@@ -226,6 +255,66 @@ function createRoomWithParticipant(
   });
 
   return sessionId;
+}
+
+function createRoomWithObserverAndTarget(
+  roomStore:
+    LiveRoomStore,
+
+  mode:
+    MatchMode,
+): string {
+  const room =
+    roomStore.create({
+      mode,
+    });
+
+  const sessionId =
+    room.managedRoom.room.session
+      .sessionId;
+
+  roomStore.claimSeat({
+    sessionId,
+
+    expectedRevision:
+      0,
+
+    player:
+      "PLAYER_0",
+
+    participantId:
+      "observer",
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+
+    expectedRevision:
+      1,
+
+    player:
+      "PLAYER_1",
+
+    participantId:
+      "target",
+  });
+
+  return sessionId;
+}
+
+function createSocket(
+  running:
+    RunningServer,
+
+  sessionId:
+    string,
+
+  participantId:
+    string,
+): WebSocket {
+  return new WebSocket(
+    `${running.wsUrl}?sessionId=${sessionId}&participantId=${participantId}`,
+  );
 }
 
 function waitForOpen(
@@ -276,14 +365,15 @@ function waitForClose(
   );
 }
 
-function waitForPresenceMode(
+function waitForPresenceMatching(
   socket:
     WebSocket,
 
-  expectedMode:
-    "PRIVATE"
-    | "CASUAL"
-    | "RANKED",
+  predicate:
+    (
+      value:
+        PresenceEnvelope,
+    ) => boolean,
 ): Promise<PresenceEnvelope> {
   return new Promise<
     PresenceEnvelope
@@ -310,18 +400,10 @@ function waitForPresenceMode(
               return;
             }
 
-            const player =
-              value.absences.find(
-                (
-                  absence,
-                ) =>
-                  absence.player ===
-                  "PLAYER_0",
-              );
-
             if (
-              player?.mode !==
-              expectedMode
+              !predicate(
+                value,
+              )
             ) {
               return;
             }
@@ -390,13 +472,49 @@ function waitForPresenceMode(
 function getPlayerAbsence(
   message:
     PresenceEnvelope,
+
+  player:
+    string,
 ): AbsenceState | undefined {
   return message.absences.find(
     (
       absence,
     ) =>
       absence.player ===
-      "PLAYER_0",
+      player,
+  );
+}
+
+function getPlayerConnectionState(
+  message:
+    PresenceEnvelope,
+
+  player:
+    string,
+): ConnectionState | undefined {
+  return message
+    .connectionStates
+    .find(
+      (
+        state,
+      ) =>
+        state.player ===
+        player,
+    );
+}
+
+function sendHeartbeat(
+  socket:
+    WebSocket,
+): void {
+  socket.send(
+    JSON.stringify({
+      protocolVersion:
+        1,
+
+      type:
+        "HEARTBEAT",
+    }),
   );
 }
 
@@ -435,14 +553,23 @@ describe(
           );
 
         const socket =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=private-participant`,
+          createSocket(
+            running,
+            sessionId,
+            "private-participant",
           );
 
         const presencePromise =
-          waitForPresenceMode(
+          waitForPresenceMatching(
             socket,
-            "PRIVATE",
+            (
+              message,
+            ) =>
+              getPlayerAbsence(
+                message,
+                "PLAYER_0",
+              )?.mode ===
+              "PRIVATE",
           );
 
         await waitForOpen(
@@ -455,8 +582,9 @@ describe(
         expect(
           getPlayerAbsence(
             presence,
+            "PLAYER_0",
           ),
-        ).toMatchObject({
+        ).toEqual({
           player:
             "PLAYER_0",
 
@@ -465,6 +593,15 @@ describe(
 
           mode:
             "PRIVATE",
+
+          absentSinceMs:
+            null,
+
+          eligibleAtMs:
+            null,
+
+          remainingMs:
+            null,
         });
 
         const closePromise =
@@ -492,14 +629,23 @@ describe(
           );
 
         const socket =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=casual-participant`,
+          createSocket(
+            running,
+            sessionId,
+            "casual-participant",
           );
 
         const presencePromise =
-          waitForPresenceMode(
+          waitForPresenceMatching(
             socket,
-            "CASUAL",
+            (
+              message,
+            ) =>
+              getPlayerAbsence(
+                message,
+                "PLAYER_0",
+              )?.mode ===
+              "CASUAL",
           );
 
         await waitForOpen(
@@ -512,8 +658,9 @@ describe(
         expect(
           getPlayerAbsence(
             presence,
+            "PLAYER_0",
           ),
-        ).toMatchObject({
+        ).toEqual({
           player:
             "PLAYER_0",
 
@@ -522,6 +669,15 @@ describe(
 
           mode:
             "CASUAL",
+
+          absentSinceMs:
+            null,
+
+          eligibleAtMs:
+            null,
+
+          remainingMs:
+            null,
         });
 
         const closePromise =
@@ -549,14 +705,23 @@ describe(
           );
 
         const socket =
-          new WebSocket(
-            `${running.wsUrl}?sessionId=${sessionId}&participantId=ranked-participant`,
+          createSocket(
+            running,
+            sessionId,
+            "ranked-participant",
           );
 
         const presencePromise =
-          waitForPresenceMode(
+          waitForPresenceMatching(
             socket,
-            "RANKED",
+            (
+              message,
+            ) =>
+              getPlayerAbsence(
+                message,
+                "PLAYER_0",
+              )?.mode ===
+              "RANKED",
           );
 
         await waitForOpen(
@@ -569,8 +734,9 @@ describe(
         expect(
           getPlayerAbsence(
             presence,
+            "PLAYER_0",
           ),
-        ).toMatchObject({
+        ).toEqual({
           player:
             "PLAYER_0",
 
@@ -579,6 +745,15 @@ describe(
 
           mode:
             "RANKED",
+
+          absentSinceMs:
+            null,
+
+          eligibleAtMs:
+            null,
+
+          remainingMs:
+            null,
         });
 
         const closePromise =
@@ -589,6 +764,493 @@ describe(
         socket.close();
 
         await closePromise;
+      },
+    );
+
+    it(
+      "keeps a PRIVATE absence waiting indefinitely after reconnect grace expires",
+      async () => {
+        let currentTime =
+          1_000;
+
+        const running =
+          await startServer(
+            () =>
+              currentTime,
+          );
+
+        const sessionId =
+          createRoomWithObserverAndTarget(
+            running.roomStore,
+            "PRIVATE",
+          );
+
+        const observer =
+          createSocket(
+            running,
+            sessionId,
+            "observer",
+          );
+
+        await waitForOpen(
+          observer,
+        );
+
+        const target =
+          createSocket(
+            running,
+            sessionId,
+            "target",
+          );
+
+        await waitForOpen(
+          target,
+        );
+
+        const targetClosePromise =
+          waitForClose(
+            target,
+          );
+
+        target.close();
+
+        await targetClosePromise;
+
+        const waitingPromise =
+          waitForPresenceMatching(
+            observer,
+            (
+              message,
+            ) =>
+              getPlayerConnectionState(
+                message,
+                "PLAYER_1",
+              )?.state ===
+                "ABSENT" &&
+              getPlayerAbsence(
+                message,
+                "PLAYER_1",
+              )?.status ===
+                "WAITING",
+          );
+
+        currentTime =
+          2_000;
+
+        const waiting =
+          await waitingPromise;
+
+        expect(
+          getPlayerAbsence(
+            waiting,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          status:
+            "WAITING",
+
+          mode:
+            "PRIVATE",
+
+          absentSinceMs:
+            2_000,
+
+          eligibleAtMs:
+            null,
+
+          remainingMs:
+            null,
+        });
+
+        currentTime =
+          10_000_000;
+
+        const stillWaitingPromise =
+          waitForPresenceMatching(
+            observer,
+            (
+              message,
+            ) =>
+              getPlayerAbsence(
+                message,
+                "PLAYER_1",
+              )?.status ===
+                "WAITING",
+          );
+
+        sendHeartbeat(
+          observer,
+        );
+
+        const stillWaiting =
+          await stillWaitingPromise;
+
+        expect(
+          getPlayerAbsence(
+            stillWaiting,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          status:
+            "WAITING",
+
+          mode:
+            "PRIVATE",
+
+          absentSinceMs:
+            2_000,
+
+          eligibleAtMs:
+            null,
+
+          remainingMs:
+            null,
+        });
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          2,
+        );
+
+        const observerClosePromise =
+          waitForClose(
+            observer,
+          );
+
+        observer.close();
+
+        await observerClosePromise;
+      },
+    );
+
+    it(
+      "makes a CASUAL absence eligible after the default resolution delay",
+      async () => {
+        let currentTime =
+          1_000;
+
+        const running =
+          await startServer(
+            () =>
+              currentTime,
+          );
+
+        const sessionId =
+          createRoomWithObserverAndTarget(
+            running.roomStore,
+            "CASUAL",
+          );
+
+        const observer =
+          createSocket(
+            running,
+            sessionId,
+            "observer",
+          );
+
+        await waitForOpen(
+          observer,
+        );
+
+        const target =
+          createSocket(
+            running,
+            sessionId,
+            "target",
+          );
+
+        await waitForOpen(
+          target,
+        );
+
+        const targetClosePromise =
+          waitForClose(
+            target,
+          );
+
+        target.close();
+
+        await targetClosePromise;
+
+        const waitingPromise =
+          waitForPresenceMatching(
+            observer,
+            (
+              message,
+            ) =>
+              getPlayerConnectionState(
+                message,
+                "PLAYER_1",
+              )?.state ===
+                "ABSENT" &&
+              getPlayerAbsence(
+                message,
+                "PLAYER_1",
+              )?.status ===
+                "WAITING",
+          );
+
+        currentTime =
+          2_000;
+
+        const waiting =
+          await waitingPromise;
+
+        expect(
+          getPlayerAbsence(
+            waiting,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          status:
+            "WAITING",
+
+          mode:
+            "CASUAL",
+
+          absentSinceMs:
+            2_000,
+
+          eligibleAtMs:
+            182_000,
+
+          remainingMs:
+            180_000,
+        });
+
+        const eligiblePromise =
+          waitForPresenceMatching(
+            observer,
+            (
+              message,
+            ) =>
+              getPlayerAbsence(
+                message,
+                "PLAYER_1",
+              )?.status ===
+                "ELIGIBLE",
+          );
+
+        currentTime =
+          182_000;
+
+        const eligible =
+          await eligiblePromise;
+
+        expect(
+          getPlayerAbsence(
+            eligible,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          status:
+            "ELIGIBLE",
+
+          mode:
+            "CASUAL",
+
+          absentSinceMs:
+            2_000,
+
+          eligibleAtMs:
+            182_000,
+
+          remainingMs:
+            0,
+        });
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          2,
+        );
+
+        const observerClosePromise =
+          waitForClose(
+            observer,
+          );
+
+        observer.close();
+
+        await observerClosePromise;
+      },
+    );
+
+    it(
+      "makes a RANKED absence eligible after the default resolution delay",
+      async () => {
+        let currentTime =
+          1_000;
+
+        const running =
+          await startServer(
+            () =>
+              currentTime,
+          );
+
+        const sessionId =
+          createRoomWithObserverAndTarget(
+            running.roomStore,
+            "RANKED",
+          );
+
+        const observer =
+          createSocket(
+            running,
+            sessionId,
+            "observer",
+          );
+
+        await waitForOpen(
+          observer,
+        );
+
+        const target =
+          createSocket(
+            running,
+            sessionId,
+            "target",
+          );
+
+        await waitForOpen(
+          target,
+        );
+
+        const targetClosePromise =
+          waitForClose(
+            target,
+          );
+
+        target.close();
+
+        await targetClosePromise;
+
+        const waitingPromise =
+          waitForPresenceMatching(
+            observer,
+            (
+              message,
+            ) =>
+              getPlayerConnectionState(
+                message,
+                "PLAYER_1",
+              )?.state ===
+                "ABSENT" &&
+              getPlayerAbsence(
+                message,
+                "PLAYER_1",
+              )?.status ===
+                "WAITING",
+          );
+
+        currentTime =
+          2_000;
+
+        const waiting =
+          await waitingPromise;
+
+        expect(
+          getPlayerAbsence(
+            waiting,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          status:
+            "WAITING",
+
+          mode:
+            "RANKED",
+
+          absentSinceMs:
+            2_000,
+
+          eligibleAtMs:
+            182_000,
+
+          remainingMs:
+            180_000,
+        });
+
+        const eligiblePromise =
+          waitForPresenceMatching(
+            observer,
+            (
+              message,
+            ) =>
+              getPlayerAbsence(
+                message,
+                "PLAYER_1",
+              )?.status ===
+                "ELIGIBLE",
+          );
+
+        currentTime =
+          182_000;
+
+        const eligible =
+          await eligiblePromise;
+
+        expect(
+          getPlayerAbsence(
+            eligible,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          status:
+            "ELIGIBLE",
+
+          mode:
+            "RANKED",
+
+          absentSinceMs:
+            2_000,
+
+          eligibleAtMs:
+            182_000,
+
+          remainingMs:
+            0,
+        });
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          2,
+        );
+
+        const observerClosePromise =
+          waitForClose(
+            observer,
+          );
+
+        observer.close();
+
+        await observerClosePromise;
       },
     );
   },
