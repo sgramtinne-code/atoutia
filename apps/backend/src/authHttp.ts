@@ -21,6 +21,11 @@ interface CreateSessionBody {
     string;
 }
 
+interface GoogleAuthBody {
+  readonly idToken:
+    string;
+}
+
 type BearerTokenResult =
   | {
       readonly status:
@@ -123,6 +128,22 @@ function isValidAccountId(
   );
 }
 
+function isValidGoogleIdToken(
+  value:
+    unknown,
+): value is string {
+  return (
+    typeof value ===
+      "string" &&
+    value.trim().length >
+      0 &&
+    value ===
+      value.trim() &&
+    value.length <=
+      16_384
+  );
+}
+
 function parseCreateAccountBody(
   value:
     unknown,
@@ -176,6 +197,40 @@ function parseCreateSessionBody(
   return Object.freeze({
     accountId:
       value.accountId,
+  });
+}
+
+function parseGoogleAuthBody(
+  value:
+    unknown,
+):
+  | GoogleAuthBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "idToken",
+      ],
+    ) ||
+    !isValidGoogleIdToken(
+      value.idToken,
+    )
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    idToken:
+      value.idToken,
   });
 }
 
@@ -395,6 +450,120 @@ async function handleCreateSession(
   );
 }
 
+async function handleGoogleAuth(
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  authService:
+    AuthService,
+): Promise<void> {
+  if (
+    !authService
+      .isExternalIdentityProviderConfigured(
+        "GOOGLE",
+      )
+  ) {
+    sendJson(
+      response,
+      503,
+      {
+        error:
+          "AUTH_PROVIDER_UNAVAILABLE",
+      },
+    );
+
+    return;
+  }
+
+  const body =
+    parseGoogleAuthBody(
+      await readJsonBody(
+        request,
+      ),
+    );
+
+  if (
+    body ===
+      null
+  ) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_REQUEST",
+      },
+    );
+
+    return;
+  }
+
+  const result =
+    await authService
+      .createSessionForExternalIdentityProof(
+        "GOOGLE",
+        body.idToken,
+      );
+
+  if (
+    result ===
+      undefined
+  ) {
+    sendJson(
+      response,
+      401,
+      {
+        error:
+          "AUTH_PROVIDER_INVALID",
+      },
+    );
+
+    return;
+  }
+
+  sendJson(
+    response,
+    201,
+    {
+      token:
+        result.createdSession.token,
+
+      session: {
+        sessionId:
+          result.createdSession
+            .session
+            .sessionId,
+
+        accountId:
+          result.createdSession
+            .session
+            .accountId,
+
+        createdAtMs:
+          result.createdSession
+            .session
+            .createdAtMs,
+
+        expiresAtMs:
+          result.createdSession
+            .session
+            .expiresAtMs,
+
+        revokedAtMs:
+          result.createdSession
+            .session
+            .revokedAtMs,
+      },
+
+      accountCreated:
+        result.accountCreated,
+    },
+  );
+}
+
 function handleMe(
   request:
     IncomingMessage,
@@ -589,6 +758,30 @@ export async function handleAuthHttpRequest(
       }
 
       await handleCreateSession(
+        request,
+        response,
+        authService,
+      );
+
+      return true;
+    }
+
+    if (
+      pathname ===
+        "/api/v1/auth/google"
+    ) {
+      if (
+        request.method !==
+          "POST"
+      ) {
+        sendMethodNotAllowed(
+          response,
+        );
+
+        return true;
+      }
+
+      await handleGoogleAuth(
         request,
         response,
         authService,

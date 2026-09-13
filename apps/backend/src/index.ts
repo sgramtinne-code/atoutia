@@ -23,6 +23,10 @@ import {
 } from "./config.js";
 
 import {
+  GoogleIdentityVerifier,
+} from "./googleIdentityVerifier.js";
+
+import {
   LiveRoomStore,
 } from "./liveRoomStore.js";
 
@@ -67,10 +71,32 @@ const authRepository =
       config.databasePath,
   });
 
+const googleIdentityVerifier =
+  config.googleClientId ===
+    undefined
+    ? undefined
+    : new GoogleIdentityVerifier({
+        clientId:
+          config.googleClientId,
+      });
+
 const authService =
   new AuthService({
     repository:
       authRepository,
+
+    ...(
+      googleIdentityVerifier ===
+        undefined
+        ? {}
+        : {
+            externalIdentityVerifiers:
+              Object.freeze({
+                GOOGLE:
+                  googleIdentityVerifier,
+              }),
+          }
+    ),
   });
 
 const roomStore =
@@ -147,6 +173,13 @@ server.listen(
 
     console.log(
       `Atoutia SQLite database: ${config.databasePath}`,
+    );
+
+    console.log(
+      googleIdentityVerifier ===
+        undefined
+        ? "Atoutia Google authentication: disabled"
+        : "Atoutia Google authentication: enabled",
     );
   },
 );

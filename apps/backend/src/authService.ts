@@ -30,6 +30,16 @@ export interface AuthServiceOptions {
 
   readonly sessionDurationMs?:
     number;
+
+  readonly externalIdentityVerifiers?:
+    Readonly<
+      Partial<
+        Record<
+          AuthIdentityProvider,
+          ExternalIdentityVerifier
+        >
+      >
+    >;
 }
 
 export interface VerifiedExternalIdentity {
@@ -38,6 +48,16 @@ export interface VerifiedExternalIdentity {
 
   readonly providerSubject:
     string;
+}
+
+export interface ExternalIdentityVerifier {
+  verify(
+    proof:
+      string,
+  ): Promise<
+    | VerifiedExternalIdentity
+    | undefined
+  >;
 }
 
 export interface ExternalIdentitySessionResult {
@@ -64,6 +84,16 @@ export class AuthService {
   readonly #sessionDurationMs:
     number | undefined;
 
+  readonly #externalIdentityVerifiers:
+    Readonly<
+      Partial<
+        Record<
+          AuthIdentityProvider,
+          ExternalIdentityVerifier
+        >
+      >
+    >;
+
   public constructor(
     options:
       AuthServiceOptions,
@@ -77,6 +107,14 @@ export class AuthService {
 
     this.#sessionDurationMs =
       options.sessionDurationMs;
+
+    this.#externalIdentityVerifiers =
+      options.externalIdentityVerifiers ===
+        undefined
+        ? Object.freeze({})
+        : Object.freeze({
+            ...options.externalIdentityVerifiers,
+          });
   }
 
   public createAccount():
@@ -118,6 +156,69 @@ export class AuthService {
       account,
       this.#repository,
     );
+  }
+
+  public isExternalIdentityProviderConfigured(
+    provider:
+      AuthIdentityProvider,
+  ): boolean {
+    return (
+      this.#externalIdentityVerifiers[
+        provider
+      ] !==
+      undefined
+    );
+  }
+
+  public async createSessionForExternalIdentityProof(
+    provider:
+      AuthIdentityProvider,
+
+    proof:
+      string,
+  ): Promise<
+    | ExternalIdentitySessionResult
+    | undefined
+  > {
+    const verifier =
+      this.#externalIdentityVerifiers[
+        provider
+      ];
+
+    if (
+      verifier ===
+        undefined
+    ) {
+      throw new Error(
+        "External authentication provider is not configured.",
+      );
+    }
+
+    const verifiedIdentity =
+      await verifier.verify(
+        proof,
+      );
+
+    if (
+      verifiedIdentity ===
+        undefined
+    ) {
+      return undefined;
+    }
+
+    if (
+      verifiedIdentity.provider !==
+        provider
+    ) {
+      throw new Error(
+        "External authentication verifier returned an unexpected provider.",
+      );
+    }
+
+    return this
+      .createSessionForVerifiedExternalIdentity(
+        verifiedIdentity,
+      );
   }
 
   public createSessionForVerifiedExternalIdentity(
