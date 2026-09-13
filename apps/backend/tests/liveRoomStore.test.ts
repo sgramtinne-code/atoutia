@@ -94,6 +94,20 @@ describe(
             PLAYER_3:
               false,
           },
+
+          adjudication: {
+            formatVersion:
+              1,
+
+            status:
+              "ACTIVE",
+
+            completion:
+              null,
+
+            completedAtMs:
+              null,
+          },
         });
       },
     );

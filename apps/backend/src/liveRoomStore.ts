@@ -34,6 +34,11 @@ import {
 } from "./liveRoomAdjudication.js";
 
 import {
+  createLiveRoomAdjudicationDocument,
+  type LiveRoomAdjudicationDocument,
+} from "./liveRoomAdjudicationDocument.js";
+
+import {
   assertBotControlsLiveRoomSeat,
   createLiveRoomSeatControl,
   transferLiveRoomSeatControlToBot,
@@ -80,6 +85,9 @@ export interface LiveRoomSummary {
 
   readonly seats:
     LiveRoomSeatSummary;
+
+  readonly adjudication:
+    LiveRoomAdjudicationDocument;
 }
 
 export interface CreateLiveRoomOptions {
@@ -555,6 +563,11 @@ export class LiveRoomStore {
       room,
       this.requireMode(
         sessionId,
+      ),
+      createLiveRoomAdjudicationDocument(
+        this.getAdjudication(
+          sessionId,
+        ),
       ),
     );
   }
@@ -1209,6 +1222,12 @@ export function createLiveRoomSummary(
   mode:
     MatchMode =
       "CASUAL",
+
+  adjudication:
+    LiveRoomAdjudicationDocument =
+      createLiveRoomAdjudicationDocument(
+        createActiveLiveRoomAdjudication(),
+      ),
 ): LiveRoomSummary {
   const assignments =
     room.managedRoom.room.seats
@@ -1258,5 +1277,7 @@ export function createLiveRoomSummary(
           assignments.PLAYER_3 !==
           null,
       }),
+
+    adjudication,
   });
 }
