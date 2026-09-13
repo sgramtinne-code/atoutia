@@ -9,6 +9,8 @@ import {
   BELOTE_ENGINE_VERSION,
   PLAYER_POSITIONS,
   isMatchSessionId,
+  parseLiveMatchRoomCommandDocument,
+  type LiveMatchRoomCommandDocument,
   type PlayerPosition,
 } from "@atoutia/belote-engine";
 
@@ -44,6 +46,18 @@ interface SeatMutationBody {
 interface StartRoomBody {
   readonly expectedRevision:
     number;
+}
+
+interface ParticipantBody {
+  readonly participantId:
+    string;
+}
+
+interface CommandBody {
+  readonly participantId:
+    string;
+  readonly document:
+    LiveMatchRoomCommandDocument;
 }
 
 function getPathname(
@@ -91,9 +105,7 @@ function getRoomRouteParts(
   const parts =
     remaining.split("/");
 
-  if (
-    parts.length === 1
-  ) {
+  if (parts.length === 1) {
     return [
       parts[0] ?? "",
       null,
@@ -264,6 +276,84 @@ function parseStartRoomBody(
   });
 }
 
+function parseParticipantBody(
+  value: unknown,
+): ParticipantBody | null {
+  if (!isObject(value)) {
+    return null;
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "participantId",
+      ],
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    !isValidParticipantId(
+      value.participantId,
+    )
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    participantId:
+      value.participantId,
+  });
+}
+
+function parseCommandBody(
+  value: unknown,
+): CommandBody | null {
+  if (!isObject(value)) {
+    return null;
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "participantId",
+        "document",
+      ],
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    !isValidParticipantId(
+      value.participantId,
+    )
+  ) {
+    return null;
+  }
+
+  try {
+    const document =
+      parseLiveMatchRoomCommandDocument(
+        JSON.stringify(
+          value.document,
+        ),
+      );
+
+    return Object.freeze({
+      participantId:
+        value.participantId,
+
+      document,
+    });
+  } catch {
+    return null;
+  }
+}
+
 function handleHealth(
   response: ServerResponse,
   roomStore: LiveRoomStore,
@@ -304,23 +394,6 @@ function handleGetRoom(
   roomStore: LiveRoomStore,
   sessionId: string,
 ): void {
-  if (
-    !isMatchSessionId(
-      sessionId,
-    )
-  ) {
-    sendJson(
-      response,
-      400,
-      {
-        error:
-          "INVALID_SESSION_ID",
-      },
-    );
-
-    return;
-  }
-
   const room =
     roomStore.get(
       sessionId,
@@ -482,6 +555,104 @@ async function handleStartRoom(
   );
 }
 
+async function handleSnapshot(
+  request: IncomingMessage,
+  response: ServerResponse,
+  roomStore: LiveRoomStore,
+  sessionId: string,
+): Promise<void> {
+  const body =
+    parseParticipantBody(
+      await readJsonBody(
+        request,
+      ),
+    );
+
+  if (body === null) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_REQUEST",
+      },
+    );
+
+    return;
+  }
+
+  const snapshot =
+    roomStore.createParticipantSnapshot({
+      sessionId,
+      participantId:
+        body.participantId,
+    });
+
+  sendJson(
+    response,
+    200,
+    snapshot,
+  );
+}
+
+async function handleCommand(
+  request: IncomingMessage,
+  response: ServerResponse,
+  roomStore: LiveRoomStore,
+  sessionId: string,
+): Promise<void> {
+  const body =
+    parseCommandBody(
+      await readJsonBody(
+        request,
+      ),
+    );
+
+  if (body === null) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_COMMAND",
+      },
+    );
+
+    return;
+  }
+
+  if (
+    body.document.sessionId !==
+    sessionId
+  ) {
+    sendJson(
+      response,
+      409,
+      {
+        error:
+          "SESSION_MISMATCH",
+      },
+    );
+
+    return;
+  }
+
+  const result =
+    roomStore.applyCommand({
+      sessionId,
+      participantId:
+        body.participantId,
+      document:
+        body.document,
+    });
+
+  sendJson(
+    response,
+    200,
+    result.snapshot,
+  );
+}
+
 function isRevisionMismatchError(
   error: unknown,
 ): boolean {
@@ -489,6 +660,42 @@ function isRevisionMismatchError(
     error instanceof Error &&
     error.message.startsWith(
       "Match room revision mismatch:",
+    )
+  );
+}
+
+function isParticipantError(
+  error: unknown,
+): boolean {
+  return (
+    error instanceof Error &&
+    (
+      error.message.includes(
+        "Participant",
+      ) ||
+      error.message.includes(
+        "participant",
+      )
+    )
+  );
+}
+
+function isCommandConflictError(
+  error: unknown,
+): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.startsWith(
+      "Cannot ",
+    ) ||
+    error.message.includes(
+      "not legal",
+    ) ||
+    error.message.includes(
+      "turn",
     )
   );
 }
@@ -576,6 +783,40 @@ function handleDomainError(
       {
         error:
           "REVISION_MISMATCH",
+      },
+    );
+
+    return;
+  }
+
+  if (
+    isParticipantError(
+      error,
+    )
+  ) {
+    sendJson(
+      response,
+      403,
+      {
+        error:
+          "PARTICIPANT_FORBIDDEN",
+      },
+    );
+
+    return;
+  }
+
+  if (
+    isCommandConflictError(
+      error,
+    )
+  ) {
+    sendJson(
+      response,
+      409,
+      {
+        error:
+          "COMMAND_REJECTED",
       },
     );
 
@@ -761,6 +1002,48 @@ async function handleRequest(
     }
 
     await handleStartRoom(
+      request,
+      response,
+      roomStore,
+      sessionId,
+    );
+
+    return;
+  }
+
+  if (action === "snapshot") {
+    if (
+      request.method !== "POST"
+    ) {
+      sendMethodNotAllowed(
+        response,
+      );
+
+      return;
+    }
+
+    await handleSnapshot(
+      request,
+      response,
+      roomStore,
+      sessionId,
+    );
+
+    return;
+  }
+
+  if (action === "commands") {
+    if (
+      request.method !== "POST"
+    ) {
+      sendMethodNotAllowed(
+        response,
+      );
+
+      return;
+    }
+
+    await handleCommand(
       request,
       response,
       roomStore,

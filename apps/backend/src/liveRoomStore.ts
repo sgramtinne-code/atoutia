@@ -3,10 +3,14 @@ import {
 } from "node:crypto";
 
 import {
+  applyLiveMatchRoomNetworkCommand,
   claimRevisionedLiveMatchRoomSeat,
+  createLiveMatchRoomSnapshotDocument,
   createRevisionedLiveMatchRoom,
   releaseRevisionedLiveMatchRoomSeat,
   startRevisionedLiveMatchRoom,
+  type LiveMatchRoomCommandDocument,
+  type LiveMatchRoomSnapshotDocument,
   type PlayerPosition,
   type RevisionedLiveMatchRoom,
 } from "@atoutia/belote-engine";
@@ -44,6 +48,22 @@ export interface ReleaseLiveRoomSeatOptions {
 export interface StartLiveRoomOptions {
   readonly sessionId: string;
   readonly expectedRevision: number;
+}
+
+export interface CreateParticipantSnapshotOptions {
+  readonly sessionId: string;
+  readonly participantId: string;
+}
+
+export interface ApplyLiveRoomCommandOptions {
+  readonly sessionId: string;
+  readonly participantId: string;
+  readonly document: LiveMatchRoomCommandDocument;
+}
+
+export interface ApplyLiveRoomCommandResult {
+  readonly room: RevisionedLiveMatchRoom;
+  readonly snapshot: LiveMatchRoomSnapshotDocument;
 }
 
 export class LiveRoomNotFoundError
@@ -180,6 +200,53 @@ export class LiveRoomStore {
     );
 
     return nextRoom;
+  }
+
+  public createParticipantSnapshot(
+    options:
+      CreateParticipantSnapshotOptions,
+  ): LiveMatchRoomSnapshotDocument {
+    const room =
+      this.#requireRoom(
+        options.sessionId,
+      );
+
+    return createLiveMatchRoomSnapshotDocument(
+      room,
+      options.participantId,
+    );
+  }
+
+  public applyCommand(
+    options:
+      ApplyLiveRoomCommandOptions,
+  ): ApplyLiveRoomCommandResult {
+    const room =
+      this.#requireRoom(
+        options.sessionId,
+      );
+
+    const result =
+      applyLiveMatchRoomNetworkCommand({
+        room,
+        participantId:
+          options.participantId,
+        document:
+          options.document,
+      });
+
+    this.#rooms.set(
+      options.sessionId,
+      result.room,
+    );
+
+    return Object.freeze({
+      room:
+        result.room,
+
+      snapshot:
+        result.snapshot,
+    });
   }
 
   public count(): number {

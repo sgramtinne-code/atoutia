@@ -1,10 +1,10 @@
 import type {
-  AddressInfo,
-} from "node:net";
-
-import type {
   Server,
 } from "node:http";
+
+import type {
+  AddressInfo,
+} from "node:net";
 
 import {
   afterEach,
@@ -81,6 +81,7 @@ async function startServer(
   return {
     server,
     roomStore,
+
     baseUrl:
       `http://127.0.0.1:${port}`,
   };
@@ -106,6 +107,7 @@ async function closeServer(
             error !== undefined
           ) {
             reject(error);
+
             return;
           }
 
@@ -174,10 +176,13 @@ describe(
           await response.json(),
         ).toEqual({
           status: "ok",
+
           service:
             "@atoutia/backend",
+
           engineVersion:
             BELOTE_ENGINE_VERSION,
+
           liveRooms: 0,
         });
       },
@@ -206,11 +211,18 @@ describe(
 
         const body =
           await response.json() as {
-            readonly sessionId: string;
-            readonly revision: number;
-            readonly phase: string;
+            readonly sessionId:
+              string;
+
+            readonly revision:
+              number;
+
+            readonly phase:
+              string;
+
             readonly occupiedSeats:
               number;
+
             readonly seats:
               Record<
                 string,
@@ -279,6 +291,7 @@ describe(
           await response.json() as {
             readonly sessionId:
               string;
+
             readonly revision:
               number;
           };
@@ -341,8 +354,10 @@ describe(
           await claimResponse.json() as {
             readonly revision:
               number;
+
             readonly occupiedSeats:
               number;
+
             readonly seats:
               Record<
                 string,
@@ -396,8 +411,10 @@ describe(
           await releaseResponse.json() as {
             readonly revision:
               number;
+
             readonly occupiedSeats:
               number;
+
             readonly seats:
               Record<
                 string,
@@ -565,8 +582,10 @@ describe(
           await readyResponse.json() as {
             readonly revision:
               number;
+
             readonly phase:
               string;
+
             readonly occupiedSeats:
               number;
           };
@@ -610,6 +629,7 @@ describe(
           await startResponse.json() as {
             readonly revision:
               number;
+
             readonly phase:
               string;
           };
@@ -661,7 +681,8 @@ describe(
         expect(
           await response.json(),
         ).toEqual({
-          error: "INVALID_JSON",
+          error:
+            "INVALID_JSON",
         });
       },
     );
@@ -712,8 +733,648 @@ describe(
         expect(
           await response.json(),
         ).toEqual({
-          error: "NOT_FOUND",
+          error:
+            "NOT_FOUND",
         });
+      },
+    );
+
+    it(
+      "returns a secure snapshot for a seated participant",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startServer();
+
+        const room =
+          await createRoom(
+            baseUrl,
+          );
+
+        const claimResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/seats`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-a",
+
+                  player:
+                    "PLAYER_0",
+
+                  expectedRevision:
+                    0,
+                }),
+            },
+          );
+
+        expect(
+          claimResponse.status,
+        ).toBe(200);
+
+        const snapshotResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/snapshot`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-a",
+                }),
+            },
+          );
+
+        expect(
+          snapshotResponse.status,
+        ).toBe(200);
+
+        const snapshot =
+          await snapshotResponse.json() as {
+            readonly sessionId:
+              string;
+
+            readonly revision:
+              number;
+
+            readonly player:
+              string;
+
+            readonly seats:
+              readonly {
+                readonly player:
+                  string;
+
+                readonly occupied:
+                  boolean;
+              }[];
+          };
+
+        expect(
+          snapshot.sessionId,
+        ).toBe(
+          room.sessionId,
+        );
+
+        expect(
+          snapshot.revision,
+        ).toBe(1);
+
+        expect(
+          snapshot.player,
+        ).toBe("PLAYER_0");
+
+        expect(
+          snapshot.seats[0],
+        ).toEqual({
+          player: "PLAYER_0",
+          occupied: true,
+        });
+      },
+    );
+
+    it(
+      "rejects a snapshot for an unseated participant",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startServer();
+
+        const room =
+          await createRoom(
+            baseUrl,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/snapshot`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "unknown-participant",
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(403);
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          error:
+            "PARTICIPANT_FORBIDDEN",
+        });
+      },
+    );
+
+    it(
+      "rejects an invalid room command document",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startServer();
+
+        const room =
+          await createRoom(
+            baseUrl,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/commands`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-a",
+
+                  document: {
+                    formatVersion: 999,
+                  },
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(400);
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          error:
+            "INVALID_COMMAND",
+        });
+      },
+    );
+
+    it(
+      "rejects a room command with another session id",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startServer();
+
+        const roomA =
+          await createRoom(
+            baseUrl,
+          );
+
+        const roomB =
+          await createRoom(
+            baseUrl,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${roomA.sessionId}/commands`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-a",
+
+                  document: {
+                    formatVersion: 1,
+
+                    engineVersion:
+                      BELOTE_ENGINE_VERSION,
+
+                    sessionId:
+                      roomB.sessionId,
+
+                    expectedRevision:
+                      0,
+
+                    command: {
+                      type: "PASS",
+                    },
+                  },
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(409);
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          error:
+            "SESSION_MISMATCH",
+        });
+      },
+    );
+
+    it(
+      "applies a valid bidding command and returns the updated snapshot",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startServer();
+
+        const room =
+          await createRoom(
+            baseUrl,
+          );
+
+        const players = [
+          "PLAYER_0",
+          "PLAYER_1",
+          "PLAYER_2",
+          "PLAYER_3",
+        ] as const;
+
+        for (
+          let index = 0;
+          index <
+          players.length;
+          index += 1
+        ) {
+          const response =
+            await fetch(
+              `${baseUrl}/api/v1/rooms/${room.sessionId}/seats`,
+              {
+                method: "POST",
+
+                headers: {
+                  "content-type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify({
+                    participantId:
+                      `participant-${index}`,
+
+                    player:
+                      players[index],
+
+                    expectedRevision:
+                      index,
+                  }),
+              },
+            );
+
+          expect(
+            response.status,
+          ).toBe(200);
+        }
+
+        const startResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/start`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  expectedRevision:
+                    4,
+                }),
+            },
+          );
+
+        expect(
+          startResponse.status,
+        ).toBe(200);
+
+        const snapshotResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/snapshot`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-1",
+                }),
+            },
+          );
+
+        expect(
+          snapshotResponse.status,
+        ).toBe(200);
+
+        const before =
+          await snapshotResponse.json() as {
+            readonly revision:
+              number;
+
+            readonly game: {
+              readonly actions: {
+                readonly mode:
+                  string;
+
+                readonly biddingActions:
+                  readonly {
+                    readonly type:
+                      string;
+
+                    readonly player:
+                      string;
+                  }[];
+              };
+            };
+          };
+
+        expect(
+          before.revision,
+        ).toBe(5);
+
+        expect(
+          before.game.actions.mode,
+        ).toBe("BID");
+
+        expect(
+          before.game.actions
+            .biddingActions,
+        ).toContainEqual({
+          type: "PASS",
+          player: "PLAYER_1",
+        });
+
+        const commandResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/commands`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-1",
+
+                  document: {
+                    formatVersion: 1,
+
+                    engineVersion:
+                      BELOTE_ENGINE_VERSION,
+
+                    sessionId:
+                      room.sessionId,
+
+                    expectedRevision:
+                      5,
+
+                    command: {
+                      type: "PASS",
+                    },
+                  },
+                }),
+            },
+          );
+
+        expect(
+          commandResponse.status,
+        ).toBe(200);
+
+        const after =
+          await commandResponse.json() as {
+            readonly revision:
+              number;
+
+            readonly player:
+              string;
+
+            readonly game: {
+              readonly match: {
+                readonly public: {
+                  readonly biddingPlayer:
+                    string | null;
+                };
+              };
+
+              readonly actions: {
+                readonly mode:
+                  string;
+              };
+            };
+          };
+
+        expect(
+          after.revision,
+        ).toBe(6);
+
+        expect(
+          after.player,
+        ).toBe("PLAYER_1");
+
+        expect(
+          after.game.actions.mode,
+        ).toBe("WAIT");
+
+        expect(
+          after.game.match.public
+            .biddingPlayer,
+        ).toBe("PLAYER_2");
+      },
+    );
+
+    it(
+      "rejects a command from a participant whose player is not active",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startServer();
+
+        const room =
+          await createRoom(
+            baseUrl,
+          );
+
+        const players = [
+          "PLAYER_0",
+          "PLAYER_1",
+          "PLAYER_2",
+          "PLAYER_3",
+        ] as const;
+
+        for (
+          let index = 0;
+          index <
+          players.length;
+          index += 1
+        ) {
+          const response =
+            await fetch(
+              `${baseUrl}/api/v1/rooms/${room.sessionId}/seats`,
+              {
+                method: "POST",
+
+                headers: {
+                  "content-type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify({
+                    participantId:
+                      `participant-${index}`,
+
+                    player:
+                      players[index],
+
+                    expectedRevision:
+                      index,
+                  }),
+              },
+            );
+
+          expect(
+            response.status,
+          ).toBe(200);
+        }
+
+        const startResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/start`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  expectedRevision:
+                    4,
+                }),
+            },
+          );
+
+        expect(
+          startResponse.status,
+        ).toBe(200);
+
+        const commandResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}/commands`,
+            {
+              method: "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  participantId:
+                    "participant-0",
+
+                  document: {
+                    formatVersion: 1,
+
+                    engineVersion:
+                      BELOTE_ENGINE_VERSION,
+
+                    sessionId:
+                      room.sessionId,
+
+                    expectedRevision:
+                      5,
+
+                    command: {
+                      type: "PASS",
+                    },
+                  },
+                }),
+            },
+          );
+
+        expect(
+          commandResponse.status,
+        ).toBe(409);
+
+        expect(
+          await commandResponse.json(),
+        ).toEqual({
+          error:
+            "COMMAND_REJECTED",
+        });
+
+        const roomResponse =
+          await fetch(
+            `${baseUrl}/api/v1/rooms/${room.sessionId}`,
+          );
+
+        expect(
+          roomResponse.status,
+        ).toBe(200);
+
+        const finalRoom =
+          await roomResponse.json() as {
+            readonly revision:
+              number;
+          };
+
+        expect(
+          finalRoom.revision,
+        ).toBe(5);
       },
     );
   },

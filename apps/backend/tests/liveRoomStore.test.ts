@@ -200,5 +200,90 @@ describe(
         ).toBe("IN_PROGRESS");
       },
     );
+
+    it(
+      "creates a secure participant snapshot",
+      () => {
+        const store =
+          new LiveRoomStore();
+
+        const created =
+          store.create();
+
+        const sessionId =
+          created.managedRoom.room
+            .session.sessionId;
+
+        store.claimSeat({
+          sessionId,
+          expectedRevision: 0,
+          player: "PLAYER_0",
+          participantId: "p0",
+        });
+
+        const snapshot =
+          store.createParticipantSnapshot({
+            sessionId,
+            participantId: "p0",
+          });
+
+        expect(
+          snapshot.sessionId,
+        ).toBe(sessionId);
+
+        expect(
+          snapshot.revision,
+        ).toBe(1);
+
+        expect(
+          snapshot.player,
+        ).toBe("PLAYER_0");
+
+        expect(
+          snapshot.seats,
+        ).toEqual([
+          {
+            player: "PLAYER_0",
+            occupied: true,
+          },
+          {
+            player: "PLAYER_1",
+            occupied: false,
+          },
+          {
+            player: "PLAYER_2",
+            occupied: false,
+          },
+          {
+            player: "PLAYER_3",
+            occupied: false,
+          },
+        ]);
+      },
+    );
+
+    it(
+      "rejects a snapshot for an unseated participant",
+      () => {
+        const store =
+          new LiveRoomStore();
+
+        const room =
+          store.create();
+
+        const sessionId =
+          room.managedRoom.room
+            .session.sessionId;
+
+        expect(
+          () =>
+            store.createParticipantSnapshot({
+              sessionId,
+              participantId:
+                "not-seated",
+            }),
+        ).toThrow();
+      },
+    );
   },
 );
