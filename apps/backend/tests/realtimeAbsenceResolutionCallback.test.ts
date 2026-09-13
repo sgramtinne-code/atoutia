@@ -76,6 +76,19 @@ interface StartServerOptions {
     ) => void;
 }
 
+interface StartedRankedRoom {
+  readonly sessionId:
+    string;
+
+  readonly participantIds:
+    readonly [
+      string,
+      string,
+      string,
+      string,
+    ];
+}
+
 const runningServers:
   RunningServer[] = [];
 
@@ -98,6 +111,8 @@ async function startServer(
           requestBotCycle:
             options.requestBotCycle ??
             (() => {}),
+
+          now,
         })
       : null;
 
@@ -270,6 +285,97 @@ function createRoomWithParticipant(
   });
 
   return sessionId;
+}
+
+function createStartedRankedRoom(
+  roomStore:
+    LiveRoomStore,
+): StartedRankedRoom {
+  const room =
+    roomStore.create({
+      mode:
+        "RANKED",
+    });
+
+  const sessionId =
+    room.managedRoom.room.session
+      .sessionId;
+
+  const participantIds =
+    [
+      "ranked-participant-0",
+      "ranked-participant-1",
+      "ranked-participant-2",
+      "ranked-participant-3",
+    ] as const;
+
+  roomStore.claimSeat({
+    sessionId,
+
+    expectedRevision:
+      0,
+
+    player:
+      "PLAYER_0",
+
+    participantId:
+      participantIds[0],
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+
+    expectedRevision:
+      1,
+
+    player:
+      "PLAYER_1",
+
+    participantId:
+      participantIds[1],
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+
+    expectedRevision:
+      2,
+
+    player:
+      "PLAYER_2",
+
+    participantId:
+      participantIds[2],
+  });
+
+  roomStore.claimSeat({
+    sessionId,
+
+    expectedRevision:
+      3,
+
+    player:
+      "PLAYER_3",
+
+    participantId:
+      participantIds[3],
+  });
+
+  roomStore.start({
+    sessionId,
+
+    expectedRevision:
+      4,
+  });
+
+  return Object.freeze({
+    sessionId,
+
+    participantIds:
+      Object.freeze(
+        participantIds,
+      ),
+  });
 }
 
 function createSocket(
@@ -706,7 +812,7 @@ describe(
     );
 
     it(
-      "keeps RANKED TEAM_FORFEIT pending when the coordinator is wired",
+      "keeps RANKED TEAM_FORFEIT pending when the coordinator is wired but the room is not in progress",
       async () => {
         let currentTime =
           1_000;
@@ -784,12 +890,174 @@ describe(
         });
 
         expect(
+          running.roomStore.getAdjudication(
+            sessionId,
+          ),
+        ).toEqual({
+          status:
+            "ACTIVE",
+
+          completion:
+            null,
+
+          completedAtMs:
+            null,
+        });
+
+        expect(
           running.roomStore.getSeatControl(
             sessionId,
             "PLAYER_0",
           ).controller,
         ).toBe(
           "HUMAN",
+        );
+
+        expect(
+          requestBotCycle,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      "executes RANKED TEAM_FORFEIT end to end after an in-progress player absence",
+      async () => {
+        let currentTime =
+          1_000;
+
+        const requestBotCycle =
+          vi.fn();
+
+        const running =
+          await startServer(
+            () =>
+              currentTime,
+
+            {
+              useCoordinator:
+                true,
+
+              requestBotCycle,
+            },
+          );
+
+        const {
+          sessionId,
+          participantIds,
+        } =
+          createStartedRankedRoom(
+            running.roomStore,
+          );
+
+        const sockets =
+          participantIds.map(
+            (
+              participantId,
+            ) =>
+              createSocket(
+                running,
+                sessionId,
+                participantId,
+              ),
+          );
+
+        await Promise.all(
+          sockets.map(
+            (
+              socket,
+            ) =>
+              waitForOpen(
+                socket,
+              ),
+          ),
+        );
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          5,
+        );
+
+        await closeSocket(
+          sockets[0],
+        );
+
+        currentTime =
+          182_000;
+
+        await waitForCondition(
+          () =>
+            running.roomStore
+              .getAbsenceResolution(
+                sessionId,
+                "PLAYER_0",
+              )?.status ===
+            "RESOLVED_BY_FORFEIT",
+
+          "RANKED automatic TEAM_FORFEIT",
+        );
+
+        expect(
+          running.roomStore
+            .getAbsenceResolution(
+              sessionId,
+              "PLAYER_0",
+            ),
+        ).toEqual({
+          player:
+            "PLAYER_0",
+
+          action:
+            "TEAM_FORFEIT",
+
+          status:
+            "RESOLVED_BY_FORFEIT",
+        });
+
+        expect(
+          running.roomStore.getAdjudication(
+            sessionId,
+          ),
+        ).toEqual({
+          status:
+            "COMPLETED",
+
+          completion:
+            "FORFEIT",
+
+          reason:
+            "PLAYER_ABSENCE",
+
+          forfeitingPlayer:
+            "PLAYER_0",
+
+          losingTeam:
+            "TEAM_0",
+
+          winningTeam:
+            "TEAM_1",
+
+          completedAtMs:
+            182_000,
+        });
+
+        expect(
+          running.roomStore.getSeatControl(
+            sessionId,
+            "PLAYER_0",
+          ).controller,
+        ).toBe(
+          "HUMAN",
+        );
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          5,
         );
 
         expect(
