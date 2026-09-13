@@ -58,11 +58,12 @@ describe(
     );
 
     it(
-      "creates a versioned PRESENCE message with connection states",
+      "creates a versioned PRESENCE message with connection and absence states",
       () => {
         const message =
           createRealtimePresenceMessage(
             "ms1_0123456789abcdef0123456789abcdef",
+
             [
               {
                 player:
@@ -85,6 +86,7 @@ describe(
                   1200,
               },
             ],
+
             [
               {
                 player:
@@ -104,13 +106,54 @@ describe(
                   "PLAYER_1",
 
                 state:
-                  "RECONNECTING",
+                  "ABSENT",
 
                 disconnectedAtMs:
                   1300,
 
                 graceDeadlineAtMs:
                   121300,
+              },
+            ],
+
+            [
+              {
+                player:
+                  "PLAYER_0",
+
+                status:
+                  "NOT_ABSENT",
+
+                mode:
+                  "CASUAL",
+
+                absentSinceMs:
+                  null,
+
+                eligibleAtMs:
+                  null,
+
+                remainingMs:
+                  null,
+              },
+              {
+                player:
+                  "PLAYER_1",
+
+                status:
+                  "WAITING",
+
+                mode:
+                  "CASUAL",
+
+                absentSinceMs:
+                  121300,
+
+                eligibleAtMs:
+                  301300,
+
+                remainingMs:
+                  180000,
               },
             ],
           );
@@ -169,13 +212,54 @@ describe(
                 "PLAYER_1",
 
               state:
-                "RECONNECTING",
+                "ABSENT",
 
               disconnectedAtMs:
                 1300,
 
               graceDeadlineAtMs:
                 121300,
+            },
+          ],
+
+          absences: [
+            {
+              player:
+                "PLAYER_0",
+
+              status:
+                "NOT_ABSENT",
+
+              mode:
+                "CASUAL",
+
+              absentSinceMs:
+                null,
+
+              eligibleAtMs:
+                null,
+
+              remainingMs:
+                null,
+            },
+            {
+              player:
+                "PLAYER_1",
+
+              status:
+                "WAITING",
+
+              mode:
+                "CASUAL",
+
+              absentSinceMs:
+                121300,
+
+              eligibleAtMs:
+                301300,
+
+              remainingMs:
+                180000,
             },
           ],
         });

@@ -17,6 +17,12 @@ import {
 } from "ws";
 
 import {
+  createCasualAbsencePolicy,
+  evaluateAbsenceResolution,
+  type AbsencePolicy,
+} from "./absencePolicy.js";
+
+import {
   LiveRoomNotFoundError,
   LiveRoomStore,
 } from "./liveRoomStore.js";
@@ -27,6 +33,7 @@ import {
   createRealtimeSnapshotMessage,
   parseRealtimeClientMessage,
   serializeRealtimeServerMessage,
+  type RealtimeAbsencePlayer,
   type RealtimeConnectionState,
   type RealtimeErrorCode,
   type RealtimePresencePlayer,
@@ -89,6 +96,9 @@ export interface CreateRealtimeServerOptions {
 
   readonly reconnectGraceMs?:
     number;
+
+  readonly absencePolicy?:
+    AbsencePolicy;
 }
 
 function resolvePositiveInteger(
@@ -374,6 +384,10 @@ export function createRealtimeServer(
       "reconnectGraceMs",
     );
 
+  const absencePolicy =
+    options.absencePolicy ??
+    createCasualAbsencePolicy();
+
   const connections =
     new Map<
       WebSocket,
@@ -397,6 +411,9 @@ export function createRealtimeServer(
       string,
       DisconnectionState
     >();
+
+  const broadcastedAbsenceEligibility =
+    new Set<string>();
 
   const webSocketServer =
     new WebSocketServer({
@@ -606,6 +623,61 @@ export function createRealtimeServer(
     );
   }
 
+  function createAbsencePlayers(
+    connectionStates:
+      readonly RealtimeConnectionState[],
+    currentTime:
+      number,
+  ): readonly RealtimeAbsencePlayer[] {
+    return Object.freeze(
+      connectionStates.map(
+        (
+          connectionState,
+        ): RealtimeAbsencePlayer => {
+          const evaluation =
+            evaluateAbsenceResolution(
+              absencePolicy,
+
+              {
+                state:
+                  connectionState.state,
+
+                disconnectedAtMs:
+                  connectionState
+                    .disconnectedAtMs,
+
+                graceDeadlineAtMs:
+                  connectionState
+                    .graceDeadlineAtMs,
+              },
+
+              currentTime,
+            );
+
+          return Object.freeze({
+            player:
+              connectionState.player,
+
+            status:
+              evaluation.status,
+
+            mode:
+              evaluation.mode,
+
+            absentSinceMs:
+              evaluation.absentSinceMs,
+
+            eligibleAtMs:
+              evaluation.eligibleAtMs,
+
+            remainingMs:
+              evaluation.remainingMs,
+          });
+        },
+      ),
+    );
+  }
+
   function sendPresence(
     socket: WebSocket,
     sessionId: string,
@@ -617,6 +689,14 @@ export function createRealtimeServer(
       return;
     }
 
+    const connectionStates =
+      createConnectionStates(
+        sessionId,
+      );
+
+    const currentTime =
+      now();
+
     socket.send(
       serializeRealtimeServerMessage(
         createRealtimePresenceMessage(
@@ -626,8 +706,11 @@ export function createRealtimeServer(
             sessionId,
           ),
 
-          createConnectionStates(
-            sessionId,
+          connectionStates,
+
+          createAbsencePlayers(
+            connectionStates,
+            currentTime,
           ),
         ),
       ),
@@ -706,6 +789,10 @@ export function createRealtimeServer(
             graceExpired:
               false,
           }),
+        );
+
+        broadcastedAbsenceEligibility.delete(
+          key,
         );
       }
     }
@@ -1023,6 +1110,90 @@ export function createRealtimeServer(
     }
   }
 
+  function sweepAbsenceEligibility():
+    void {
+    if (
+      absencePolicy
+        .resolutionDelayMs ===
+      null
+    ) {
+      return;
+    }
+
+    const currentTime =
+      now();
+
+    const sessionsToBroadcast =
+      new Set<string>();
+
+    for (
+      const [
+        key,
+        disconnectionState,
+      ]
+      of disconnectionStates
+    ) {
+      if (
+        !disconnectionState
+          .graceExpired
+      ) {
+        continue;
+      }
+
+      if (
+        participantConnections.has(
+          key,
+        )
+      ) {
+        continue;
+      }
+
+      if (
+        broadcastedAbsenceEligibility.has(
+          key,
+        )
+      ) {
+        continue;
+      }
+
+      const absentSinceMs =
+        disconnectionState
+          .disconnectedAtMs +
+        reconnectGraceMs;
+
+      const eligibleAtMs =
+        absentSinceMs +
+        absencePolicy
+          .resolutionDelayMs;
+
+      if (
+        currentTime <
+        eligibleAtMs
+      ) {
+        continue;
+      }
+
+      broadcastedAbsenceEligibility.add(
+        key,
+      );
+
+      sessionsToBroadcast.add(
+        disconnectionState
+          .context
+          .sessionId,
+      );
+    }
+
+    for (
+      const sessionId
+      of sessionsToBroadcast
+    ) {
+      broadcastPresence(
+        sessionId,
+      );
+    }
+  }
+
   const unsubscribe =
     options.roomStore.subscribe(
       broadcastRoom,
@@ -1033,6 +1204,7 @@ export function createRealtimeServer(
       () => {
         sweepHeartbeatTimeouts();
         sweepReconnectGracePeriods();
+        sweepAbsenceEligibility();
       },
       heartbeatCheckIntervalMs,
     );
@@ -1113,6 +1285,10 @@ export function createRealtimeServer(
         key,
       );
 
+      broadcastedAbsenceEligibility.delete(
+        key,
+      );
+
       socket.on(
         "message",
         (
@@ -1184,6 +1360,7 @@ export function createRealtimeServer(
       participantConnections.clear();
       lastSeenAtMs.clear();
       disconnectionStates.clear();
+      broadcastedAbsenceEligibility.clear();
 
       await new Promise<void>(
         (

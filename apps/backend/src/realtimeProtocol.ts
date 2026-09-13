@@ -5,6 +5,11 @@ import {
   type PlayerPosition,
 } from "@atoutia/belote-engine";
 
+import type {
+  AbsenceResolutionStatus,
+  MatchAbsenceMode,
+} from "./absencePolicy.js";
+
 export const REALTIME_PROTOCOL_VERSION =
   1;
 
@@ -68,6 +73,26 @@ export interface RealtimeConnectionState {
     number | null;
 }
 
+export interface RealtimeAbsencePlayer {
+  readonly player:
+    PlayerPosition;
+
+  readonly status:
+    AbsenceResolutionStatus;
+
+  readonly mode:
+    MatchAbsenceMode;
+
+  readonly absentSinceMs:
+    number | null;
+
+  readonly eligibleAtMs:
+    number | null;
+
+  readonly remainingMs:
+    number | null;
+}
+
 export interface RealtimePresenceMessage {
   readonly protocolVersion: 1;
   readonly type: "PRESENCE";
@@ -80,6 +105,9 @@ export interface RealtimePresenceMessage {
 
   readonly connectionStates:
     readonly RealtimeConnectionState[];
+
+  readonly absences:
+    readonly RealtimeAbsencePlayer[];
 }
 
 export type RealtimeErrorCode =
@@ -357,10 +385,16 @@ export function createRealtimeSnapshotMessage(
 
 export function createRealtimePresenceMessage(
   sessionId: string,
+
   players:
     readonly RealtimePresencePlayer[],
+
   connectionStates:
     readonly RealtimeConnectionState[] =
+      [],
+
+  absences:
+    readonly RealtimeAbsencePlayer[] =
       [],
 ): RealtimePresenceMessage {
   return Object.freeze({
@@ -380,6 +414,11 @@ export function createRealtimePresenceMessage(
     connectionStates:
       Object.freeze(
         [...connectionStates],
+      ),
+
+    absences:
+      Object.freeze(
+        [...absences],
       ),
   });
 }
