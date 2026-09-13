@@ -61,3 +61,8 @@ android/app/build/
 
 # Local tooling
 .cache/
+
+# SQLite databases
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

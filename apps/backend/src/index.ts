@@ -1,4 +1,12 @@
 import {
+  mkdirSync,
+} from "node:fs";
+
+import {
+  dirname,
+} from "node:path";
+
+import {
   createAbsenceResolutionCoordinator,
 } from "./absenceResolutionCoordinator.js";
 
@@ -22,11 +30,34 @@ import {
   createBackendServer,
 } from "./server.js";
 
+import {
+  SQLiteLiveRoomRepository,
+} from "./sqliteLiveRoomRepository.js";
+
 const config =
   loadBackendConfig();
 
+mkdirSync(
+  dirname(
+    config.databasePath,
+  ),
+  {
+    recursive:
+      true,
+  },
+);
+
+const roomRepository =
+  new SQLiteLiveRoomRepository({
+    databasePath:
+      config.databasePath,
+  });
+
 const roomStore =
-  new LiveRoomStore();
+  new LiveRoomStore({
+    repository:
+      roomRepository,
+  });
 
 const botCycleScheduler =
   createBotCycleScheduler({
@@ -91,6 +122,10 @@ server.listen(
     console.log(
       `Atoutia WebSocket listening on ws://${config.host}:${config.port}/ws`,
     );
+
+    console.log(
+      `Atoutia SQLite database: ${config.databasePath}`,
+    );
   },
 );
 
@@ -143,7 +178,7 @@ async function shutdown(
         ) => {
           if (
             error !==
-            undefined
+              undefined
           ) {
             console.error(
               error,
@@ -158,6 +193,20 @@ async function shutdown(
       );
     },
   );
+
+  try {
+    roomRepository.close();
+  } catch (
+    error:
+      unknown
+  ) {
+    console.error(
+      error,
+    );
+
+    process.exitCode =
+      1;
+  }
 }
 
 process.on(
