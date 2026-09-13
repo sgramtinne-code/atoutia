@@ -236,10 +236,24 @@ export interface ForfeitLiveRoomForPlayerAbsenceOptions {
     number;
 }
 
+export interface LiveRoomAdjudicationChangedEvent {
+  readonly sessionId:
+    string;
+
+  readonly adjudication:
+    LiveRoomAdjudication;
+}
+
 export type LiveRoomStoreListener =
   (
     room:
       RevisionedLiveMatchRoom,
+  ) => void;
+
+export type LiveRoomAdjudicationListener =
+  (
+    event:
+      LiveRoomAdjudicationChangedEvent,
   ) => void;
 
 export class LiveRoomNotFoundError
@@ -330,6 +344,11 @@ export class LiveRoomStore {
   readonly #listeners =
     new Set<
       LiveRoomStoreListener
+    >();
+
+  readonly #adjudicationListeners =
+    new Set<
+      LiveRoomAdjudicationListener
     >();
 
   public create(
@@ -544,6 +563,11 @@ export class LiveRoomStore {
       });
 
     this.#adjudications.set(
+      options.sessionId,
+      adjudication,
+    );
+
+    this.#notifyAdjudicationChanged(
       options.sessionId,
       adjudication,
     );
@@ -1089,6 +1113,21 @@ export class LiveRoomStore {
     };
   }
 
+  public subscribeAdjudication(
+    listener:
+      LiveRoomAdjudicationListener,
+  ): () => void {
+    this.#adjudicationListeners.add(
+      listener,
+    );
+
+    return () => {
+      this.#adjudicationListeners.delete(
+        listener,
+      );
+    };
+  }
+
   public count():
     number {
     return this.#rooms.size;
@@ -1122,6 +1161,29 @@ export class LiveRoomStore {
     ) {
       listener(
         nextRoom,
+      );
+    }
+  }
+
+  #notifyAdjudicationChanged(
+    sessionId:
+      string,
+
+    adjudication:
+      LiveRoomAdjudication,
+  ): void {
+    const event =
+      Object.freeze({
+        sessionId,
+        adjudication,
+      });
+
+    for (
+      const listener
+      of this.#adjudicationListeners
+    ) {
+      listener(
+        event,
       );
     }
   }
