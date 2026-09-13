@@ -25,6 +25,9 @@ export interface BackendConfig {
 
   readonly databasePath:
     string;
+
+  readonly googleClientId:
+    string | undefined;
 }
 
 function parsePort(
@@ -33,7 +36,7 @@ function parsePort(
 ): number {
   if (
     value ===
-    undefined
+      undefined
   ) {
     return DEFAULT_PORT;
   }
@@ -66,7 +69,7 @@ function parseDatabasePath(
 ): string {
   if (
     value ===
-    undefined
+      undefined
   ) {
     return DEFAULT_DATABASE_PATH;
   }
@@ -80,6 +83,38 @@ function parseDatabasePath(
   ) {
     throw new Error(
       "ATOUTIA_DATABASE_PATH must not be empty.",
+    );
+  }
+
+  return trimmed;
+}
+
+function parseGoogleClientId(
+  value:
+    string | undefined,
+):
+  | string
+  | undefined {
+  if (
+    value ===
+      undefined
+  ) {
+    return undefined;
+  }
+
+  const trimmed =
+    value.trim();
+
+  if (
+    trimmed.length ===
+      0 ||
+    trimmed !==
+      value.trim() ||
+    trimmed.length >
+      512
+  ) {
+    throw new Error(
+      "ATOUTIA_GOOGLE_CLIENT_ID must be a non-empty value of at most 512 characters.",
     );
   }
 
@@ -105,6 +140,12 @@ export function loadBackendConfig(
       parseDatabasePath(
         environment
           .ATOUTIA_DATABASE_PATH,
+      ),
+
+    googleClientId:
+      parseGoogleClientId(
+        environment
+          .ATOUTIA_GOOGLE_CLIENT_ID,
       ),
   });
 }

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@atoutia/belote-engine": "workspace:*",
+    "google-auth-library": "^11.0.2",
     "ws": "^8.18.3"
   },
   "devDependencies": {

@@ -33,6 +33,9 @@ describe(
 
           databasePath:
             DEFAULT_DATABASE_PATH,
+
+          googleClientId:
+            undefined,
         });
       },
     );
@@ -135,6 +138,83 @@ describe(
             }),
         ).toThrow(
           "ATOUTIA_DATABASE_PATH must not be empty.",
+        );
+      },
+    );
+
+    it(
+      "leaves Google authentication unconfigured by default",
+      () => {
+        expect(
+          loadBackendConfig(
+            {},
+          ).googleClientId,
+        ).toBeUndefined();
+      },
+    );
+
+    it(
+      "uses a configured Google client ID",
+      () => {
+        const config =
+          loadBackendConfig({
+            ATOUTIA_GOOGLE_CLIENT_ID:
+              "atoutia-client.apps.googleusercontent.com",
+          });
+
+        expect(
+          config.googleClientId,
+        ).toBe(
+          "atoutia-client.apps.googleusercontent.com",
+        );
+      },
+    );
+
+    it(
+      "trims the configured Google client ID",
+      () => {
+        const config =
+          loadBackendConfig({
+            ATOUTIA_GOOGLE_CLIENT_ID:
+              "  atoutia-client.apps.googleusercontent.com  ",
+          });
+
+        expect(
+          config.googleClientId,
+        ).toBe(
+          "atoutia-client.apps.googleusercontent.com",
+        );
+      },
+    );
+
+    it(
+      "rejects an empty Google client ID",
+      () => {
+        expect(
+          () =>
+            loadBackendConfig({
+              ATOUTIA_GOOGLE_CLIENT_ID:
+                "   ",
+            }),
+        ).toThrow(
+          "ATOUTIA_GOOGLE_CLIENT_ID must be a non-empty value of at most 512 characters.",
+        );
+      },
+    );
+
+    it(
+      "rejects an excessively large Google client ID",
+      () => {
+        expect(
+          () =>
+            loadBackendConfig({
+              ATOUTIA_GOOGLE_CLIENT_ID:
+                "a".repeat(
+                  513,
+                ),
+            }),
+        ).toThrow(
+          "ATOUTIA_GOOGLE_CLIENT_ID must be a non-empty value of at most 512 characters.",
         );
       },
     );
