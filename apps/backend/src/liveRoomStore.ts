@@ -66,6 +66,11 @@ export interface ApplyLiveRoomCommandResult {
   readonly snapshot: LiveMatchRoomSnapshotDocument;
 }
 
+export type LiveRoomStoreListener =
+  (
+    room: RevisionedLiveMatchRoom,
+  ) => void;
+
 export class LiveRoomNotFoundError
   extends Error {
   public constructor(
@@ -85,6 +90,11 @@ export class LiveRoomStore {
     new Map<
       string,
       RevisionedLiveMatchRoom
+    >();
+
+  readonly #listeners =
+    new Set<
+      LiveRoomStoreListener
     >();
 
   public create():
@@ -142,8 +152,9 @@ export class LiveRoomStore {
           options.participantId,
       });
 
-    this.#rooms.set(
+    this.#storeMutation(
       options.sessionId,
+      room,
       nextRoom,
     );
 
@@ -170,8 +181,9 @@ export class LiveRoomStore {
           options.participantId,
       });
 
-    this.#rooms.set(
+    this.#storeMutation(
       options.sessionId,
+      room,
       nextRoom,
     );
 
@@ -194,8 +206,9 @@ export class LiveRoomStore {
           options.expectedRevision,
       });
 
-    this.#rooms.set(
+    this.#storeMutation(
       options.sessionId,
+      room,
       nextRoom,
     );
 
@@ -235,8 +248,9 @@ export class LiveRoomStore {
           options.document,
       });
 
-    this.#rooms.set(
+    this.#storeMutation(
       options.sessionId,
+      room,
       result.room,
     );
 
@@ -249,8 +263,52 @@ export class LiveRoomStore {
     });
   }
 
+  public subscribe(
+    listener:
+      LiveRoomStoreListener,
+  ): () => void {
+    this.#listeners.add(
+      listener,
+    );
+
+    return () => {
+      this.#listeners.delete(
+        listener,
+      );
+    };
+  }
+
   public count(): number {
     return this.#rooms.size;
+  }
+
+  #storeMutation(
+    sessionId: string,
+    previousRoom:
+      RevisionedLiveMatchRoom,
+    nextRoom:
+      RevisionedLiveMatchRoom,
+  ): void {
+    this.#rooms.set(
+      sessionId,
+      nextRoom,
+    );
+
+    if (
+      nextRoom ===
+      previousRoom
+    ) {
+      return;
+    }
+
+    for (
+      const listener
+      of this.#listeners
+    ) {
+      listener(
+        nextRoom,
+      );
+    }
   }
 
   #requireRoom(
