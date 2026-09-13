@@ -18,6 +18,8 @@ import {
 
 import {
   createCasualAbsencePolicy,
+  createPrivateAbsencePolicy,
+  createRankedAbsencePolicy,
   evaluateAbsenceResolution,
   type AbsencePolicy,
 } from "./absencePolicy.js";
@@ -55,8 +57,11 @@ export const HEARTBEAT_TIMEOUT_CLOSE_REASON =
   "Heartbeat timeout";
 
 interface ConnectionContext {
-  readonly sessionId: string;
-  readonly participantId: string;
+  readonly sessionId:
+    string;
+
+  readonly participantId:
+    string;
 }
 
 interface DisconnectionState {
@@ -102,17 +107,28 @@ export interface CreateRealtimeServerOptions {
 }
 
 function resolvePositiveInteger(
-  value: number | undefined,
-  fallback: number,
-  name: string,
+  value:
+    number | undefined,
+
+  fallback:
+    number,
+
+  name:
+    string,
 ): number {
-  if (value === undefined) {
+  if (
+    value ===
+    undefined
+  ) {
     return fallback;
   }
 
   if (
-    !Number.isSafeInteger(value) ||
-    value <= 0
+    !Number.isSafeInteger(
+      value,
+    ) ||
+    value <=
+      0
   ) {
     throw new Error(
       `${name} must be a positive safe integer.`,
@@ -123,22 +139,30 @@ function resolvePositiveInteger(
 }
 
 function isValidParticipantId(
-  value: string | null,
+  value:
+    string | null,
 ): value is string {
   return (
-    value !== null &&
-    value.trim().length > 0 &&
-    value === value.trim() &&
-    value.length <= 128
+    value !==
+      null &&
+    value.trim().length >
+      0 &&
+    value ===
+      value.trim() &&
+    value.length <=
+      128
   );
 }
 
 function getConnectionContext(
-  request: IncomingMessage,
+  request:
+    IncomingMessage,
 ): ConnectionContext | null {
   const url =
     new URL(
-      request.url ?? "/",
+      request.url ??
+        "/",
+
       "http://localhost",
     );
 
@@ -153,7 +177,8 @@ function getConnectionContext(
     );
 
   if (
-    sessionId === null ||
+    sessionId ===
+      null ||
     !isMatchSessionId(
       sessionId,
     ) ||
@@ -171,7 +196,8 @@ function getConnectionContext(
 }
 
 function getConnectionKey(
-  context: ConnectionContext,
+  context:
+    ConnectionContext,
 ): string {
   return [
     context.sessionId,
@@ -182,8 +208,11 @@ function getConnectionKey(
 }
 
 function sendError(
-  socket: WebSocket,
-  code: RealtimeErrorCode,
+  socket:
+    WebSocket,
+
+  code:
+    RealtimeErrorCode,
 ): void {
   if (
     socket.readyState !==
@@ -202,9 +231,14 @@ function sendError(
 }
 
 function sendSnapshot(
-  socket: WebSocket,
-  roomStore: LiveRoomStore,
-  context: ConnectionContext,
+  socket:
+    WebSocket,
+
+  roomStore:
+    LiveRoomStore,
+
+  context:
+    ConnectionContext,
 ): boolean {
   if (
     socket.readyState !==
@@ -250,7 +284,9 @@ function sendSnapshot(
 function resolvePlayer(
   room:
     RevisionedLiveMatchRoom,
-  participantId: string,
+
+  participantId:
+    string,
 ): PlayerPosition | null {
   const assignments =
     room.managedRoom.room.seats
@@ -261,7 +297,9 @@ function resolvePlayer(
     of PLAYER_POSITIONS
   ) {
     if (
-      assignments[player] ===
+      assignments[
+        player
+      ] ===
       participantId
     ) {
       return player;
@@ -272,10 +310,12 @@ function resolvePlayer(
 }
 
 function isRevisionMismatchError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
   return (
-    error instanceof Error &&
+    error instanceof
+      Error &&
     error.message.startsWith(
       "Match room revision mismatch:",
     )
@@ -283,10 +323,12 @@ function isRevisionMismatchError(
 }
 
 function isParticipantError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
   return (
-    error instanceof Error &&
+    error instanceof
+      Error &&
     (
       error.message.includes(
         "Participant",
@@ -299,9 +341,15 @@ function isParticipantError(
 }
 
 function isCommandConflictError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
-  if (!(error instanceof Error)) {
+  if (
+    !(
+      error instanceof
+      Error
+    )
+  ) {
     return false;
   }
 
@@ -319,7 +367,8 @@ function isCommandConflictError(
 }
 
 function getCommandErrorCode(
-  error: unknown,
+  error:
+    unknown,
 ): RealtimeErrorCode {
   if (
     error instanceof
@@ -384,9 +433,38 @@ export function createRealtimeServer(
       "reconnectGraceMs",
     );
 
-  const absencePolicy =
-    options.absencePolicy ??
-    createCasualAbsencePolicy();
+  const absencePolicyOverride =
+    options.absencePolicy;
+
+  function getAbsencePolicy(
+    sessionId:
+      string,
+  ): AbsencePolicy {
+    if (
+      absencePolicyOverride !==
+      undefined
+    ) {
+      return absencePolicyOverride;
+    }
+
+    const mode =
+      options.roomStore.requireMode(
+        sessionId,
+      );
+
+    switch (
+      mode
+    ) {
+      case "PRIVATE":
+        return createPrivateAbsencePolicy();
+
+      case "CASUAL":
+        return createCasualAbsencePolicy();
+
+      case "RANKED":
+        return createRankedAbsencePolicy();
+    }
+  }
 
   const connections =
     new Map<
@@ -413,7 +491,9 @@ export function createRealtimeServer(
     >();
 
   const broadcastedAbsenceEligibility =
-    new Set<string>();
+    new Set<
+      string
+    >();
 
   const webSocketServer =
     new WebSocketServer({
@@ -425,15 +505,21 @@ export function createRealtimeServer(
     });
 
   function createPresencePlayers(
-    sessionId: string,
+    sessionId:
+      string,
   ): readonly RealtimePresencePlayer[] {
     const room =
       options.roomStore.get(
         sessionId,
       );
 
-    if (room === undefined) {
-      return Object.freeze([]);
+    if (
+      room ===
+      undefined
+    ) {
+      return Object.freeze(
+        [],
+      );
     }
 
     const assignments =
@@ -444,9 +530,12 @@ export function createRealtimeServer(
       PLAYER_POSITIONS.map(
         (
           player,
-        ): RealtimePresencePlayer => {
+        ):
+          RealtimePresencePlayer => {
           const participantId =
-            assignments[player];
+            assignments[
+              player
+            ];
 
           if (
             participantId ===
@@ -480,7 +569,8 @@ export function createRealtimeServer(
             );
 
           const connected =
-            socket !== undefined &&
+            socket !==
+              undefined &&
             socket.readyState ===
               WebSocket.OPEN;
 
@@ -501,15 +591,21 @@ export function createRealtimeServer(
   }
 
   function createConnectionStates(
-    sessionId: string,
+    sessionId:
+      string,
   ): readonly RealtimeConnectionState[] {
     const room =
       options.roomStore.get(
         sessionId,
       );
 
-    if (room === undefined) {
-      return Object.freeze([]);
+    if (
+      room ===
+      undefined
+    ) {
+      return Object.freeze(
+        [],
+      );
     }
 
     const assignments =
@@ -520,9 +616,12 @@ export function createRealtimeServer(
       PLAYER_POSITIONS.map(
         (
           player,
-        ): RealtimeConnectionState => {
+        ):
+          RealtimeConnectionState => {
           const participantId =
-            assignments[player];
+            assignments[
+              player
+            ];
 
           if (
             participantId ===
@@ -559,7 +658,8 @@ export function createRealtimeServer(
             );
 
           if (
-            socket !== undefined &&
+            socket !==
+              undefined &&
             socket.readyState ===
               WebSocket.OPEN
           ) {
@@ -626,14 +726,19 @@ export function createRealtimeServer(
   function createAbsencePlayers(
     connectionStates:
       readonly RealtimeConnectionState[],
+
     currentTime:
       number,
+
+    absencePolicy:
+      AbsencePolicy,
   ): readonly RealtimeAbsencePlayer[] {
     return Object.freeze(
       connectionStates.map(
         (
           connectionState,
-        ): RealtimeAbsencePlayer => {
+        ):
+          RealtimeAbsencePlayer => {
           const evaluation =
             evaluateAbsenceResolution(
               absencePolicy,
@@ -679,8 +784,11 @@ export function createRealtimeServer(
   }
 
   function sendPresence(
-    socket: WebSocket,
-    sessionId: string,
+    socket:
+      WebSocket,
+
+    sessionId:
+      string,
   ): void {
     if (
       socket.readyState !==
@@ -697,6 +805,11 @@ export function createRealtimeServer(
     const currentTime =
       now();
 
+    const absencePolicy =
+      getAbsencePolicy(
+        sessionId,
+      );
+
     socket.send(
       serializeRealtimeServerMessage(
         createRealtimePresenceMessage(
@@ -711,6 +824,7 @@ export function createRealtimeServer(
           createAbsencePlayers(
             connectionStates,
             currentTime,
+            absencePolicy,
           ),
         ),
       ),
@@ -718,7 +832,8 @@ export function createRealtimeServer(
   }
 
   function broadcastPresence(
-    sessionId: string,
+    sessionId:
+      string,
   ): void {
     for (
       const [
@@ -742,11 +857,15 @@ export function createRealtimeServer(
   }
 
   function removeConnection(
-    socket: WebSocket,
+    socket:
+      WebSocket,
+
     broadcast:
       boolean,
+
     recordDisconnection:
-      boolean = true,
+      boolean =
+        true,
   ): void {
     const context =
       connections.get(
@@ -757,7 +876,10 @@ export function createRealtimeServer(
       socket,
     );
 
-    if (context === undefined) {
+    if (
+      context ===
+      undefined
+    ) {
       return;
     }
 
@@ -769,7 +891,8 @@ export function createRealtimeServer(
     if (
       participantConnections.get(
         key,
-      ) === socket
+      ) ===
+      socket
     ) {
       participantConnections.delete(
         key,
@@ -780,6 +903,7 @@ export function createRealtimeServer(
       ) {
         disconnectionStates.set(
           key,
+
           Object.freeze({
             context,
 
@@ -797,7 +921,9 @@ export function createRealtimeServer(
       }
     }
 
-    if (broadcast) {
+    if (
+      broadcast
+    ) {
       broadcastPresence(
         context.sessionId,
       );
@@ -805,8 +931,11 @@ export function createRealtimeServer(
   }
 
   function replacePreviousConnection(
-    socket: WebSocket,
-    context: ConnectionContext,
+    socket:
+      WebSocket,
+
+    context:
+      ConnectionContext,
   ): void {
     const key =
       getConnectionKey(
@@ -819,8 +948,10 @@ export function createRealtimeServer(
       );
 
     if (
-      previousSocket === undefined ||
-      previousSocket === socket
+      previousSocket ===
+        undefined ||
+      previousSocket ===
+        socket
     ) {
       return;
     }
@@ -875,12 +1006,21 @@ export function createRealtimeServer(
   }
 
   function handleClientMessage(
-    socket: WebSocket,
-    context: ConnectionContext,
-    data: RawData,
-    isBinary: boolean,
+    socket:
+      WebSocket,
+
+    context:
+      ConnectionContext,
+
+    data:
+      RawData,
+
+    isBinary:
+      boolean,
   ): void {
-    if (isBinary) {
+    if (
+      isBinary
+    ) {
       sendError(
         socket,
         "INVALID_MESSAGE",
@@ -971,7 +1111,8 @@ export function createRealtimeServer(
           message.document,
       });
     } catch (
-      error: unknown
+      error:
+        unknown
     ) {
       sendError(
         socket,
@@ -1005,7 +1146,8 @@ export function createRealtimeServer(
         );
 
       if (
-        lastSeen === undefined
+        lastSeen ===
+        undefined
       ) {
         continue;
       }
@@ -1044,7 +1186,9 @@ export function createRealtimeServer(
       now();
 
     const sessionsToBroadcast =
-      new Set<string>();
+      new Set<
+        string
+      >();
 
     for (
       const [
@@ -1079,6 +1223,7 @@ export function createRealtimeServer(
 
       disconnectionStates.set(
         key,
+
         Object.freeze({
           context:
             disconnectionState
@@ -1112,19 +1257,13 @@ export function createRealtimeServer(
 
   function sweepAbsenceEligibility():
     void {
-    if (
-      absencePolicy
-        .resolutionDelayMs ===
-      null
-    ) {
-      return;
-    }
-
     const currentTime =
       now();
 
     const sessionsToBroadcast =
-      new Set<string>();
+      new Set<
+        string
+      >();
 
     for (
       const [
@@ -1152,6 +1291,21 @@ export function createRealtimeServer(
         broadcastedAbsenceEligibility.has(
           key,
         )
+      ) {
+        continue;
+      }
+
+      const absencePolicy =
+        getAbsencePolicy(
+          disconnectionState
+            .context
+            .sessionId,
+        );
+
+      if (
+        absencePolicy
+          .resolutionDelayMs ===
+        null
       ) {
         continue;
       }
@@ -1206,6 +1360,7 @@ export function createRealtimeServer(
         sweepReconnectGracePeriods();
         sweepAbsenceEligibility();
       },
+
       heartbeatCheckIntervalMs,
     );
 
@@ -1213,6 +1368,7 @@ export function createRealtimeServer(
 
   webSocketServer.on(
     "connection",
+
     (
       socket,
       request,
@@ -1222,7 +1378,10 @@ export function createRealtimeServer(
           request,
         );
 
-      if (context === null) {
+      if (
+        context ===
+        null
+      ) {
         socket.close(
           1008,
           "Invalid WebSocket connection parameters",
@@ -1237,11 +1396,13 @@ export function createRealtimeServer(
         );
 
       if (
-        room === undefined ||
+        room ===
+          undefined ||
         resolvePlayer(
           room,
           context.participantId,
-        ) === null
+        ) ===
+          null
       ) {
         sendError(
           socket,
@@ -1291,6 +1452,7 @@ export function createRealtimeServer(
 
       socket.on(
         "message",
+
         (
           data,
           isBinary,
@@ -1306,6 +1468,7 @@ export function createRealtimeServer(
 
       socket.on(
         "close",
+
         () => {
           removeConnection(
             socket,
@@ -1317,6 +1480,7 @@ export function createRealtimeServer(
 
       socket.on(
         "error",
+
         () => {
           removeConnection(
             socket,
@@ -1357,9 +1521,13 @@ export function createRealtimeServer(
       }
 
       connections.clear();
+
       participantConnections.clear();
+
       lastSeenAtMs.clear();
+
       disconnectionStates.clear();
+
       broadcastedAbsenceEligibility.clear();
 
       await new Promise<void>(
@@ -1372,9 +1540,12 @@ export function createRealtimeServer(
               error,
             ) => {
               if (
-                error !== undefined
+                error !==
+                undefined
               ) {
-                reject(error);
+                reject(
+                  error,
+                );
 
                 return;
               }
