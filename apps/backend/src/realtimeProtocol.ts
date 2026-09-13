@@ -15,6 +15,10 @@ import {
   type AbsenceResolutionAction,
 } from "./absenceResolution.js";
 
+import type {
+  LiveRoomAdjudicationDocument,
+} from "./liveRoomAdjudicationDocument.js";
+
 export const REALTIME_PROTOCOL_VERSION =
   1;
 
@@ -62,6 +66,20 @@ export interface RealtimeSnapshotMessage {
 
   readonly snapshot:
     LiveMatchRoomSnapshotDocument;
+}
+
+export interface RealtimeAdjudicationMessage {
+  readonly protocolVersion:
+    1;
+
+  readonly type:
+    "ADJUDICATION";
+
+  readonly sessionId:
+    string;
+
+  readonly adjudication:
+    LiveRoomAdjudicationDocument;
 }
 
 export interface RealtimePresencePlayer {
@@ -170,6 +188,7 @@ export interface RealtimeErrorMessage {
 
 export type RealtimeServerMessage =
   | RealtimeSnapshotMessage
+  | RealtimeAdjudicationMessage
   | RealtimePresenceMessage
   | RealtimeErrorMessage;
 
@@ -446,6 +465,26 @@ export function createRealtimeSnapshotMessage(
       "SNAPSHOT",
 
     snapshot,
+  });
+}
+
+export function createRealtimeAdjudicationMessage(
+  sessionId:
+    string,
+
+  adjudication:
+    LiveRoomAdjudicationDocument,
+): RealtimeAdjudicationMessage {
+  return Object.freeze({
+    protocolVersion:
+      REALTIME_PROTOCOL_VERSION,
+
+    type:
+      "ADJUDICATION",
+
+    sessionId,
+
+    adjudication,
   });
 }
 
