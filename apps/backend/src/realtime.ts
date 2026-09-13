@@ -34,6 +34,11 @@ import {
 } from "./liveRoomStore.js";
 
 import {
+  broadcastRealtimeAdjudication,
+  sendRealtimeAdjudication,
+} from "./realtimeAdjudication.js";
+
+import {
   createRealtimeErrorMessage,
   createRealtimePresenceMessage,
   createRealtimeSnapshotMessage,
@@ -373,7 +378,7 @@ function isCommandConflictError(
   if (
     !(
       error instanceof
-      Error
+        Error
     )
   ) {
     return false;
@@ -565,7 +570,7 @@ export function createRealtimeServer(
 
           if (
             participantId ===
-            null
+              null
           ) {
             return Object.freeze({
               player,
@@ -651,7 +656,7 @@ export function createRealtimeServer(
 
           if (
             participantId ===
-            null
+              null
           ) {
             return Object.freeze({
               player,
@@ -710,7 +715,7 @@ export function createRealtimeServer(
 
           if (
             disconnectionState ===
-            undefined
+              undefined
           ) {
             return Object.freeze({
               player,
@@ -875,11 +880,11 @@ export function createRealtimeServer(
 
       if (
         decision.action ===
-        "NONE"
+          "NONE"
       ) {
         if (
           existing?.status ===
-          "PENDING"
+            "PENDING"
         ) {
           options.roomStore
             .clearAbsenceResolution({
@@ -895,7 +900,7 @@ export function createRealtimeServer(
 
       if (
         existing ===
-        undefined
+          undefined
       ) {
         options.roomStore
           .markAbsenceResolutionPending({
@@ -918,9 +923,9 @@ export function createRealtimeServer(
 
       if (
         existing.status !==
-        "PENDING" ||
+          "PENDING" ||
         existing.action ===
-        decision.action
+          decision.action
       ) {
         continue;
       }
@@ -976,7 +981,7 @@ export function createRealtimeServer(
 
     if (
       presenceState ===
-      undefined
+        undefined
     ) {
       syncAbsenceResolutionState(
         sessionId,
@@ -999,6 +1004,25 @@ export function createRealtimeServer(
         ),
       ),
     );
+  }
+
+  function sendCurrentAdjudication(
+    socket:
+      WebSocket,
+
+    sessionId:
+      string,
+  ): void {
+    sendRealtimeAdjudication({
+      socket,
+      sessionId,
+
+      adjudication:
+        options.roomStore
+          .getAdjudication(
+            sessionId,
+          ),
+    });
   }
 
   function broadcastPresence(
@@ -1024,7 +1048,7 @@ export function createRealtimeServer(
     ) {
       if (
         context.sessionId !==
-        sessionId
+          sessionId
       ) {
         continue;
       }
@@ -1035,6 +1059,40 @@ export function createRealtimeServer(
         state,
       );
     }
+  }
+
+  function broadcastAdjudication(
+    sessionId:
+      string,
+  ): void {
+    const adjudication =
+      options.roomStore
+        .getAdjudication(
+          sessionId,
+        );
+
+    broadcastRealtimeAdjudication({
+      connections:
+        Array.from(
+          connections,
+          (
+            [
+              socket,
+              context,
+            ],
+          ) =>
+            Object.freeze({
+              socket,
+
+              sessionId:
+                context.sessionId,
+            }),
+        ),
+
+      sessionId,
+
+      adjudication,
+    });
   }
 
   function removeConnection(
@@ -1059,7 +1117,7 @@ export function createRealtimeServer(
 
     if (
       context ===
-      undefined
+        undefined
     ) {
       return;
     }
@@ -1173,7 +1231,7 @@ export function createRealtimeServer(
     ) {
       if (
         context.sessionId !==
-        sessionId
+          sessionId
       ) {
         continue;
       }
@@ -1231,7 +1289,7 @@ export function createRealtimeServer(
 
     if (
       message.type ===
-      "HEARTBEAT"
+        "HEARTBEAT"
     ) {
       const key =
         getConnectionKey(
@@ -1252,7 +1310,7 @@ export function createRealtimeServer(
 
     if (
       message.type ===
-      "RESYNC"
+        "RESYNC"
     ) {
       sendSnapshot(
         socket,
@@ -1265,12 +1323,17 @@ export function createRealtimeServer(
         context.sessionId,
       );
 
+      sendCurrentAdjudication(
+        socket,
+        context.sessionId,
+      );
+
       return;
     }
 
     if (
       message.document.sessionId !==
-      context.sessionId
+        context.sessionId
     ) {
       sendError(
         socket,
@@ -1287,7 +1350,7 @@ export function createRealtimeServer(
 
     if (
       room ===
-      undefined
+        undefined
     ) {
       sendError(
         socket,
@@ -1305,7 +1368,7 @@ export function createRealtimeServer(
 
     if (
       player ===
-      null
+        null
     ) {
       sendError(
         socket,
@@ -1324,7 +1387,7 @@ export function createRealtimeServer(
 
     if (
       seatControl.controller !==
-      "HUMAN"
+        "HUMAN"
     ) {
       sendError(
         socket,
@@ -1382,7 +1445,7 @@ export function createRealtimeServer(
 
       if (
         lastSeen ===
-        undefined
+          undefined
       ) {
         continue;
       }
@@ -1588,6 +1651,18 @@ export function createRealtimeServer(
       broadcastRoom,
     );
 
+  const unsubscribeAdjudication =
+    options.roomStore
+      .subscribeAdjudication(
+        (
+          event,
+        ) => {
+          broadcastAdjudication(
+            event.sessionId,
+          );
+        },
+      );
+
   const heartbeatTimer =
     setInterval(
       () => {
@@ -1615,7 +1690,7 @@ export function createRealtimeServer(
 
       if (
         context ===
-        null
+          null
       ) {
         socket.close(
           1008,
@@ -1734,6 +1809,11 @@ export function createRealtimeServer(
       broadcastPresence(
         context.sessionId,
       );
+
+      sendCurrentAdjudication(
+        socket,
+        context.sessionId,
+      );
     },
   );
 
@@ -1747,6 +1827,8 @@ export function createRealtimeServer(
       );
 
       unsubscribe();
+
+      unsubscribeAdjudication();
 
       for (
         const socket
@@ -1776,7 +1858,7 @@ export function createRealtimeServer(
             ) => {
               if (
                 error !==
-                undefined
+                  undefined
               ) {
                 reject(
                   error,
