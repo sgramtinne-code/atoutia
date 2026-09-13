@@ -40,6 +40,14 @@ import {
 } from "./liveRoomAdjudicationDocument.js";
 
 import {
+  createLiveRoomPersistenceDocument,
+} from "./liveRoomPersistenceDocument.js";
+
+import type {
+  LiveRoomRepository,
+} from "./liveRoomRepository.js";
+
+import {
   assertBotControlsLiveRoomSeat,
   createLiveRoomSeatControl,
   transferLiveRoomSeatControlToBot,
@@ -94,6 +102,9 @@ export interface LiveRoomSummary {
 export interface LiveRoomStoreOptions {
   readonly now?:
     () => number;
+
+  readonly repository?:
+    LiveRoomRepository;
 }
 
 export interface CreateLiveRoomOptions {
@@ -360,6 +371,10 @@ export class LiveRoomStore {
   readonly #now:
     () => number;
 
+  readonly #repository:
+    | LiveRoomRepository
+    | undefined;
+
   public constructor(
     options:
       LiveRoomStoreOptions = {},
@@ -367,6 +382,11 @@ export class LiveRoomStore {
     this.#now =
       options.now ??
       Date.now;
+
+    this.#repository =
+      options.repository;
+
+    this.#hydrateFromRepository();
   }
 
   public create(
@@ -437,6 +457,10 @@ export class LiveRoomStore {
     this.#seatControls.set(
       sessionId,
       seatControls,
+    );
+
+    this.#persistSession(
+      sessionId,
     );
 
     return room;
@@ -583,6 +607,10 @@ export class LiveRoomStore {
     this.#adjudications.set(
       options.sessionId,
       adjudication,
+    );
+
+    this.#persistSession(
+      options.sessionId,
     );
 
     this.#notifyAdjudicationChanged(
@@ -909,6 +937,10 @@ export class LiveRoomStore {
       resolution,
     );
 
+    this.#persistSession(
+      options.sessionId,
+    );
+
     return resolution;
   }
 
@@ -954,6 +986,10 @@ export class LiveRoomStore {
       resolved,
     );
 
+    this.#persistSession(
+      options.sessionId,
+    );
+
     return resolved;
   }
 
@@ -993,6 +1029,10 @@ export class LiveRoomStore {
 
     resolutions.delete(
       options.player,
+    );
+
+    this.#persistSession(
+      options.sessionId,
     );
 
     return true;
@@ -1056,7 +1096,7 @@ export class LiveRoomStore {
 
           if (
             control ===
-            undefined
+              undefined
           ) {
             throw new Error(
               `Live room seat control not found: ${sessionId} ${player}`,
@@ -1123,6 +1163,10 @@ export class LiveRoomStore {
       nextControl,
     );
 
+    this.#persistSession(
+      options.sessionId,
+    );
+
     return nextControl;
   }
 
@@ -1161,6 +1205,137 @@ export class LiveRoomStore {
     return this.#rooms.size;
   }
 
+  #hydrateFromRepository():
+    void {
+    if (
+      this.#repository ===
+      undefined
+    ) {
+      return;
+    }
+
+    for (
+      const sessionId
+      of this.#repository
+        .listSessionIds()
+    ) {
+      const document =
+        this.#repository.get(
+          sessionId,
+        );
+
+      if (
+        document ===
+        undefined
+      ) {
+        throw new Error(
+          `Persisted live room disappeared while hydrating: ${sessionId}`,
+        );
+      }
+
+      this.#rooms.set(
+        sessionId,
+        document.room,
+      );
+
+      this.#modes.set(
+        sessionId,
+        document.mode,
+      );
+
+      this.#adjudications.set(
+        sessionId,
+        document.adjudication,
+      );
+
+      const resolutions =
+        new Map<
+          PlayerPosition,
+          LiveRoomAbsenceResolution
+        >();
+
+      for (
+        const resolution
+        of document.absenceResolutions
+      ) {
+        resolutions.set(
+          resolution.player,
+          resolution,
+        );
+      }
+
+      this.#absenceResolutions.set(
+        sessionId,
+        resolutions,
+      );
+
+      const controls =
+        new Map<
+          PlayerPosition,
+          LiveRoomSeatControl
+        >();
+
+      for (
+        const control
+        of document.seatControls
+      ) {
+        controls.set(
+          control.player,
+          control,
+        );
+      }
+
+      this.#seatControls.set(
+        sessionId,
+        controls,
+      );
+    }
+  }
+
+  #persistSession(
+    sessionId:
+      string,
+  ): void {
+    if (
+      this.#repository ===
+      undefined
+    ) {
+      return;
+    }
+
+    const document =
+      createLiveRoomPersistenceDocument({
+        room:
+          this.#requireRoom(
+            sessionId,
+          ),
+
+        mode:
+          this.requireMode(
+            sessionId,
+          ),
+
+        adjudication:
+          this.getAdjudication(
+            sessionId,
+          ),
+
+        absenceResolutions:
+          this.listAbsenceResolutions(
+            sessionId,
+          ),
+
+        seatControls:
+          this.listSeatControls(
+            sessionId,
+          ),
+      });
+
+    this.#repository.save(
+      document,
+    );
+  }
+
   #storeMutation(
     sessionId:
       string,
@@ -1182,6 +1357,10 @@ export class LiveRoomStore {
     ) {
       return;
     }
+
+    this.#persistSession(
+      sessionId,
+    );
 
     for (
       const listener
@@ -1230,6 +1409,10 @@ export class LiveRoomStore {
     this.#adjudications.set(
       sessionId,
       adjudication,
+    );
+
+    this.#persistSession(
+      sessionId,
     );
 
     this.#notifyAdjudicationChanged(
