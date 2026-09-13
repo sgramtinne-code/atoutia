@@ -73,8 +73,6 @@ const authService =
       authRepository,
   });
 
-void authService;
-
 const roomStore =
   new LiveRoomStore({
     repository:
@@ -114,6 +112,7 @@ const absenceResolutionCoordinator =
 const server =
   createBackendServer({
     roomStore,
+    authService,
   });
 
 const realtime =

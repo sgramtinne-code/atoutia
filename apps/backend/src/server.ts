@@ -15,6 +15,14 @@ import {
 } from "@atoutia/belote-engine";
 
 import {
+  handleAuthHttpRequest,
+} from "./authHttp.js";
+
+import type {
+  AuthService,
+} from "./authService.js";
+
+import {
   InvalidJsonBodyError,
   RequestBodyTooLargeError,
   readJsonBody,
@@ -36,6 +44,9 @@ import {
 export interface CreateBackendServerOptions {
   readonly roomStore?:
     LiveRoomStore;
+
+  readonly authService?:
+    AuthService;
 }
 
 interface CreateRoomBody {
@@ -88,7 +99,8 @@ function getPathname(
 }
 
 function getRoomRouteParts(
-  pathname: string,
+  pathname:
+    string,
 ):
   | readonly [
       string,
@@ -113,7 +125,7 @@ function getRoomRouteParts(
 
   if (
     remaining.length ===
-    0
+      0
   ) {
     return null;
   }
@@ -125,7 +137,7 @@ function getRoomRouteParts(
 
   if (
     parts.length ===
-    1
+      1
   ) {
     return [
       parts[0] ??
@@ -154,7 +166,8 @@ function getRoomRouteParts(
 }
 
 function isObject(
-  value: unknown,
+  value:
+    unknown,
 ): value is Record<
   string,
   unknown
@@ -171,10 +184,11 @@ function isObject(
 }
 
 function hasExactKeys(
-  value: Record<
-    string,
-    unknown
-  >,
+  value:
+    Record<
+      string,
+      unknown
+    >,
 
   keys:
     readonly string[],
@@ -206,7 +220,8 @@ function hasExactKeys(
 }
 
 function isPlayerPosition(
-  value: unknown,
+  value:
+    unknown,
 ): value is PlayerPosition {
   return (
     typeof value ===
@@ -221,7 +236,8 @@ function isPlayerPosition(
 }
 
 function isValidParticipantId(
-  value: unknown,
+  value:
+    unknown,
 ): value is string {
   return (
     typeof value ===
@@ -236,7 +252,8 @@ function isValidParticipantId(
 }
 
 function isValidRevision(
-  value: unknown,
+  value:
+    unknown,
 ): value is number {
   return (
     typeof value ===
@@ -250,13 +267,14 @@ function isValidRevision(
 }
 
 function parseCreateRoomBody(
-  value: unknown,
+  value:
+    unknown,
 ):
   | CreateRoomBody
   | null {
   if (
     value ===
-    null
+      null
   ) {
     return Object.freeze(
       {},
@@ -278,7 +296,7 @@ function parseCreateRoomBody(
 
   if (
     keys.length ===
-    0
+      0
   ) {
     return Object.freeze(
       {},
@@ -306,7 +324,8 @@ function parseCreateRoomBody(
 }
 
 function parseSeatMutationBody(
-  value: unknown,
+  value:
+    unknown,
 ):
   | SeatMutationBody
   | null {
@@ -358,7 +377,8 @@ function parseSeatMutationBody(
 }
 
 function parseStartRoomBody(
-  value: unknown,
+  value:
+    unknown,
 ):
   | StartRoomBody
   | null {
@@ -396,7 +416,8 @@ function parseStartRoomBody(
 }
 
 function parseParticipantBody(
-  value: unknown,
+  value:
+    unknown,
 ):
   | ParticipantBody
   | null {
@@ -434,7 +455,8 @@ function parseParticipantBody(
 }
 
 function parseCommandBody(
-  value: unknown,
+  value:
+    unknown,
 ):
   | CommandBody
   | null {
@@ -530,7 +552,7 @@ async function handleCreateRoom(
 
   if (
     body ===
-    null
+      null
   ) {
     sendJson(
       response,
@@ -546,7 +568,7 @@ async function handleCreateRoom(
 
   const room =
     body.mode ===
-    undefined
+      undefined
       ? roomStore.create()
       : roomStore.create({
           mode:
@@ -579,7 +601,7 @@ function handleGetRoom(
 
   if (
     room ===
-    undefined
+      undefined
   ) {
     sendJson(
       response,
@@ -624,7 +646,7 @@ async function handleClaimSeat(
 
   if (
     body ===
-    null
+      null
   ) {
     sendJson(
       response,
@@ -683,7 +705,7 @@ async function handleReleaseSeat(
 
   if (
     body ===
-    null
+      null
   ) {
     sendJson(
       response,
@@ -742,7 +764,7 @@ async function handleStartRoom(
 
   if (
     body ===
-    null
+      null
   ) {
     sendJson(
       response,
@@ -795,7 +817,7 @@ async function handleSnapshot(
 
   if (
     body ===
-    null
+      null
   ) {
     sendJson(
       response,
@@ -846,7 +868,7 @@ async function handleCommand(
 
   if (
     body ===
-    null
+      null
   ) {
     sendJson(
       response,
@@ -896,7 +918,8 @@ async function handleCommand(
 }
 
 function isRevisionMismatchError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
   return (
     error instanceof
@@ -908,7 +931,8 @@ function isRevisionMismatchError(
 }
 
 function isParticipantError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
   return (
     error instanceof
@@ -925,12 +949,13 @@ function isParticipantError(
 }
 
 function isCommandConflictError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
   if (
     !(
       error instanceof
-      Error
+        Error
     )
   ) {
     return false;
@@ -950,12 +975,13 @@ function isCommandConflictError(
 }
 
 function isRoomConflictError(
-  error: unknown,
+  error:
+    unknown,
 ): boolean {
   if (
     !(
       error instanceof
-      Error
+        Error
     )
   ) {
     return false;
@@ -1116,7 +1142,28 @@ async function handleRequest(
 
   roomStore:
     LiveRoomStore,
+
+  authService:
+    AuthService | undefined,
 ): Promise<void> {
+  if (
+    authService !==
+      undefined
+  ) {
+    const handled =
+      await handleAuthHttpRequest(
+        request,
+        response,
+        authService,
+      );
+
+    if (
+      handled
+    ) {
+      return;
+    }
+  }
+
   const pathname =
     getPathname(
       request,
@@ -1124,11 +1171,11 @@ async function handleRequest(
 
   if (
     pathname ===
-    "/health"
+      "/health"
   ) {
     if (
       request.method !==
-      "GET"
+        "GET"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1147,11 +1194,11 @@ async function handleRequest(
 
   if (
     pathname ===
-    "/api/v1/rooms"
+      "/api/v1/rooms"
   ) {
     if (
       request.method !==
-      "POST"
+        "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1176,7 +1223,7 @@ async function handleRequest(
 
   if (
     roomRoute ===
-    null
+      null
   ) {
     sendNotFound(
       response,
@@ -1188,7 +1235,8 @@ async function handleRequest(
   const [
     sessionId,
     action,
-  ] = roomRoute;
+  ] =
+    roomRoute;
 
   if (
     !isMatchSessionId(
@@ -1209,11 +1257,11 @@ async function handleRequest(
 
   if (
     action ===
-    null
+      null
   ) {
     if (
       request.method !==
-      "GET"
+        "GET"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1233,11 +1281,11 @@ async function handleRequest(
 
   if (
     action ===
-    "seats"
+      "seats"
   ) {
     if (
       request.method ===
-      "POST"
+        "POST"
     ) {
       await handleClaimSeat(
         request,
@@ -1251,7 +1299,7 @@ async function handleRequest(
 
     if (
       request.method ===
-      "DELETE"
+        "DELETE"
     ) {
       await handleReleaseSeat(
         request,
@@ -1272,11 +1320,11 @@ async function handleRequest(
 
   if (
     action ===
-    "start"
+      "start"
   ) {
     if (
       request.method !==
-      "POST"
+        "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1297,11 +1345,11 @@ async function handleRequest(
 
   if (
     action ===
-    "snapshot"
+      "snapshot"
   ) {
     if (
       request.method !==
-      "POST"
+        "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1322,11 +1370,11 @@ async function handleRequest(
 
   if (
     action ===
-    "commands"
+      "commands"
   ) {
     if (
       request.method !==
-      "POST"
+        "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1367,6 +1415,7 @@ export function createBackendServer(
         request,
         response,
         roomStore,
+        options.authService,
       ).catch(
         (
           error:
