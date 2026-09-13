@@ -131,8 +131,10 @@ async function startServer():
     server.address();
 
   if (
-    address === null ||
-    typeof address === "string"
+    address ===
+      null ||
+    typeof address ===
+      "string"
   ) {
     throw new Error(
       "Expected TCP server address.",
@@ -140,7 +142,10 @@ async function startServer():
   }
 
   const port =
-    (address as AddressInfo).port;
+    (
+      address as
+        AddressInfo
+    ).port;
 
   const result:
     RunningServer = {
@@ -183,9 +188,12 @@ async function stopServer(
           error,
         ) => {
           if (
-            error !== undefined
+            error !==
+              undefined
           ) {
-            reject(error);
+            reject(
+              error,
+            );
 
             return;
           }
@@ -198,7 +206,8 @@ async function stopServer(
 }
 
 function waitForOpen(
-  socket: WebSocket,
+  socket:
+    WebSocket,
 ): Promise<void> {
   return new Promise(
     (
@@ -221,7 +230,8 @@ function waitForOpen(
 }
 
 function waitForMessage<T>(
-  socket: WebSocket,
+  socket:
+    WebSocket,
 ): Promise<T> {
   return new Promise<T>(
     (
@@ -230,6 +240,7 @@ function waitForMessage<T>(
     ) => {
       socket.once(
         "message",
+
         (
           data,
         ) => {
@@ -243,9 +254,12 @@ function waitForMessage<T>(
               parsed,
             );
           } catch (
-            error: unknown
+            error:
+              unknown
           ) {
-            reject(error);
+            reject(
+              error,
+            );
           }
         },
       );
@@ -259,10 +273,14 @@ function waitForMessage<T>(
 }
 
 function waitForClose(
-  socket: WebSocket,
+  socket:
+    WebSocket,
 ): Promise<{
-  readonly code: number;
-  readonly reason: string;
+  readonly code:
+    number;
+
+  readonly reason:
+    string;
 }> {
   return new Promise(
     (
@@ -271,6 +289,7 @@ function waitForClose(
     ) => {
       socket.once(
         "close",
+
         (
           code,
           reason,
@@ -305,46 +324,59 @@ function createStartedRoom(
 
   roomStore.claimSeat({
     sessionId,
+
     expectedRevision:
       0,
+
     player:
       "PLAYER_0",
+
     participantId:
       "participant-0",
   });
 
   roomStore.claimSeat({
     sessionId,
+
     expectedRevision:
       1,
+
     player:
       "PLAYER_1",
+
     participantId:
       "participant-1",
   });
 
   roomStore.claimSeat({
     sessionId,
+
     expectedRevision:
       2,
+
     player:
       "PLAYER_2",
+
     participantId:
       "participant-2",
   });
 
   roomStore.claimSeat({
     sessionId,
+
     expectedRevision:
       3,
+
     player:
       "PLAYER_3",
+
     participantId:
       "participant-3",
   });
 
   roomStore.start({
     sessionId,
+
     expectedRevision:
       4,
   });
@@ -355,8 +387,12 @@ function createStartedRoom(
 function createSocket(
   running:
     RunningServer,
-  sessionId: string,
-  participantId: string,
+
+  sessionId:
+    string,
+
+  participantId:
+    string,
 ): WebSocket {
   return new WebSocket(
     `${running.wsUrl}?sessionId=${sessionId}&participantId=${participantId}`,
@@ -364,7 +400,9 @@ function createSocket(
 }
 
 function sendCommand(
-  socket: WebSocket,
+  socket:
+    WebSocket,
+
   options: {
     readonly sessionId:
       string;
@@ -410,8 +448,11 @@ function sendCommand(
 }
 
 function sendResync(
-  socket: WebSocket,
-  knownRevision: number,
+  socket:
+    WebSocket,
+
+  knownRevision:
+    number,
 ): void {
   socket.send(
     JSON.stringify({
@@ -479,7 +520,9 @@ describe(
 
         expect(
           message.protocolVersion,
-        ).toBe(1);
+        ).toBe(
+          1,
+        );
 
         expect(
           message.type,
@@ -495,7 +538,9 @@ describe(
 
         expect(
           message.snapshot.revision,
-        ).toBe(5);
+        ).toBe(
+          5,
+        );
 
         expect(
           message.snapshot.player,
@@ -567,7 +612,9 @@ describe(
 
         expect(
           update.snapshot.revision,
-        ).toBe(6);
+        ).toBe(
+          6,
+        );
 
         expect(
           update.snapshot.player,
@@ -587,6 +634,169 @@ describe(
             .mode,
         ).toBe(
           "WAIT",
+        );
+
+        socket.close();
+      },
+    );
+
+    it(
+      "rejects a human COMMAND when the participant seat is BOT-controlled",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        running.roomStore
+          .transferSeatControlToBot({
+            sessionId,
+
+            player:
+              "PLAYER_1",
+          });
+
+        expect(
+          running.roomStore
+            .getSeatControl(
+              sessionId,
+              "PLAYER_1",
+            ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          controller:
+            "BOT",
+        });
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          5,
+        );
+
+        const socket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        await waitForOpen(
+          socket,
+        );
+
+        const initial =
+          await initialPromise;
+
+        expect(
+          initial.type,
+        ).toBe(
+          "SNAPSHOT",
+        );
+
+        expect(
+          initial.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        expect(
+          initial.snapshot.revision,
+        ).toBe(
+          5,
+        );
+
+        const errorPromise =
+          waitForMessage<ErrorEnvelope>(
+            socket,
+          );
+
+        sendCommand(
+          socket,
+          {
+            sessionId,
+
+            expectedRevision:
+              5,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        );
+
+        const error =
+          await errorPromise;
+
+        expect(
+          error,
+        ).toEqual({
+          protocolVersion:
+            1,
+
+          type:
+            "ERROR",
+
+          code:
+            "COMMAND_REJECTED",
+        });
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          5,
+        );
+
+        const resyncPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        sendResync(
+          socket,
+          5,
+        );
+
+        const resync =
+          await resyncPromise;
+
+        expect(
+          resync.type,
+        ).toBe(
+          "SNAPSHOT",
+        );
+
+        expect(
+          resync.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        expect(
+          resync.snapshot.revision,
+        ).toBe(
+          5,
+        );
+
+        expect(
+          socket.readyState,
+        ).toBe(
+          WebSocket.OPEN,
         );
 
         socket.close();
@@ -632,6 +842,7 @@ describe(
           waitForOpen(
             socket1,
           ),
+
           waitForOpen(
             socket2,
           ),
@@ -678,11 +889,15 @@ describe(
 
         expect(
           update1.snapshot.revision,
-        ).toBe(6);
+        ).toBe(
+          6,
+        );
 
         expect(
           update2.snapshot.revision,
-        ).toBe(6);
+        ).toBe(
+          6,
+        );
 
         expect(
           update1.snapshot.player,
@@ -906,7 +1121,9 @@ describe(
           running.roomStore.get(
             sessionId,
           )?.revision,
-        ).toBe(5);
+        ).toBe(
+          5,
+        );
 
         socket.close();
       },
@@ -974,7 +1191,9 @@ describe(
           running.roomStore.get(
             sessionId,
           )?.revision,
-        ).toBe(5);
+        ).toBe(
+          5,
+        );
 
         socket.close();
       },
@@ -1012,7 +1231,9 @@ describe(
 
         expect(
           close.code,
-        ).toBe(1008);
+        ).toBe(
+          1008,
+        );
       },
     );
 
@@ -1066,7 +1287,9 @@ describe(
 
         expect(
           resync.snapshot.revision,
-        ).toBe(5);
+        ).toBe(
+          5,
+        );
 
         expect(
           resync.snapshot.player,
@@ -1117,7 +1340,9 @@ describe(
 
         expect(
           initial.snapshot.revision,
-        ).toBe(5);
+        ).toBe(
+          5,
+        );
 
         const closePromise =
           waitForClose(
@@ -1157,7 +1382,9 @@ describe(
           running.roomStore.get(
             sessionId,
           )?.revision,
-        ).toBe(6);
+        ).toBe(
+          6,
+        );
 
         const secondSocket =
           createSocket(
@@ -1180,7 +1407,9 @@ describe(
 
         expect(
           reconnect.snapshot.revision,
-        ).toBe(6);
+        ).toBe(
+          6,
+        );
 
         expect(
           reconnect.snapshot.player,
@@ -1267,7 +1496,9 @@ describe(
 
         expect(
           oldClose.code,
-        ).toBe(4001);
+        ).toBe(
+          4001,
+        );
 
         expect(
           oldClose.reason,
@@ -1277,7 +1508,9 @@ describe(
 
         expect(
           newInitial.snapshot.revision,
-        ).toBe(5);
+        ).toBe(
+          5,
+        );
 
         expect(
           newInitial.snapshot.player,
@@ -1310,7 +1543,9 @@ describe(
 
         expect(
           update.snapshot.revision,
-        ).toBe(6);
+        ).toBe(
+          6,
+        );
 
         expect(
           update.snapshot.game.actions

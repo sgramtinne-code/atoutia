@@ -1241,6 +1241,60 @@ export function createRealtimeServer(
       return;
     }
 
+    const room =
+      options.roomStore.get(
+        context.sessionId,
+      );
+
+    if (
+      room ===
+      undefined
+    ) {
+      sendError(
+        socket,
+        "ROOM_NOT_FOUND",
+      );
+
+      return;
+    }
+
+    const player =
+      resolvePlayer(
+        room,
+        context.participantId,
+      );
+
+    if (
+      player ===
+      null
+    ) {
+      sendError(
+        socket,
+        "PARTICIPANT_FORBIDDEN",
+      );
+
+      return;
+    }
+
+    const seatControl =
+      options.roomStore
+        .getSeatControl(
+          context.sessionId,
+          player,
+        );
+
+    if (
+      seatControl.controller !==
+      "HUMAN"
+    ) {
+      sendError(
+        socket,
+        "COMMAND_REJECTED",
+      );
+
+      return;
+    }
+
     try {
       options.roomStore.applyCommand({
         sessionId:
