@@ -2,6 +2,7 @@ import {
   parseLiveMatchRoomCommandDocument,
   type LiveMatchRoomCommandDocument,
   type LiveMatchRoomSnapshotDocument,
+  type PlayerPosition,
 } from "@atoutia/belote-engine";
 
 export const REALTIME_PROTOCOL_VERSION =
@@ -20,15 +21,41 @@ export interface RealtimeResyncMessage {
   readonly knownRevision: number;
 }
 
+export interface RealtimeHeartbeatMessage {
+  readonly protocolVersion: 1;
+  readonly type: "HEARTBEAT";
+}
+
 export type RealtimeClientMessage =
   | RealtimeCommandMessage
-  | RealtimeResyncMessage;
+  | RealtimeResyncMessage
+  | RealtimeHeartbeatMessage;
 
 export interface RealtimeSnapshotMessage {
   readonly protocolVersion: 1;
   readonly type: "SNAPSHOT";
   readonly snapshot:
     LiveMatchRoomSnapshotDocument;
+}
+
+export interface RealtimePresencePlayer {
+  readonly player:
+    PlayerPosition;
+
+  readonly connected:
+    boolean;
+
+  readonly lastSeenAtMs:
+    number | null;
+}
+
+export interface RealtimePresenceMessage {
+  readonly protocolVersion: 1;
+  readonly type: "PRESENCE";
+  readonly sessionId:
+    string;
+  readonly players:
+    readonly RealtimePresencePlayer[];
 }
 
 export type RealtimeErrorCode =
@@ -49,6 +76,7 @@ export interface RealtimeErrorMessage {
 
 export type RealtimeServerMessage =
   | RealtimeSnapshotMessage
+  | RealtimePresenceMessage
   | RealtimeErrorMessage;
 
 function isObject(
@@ -196,6 +224,35 @@ function parseResyncMessage(
   });
 }
 
+function parseHeartbeatMessage(
+  value: Record<
+    string,
+    unknown
+  >,
+): RealtimeHeartbeatMessage {
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "protocolVersion",
+        "type",
+      ],
+    )
+  ) {
+    throw new Error(
+      "Realtime heartbeat message contains invalid fields.",
+    );
+  }
+
+  return Object.freeze({
+    protocolVersion:
+      REALTIME_PROTOCOL_VERSION,
+
+    type:
+      "HEARTBEAT",
+  });
+}
+
 export function parseRealtimeClientMessage(
   text: string,
 ): RealtimeClientMessage {
@@ -245,6 +302,15 @@ export function parseRealtimeClientMessage(
     );
   }
 
+  if (
+    value.type ===
+    "HEARTBEAT"
+  ) {
+    return parseHeartbeatMessage(
+      value,
+    );
+  }
+
   throw new Error(
     "Unsupported realtime message type.",
   );
@@ -262,6 +328,27 @@ export function createRealtimeSnapshotMessage(
       "SNAPSHOT",
 
     snapshot,
+  });
+}
+
+export function createRealtimePresenceMessage(
+  sessionId: string,
+  players:
+    readonly RealtimePresencePlayer[],
+): RealtimePresenceMessage {
+  return Object.freeze({
+    protocolVersion:
+      REALTIME_PROTOCOL_VERSION,
+
+    type:
+      "PRESENCE",
+
+    sessionId,
+
+    players:
+      Object.freeze(
+        [...players],
+      ),
   });
 }
 

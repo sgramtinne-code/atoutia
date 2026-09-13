@@ -4,7 +4,9 @@ import type {
 } from "node:http";
 
 import {
+  PLAYER_POSITIONS,
   isMatchSessionId,
+  type PlayerPosition,
   type RevisionedLiveMatchRoom,
 } from "@atoutia/belote-engine";
 
@@ -21,10 +23,12 @@ import {
 
 import {
   createRealtimeErrorMessage,
+  createRealtimePresenceMessage,
   createRealtimeSnapshotMessage,
   parseRealtimeClientMessage,
   serializeRealtimeServerMessage,
   type RealtimeErrorCode,
+  type RealtimePresencePlayer,
 } from "./realtimeProtocol.js";
 
 interface ConnectionContext {
@@ -44,6 +48,9 @@ export interface CreateRealtimeServerOptions {
   readonly server: Server;
   readonly roomStore:
     LiveRoomStore;
+
+  readonly now?:
+    () => number;
 }
 
 function isValidParticipantId(
@@ -171,6 +178,30 @@ function sendSnapshot(
   }
 }
 
+function resolvePlayer(
+  room:
+    RevisionedLiveMatchRoom,
+  participantId: string,
+): PlayerPosition | null {
+  const assignments =
+    room.managedRoom.room.seats
+      .assignments;
+
+  for (
+    const player
+    of PLAYER_POSITIONS
+  ) {
+    if (
+      assignments[player] ===
+      participantId
+    ) {
+      return player;
+    }
+  }
+
+  return null;
+}
+
 function isRevisionMismatchError(
   error: unknown,
 ): boolean {
@@ -255,93 +286,14 @@ function getCommandErrorCode(
   return "INTERNAL_SERVER_ERROR";
 }
 
-function handleClientMessage(
-  socket: WebSocket,
-  roomStore: LiveRoomStore,
-  context: ConnectionContext,
-  data: RawData,
-  isBinary: boolean,
-): void {
-  if (isBinary) {
-    sendError(
-      socket,
-      "INVALID_MESSAGE",
-    );
-
-    return;
-  }
-
-  let message:
-    ReturnType<
-      typeof parseRealtimeClientMessage
-    >;
-
-  try {
-    message =
-      parseRealtimeClientMessage(
-        data.toString(),
-      );
-  } catch {
-    sendError(
-      socket,
-      "INVALID_MESSAGE",
-    );
-
-    return;
-  }
-
-  if (
-    message.type ===
-    "RESYNC"
-  ) {
-    sendSnapshot(
-      socket,
-      roomStore,
-      context,
-    );
-
-    return;
-  }
-
-  if (
-    message.document.sessionId !==
-    context.sessionId
-  ) {
-    sendError(
-      socket,
-      "SESSION_MISMATCH",
-    );
-
-    return;
-  }
-
-  try {
-    roomStore.applyCommand({
-      sessionId:
-        context.sessionId,
-
-      participantId:
-        context.participantId,
-
-      document:
-        message.document,
-    });
-  } catch (
-    error: unknown
-  ) {
-    sendError(
-      socket,
-      getCommandErrorCode(
-        error,
-      ),
-    );
-  }
-}
-
 export function createRealtimeServer(
   options:
     CreateRealtimeServerOptions,
 ): RealtimeServer {
+  const now =
+    options.now ??
+    Date.now;
+
   const connections =
     new Map<
       WebSocket,
@@ -354,6 +306,12 @@ export function createRealtimeServer(
       WebSocket
     >();
 
+  const lastSeenAtMs =
+    new Map<
+      string,
+      number
+    >();
+
   const webSocketServer =
     new WebSocketServer({
       server:
@@ -363,8 +321,133 @@ export function createRealtimeServer(
         "/ws",
     });
 
+  function createPresencePlayers(
+    sessionId: string,
+  ): readonly RealtimePresencePlayer[] {
+    const room =
+      options.roomStore.get(
+        sessionId,
+      );
+
+    if (room === undefined) {
+      return Object.freeze([]);
+    }
+
+    const assignments =
+      room.managedRoom.room.seats
+        .assignments;
+
+    return Object.freeze(
+      PLAYER_POSITIONS.map(
+        (
+          player,
+        ): RealtimePresencePlayer => {
+          const participantId =
+            assignments[player];
+
+          if (
+            participantId ===
+            null
+          ) {
+            return Object.freeze({
+              player,
+
+              connected:
+                false,
+
+              lastSeenAtMs:
+                null,
+            });
+          }
+
+          const context:
+            ConnectionContext = {
+              sessionId,
+              participantId,
+            };
+
+          const key =
+            getConnectionKey(
+              context,
+            );
+
+          const socket =
+            participantConnections.get(
+              key,
+            );
+
+          const connected =
+            socket !== undefined &&
+            socket.readyState ===
+              WebSocket.OPEN;
+
+          return Object.freeze({
+            player,
+
+            connected,
+
+            lastSeenAtMs:
+              lastSeenAtMs.get(
+                key,
+              ) ??
+              null,
+          });
+        },
+      ),
+    );
+  }
+
+  function sendPresence(
+    socket: WebSocket,
+    sessionId: string,
+  ): void {
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+      return;
+    }
+
+    socket.send(
+      serializeRealtimeServerMessage(
+        createRealtimePresenceMessage(
+          sessionId,
+          createPresencePlayers(
+            sessionId,
+          ),
+        ),
+      ),
+    );
+  }
+
+  function broadcastPresence(
+    sessionId: string,
+  ): void {
+    for (
+      const [
+        socket,
+        context,
+      ]
+      of connections
+    ) {
+      if (
+        context.sessionId !==
+        sessionId
+      ) {
+        continue;
+      }
+
+      sendPresence(
+        socket,
+        sessionId,
+      );
+    }
+  }
+
   function removeConnection(
     socket: WebSocket,
+    broadcast:
+      boolean,
   ): void {
     const context =
       connections.get(
@@ -393,6 +476,12 @@ export function createRealtimeServer(
         key,
       );
     }
+
+    if (broadcast) {
+      broadcastPresence(
+        context.sessionId,
+      );
+    }
   }
 
   function replacePreviousConnection(
@@ -418,6 +507,7 @@ export function createRealtimeServer(
 
     removeConnection(
       previousSocket,
+      false,
     );
 
     if (
@@ -463,6 +553,114 @@ export function createRealtimeServer(
     }
   }
 
+  function handleClientMessage(
+    socket: WebSocket,
+    context: ConnectionContext,
+    data: RawData,
+    isBinary: boolean,
+  ): void {
+    if (isBinary) {
+      sendError(
+        socket,
+        "INVALID_MESSAGE",
+      );
+
+      return;
+    }
+
+    let message:
+      ReturnType<
+        typeof parseRealtimeClientMessage
+      >;
+
+    try {
+      message =
+        parseRealtimeClientMessage(
+          data.toString(),
+        );
+    } catch {
+      sendError(
+        socket,
+        "INVALID_MESSAGE",
+      );
+
+      return;
+    }
+
+    if (
+      message.type ===
+      "HEARTBEAT"
+    ) {
+      const key =
+        getConnectionKey(
+          context,
+        );
+
+      lastSeenAtMs.set(
+        key,
+        now(),
+      );
+
+      broadcastPresence(
+        context.sessionId,
+      );
+
+      return;
+    }
+
+    if (
+      message.type ===
+      "RESYNC"
+    ) {
+      sendSnapshot(
+        socket,
+        options.roomStore,
+        context,
+      );
+
+      sendPresence(
+        socket,
+        context.sessionId,
+      );
+
+      return;
+    }
+
+    if (
+      message.document.sessionId !==
+      context.sessionId
+    ) {
+      sendError(
+        socket,
+        "SESSION_MISMATCH",
+      );
+
+      return;
+    }
+
+    try {
+      options.roomStore.applyCommand({
+        sessionId:
+          context.sessionId,
+
+        participantId:
+          context.participantId,
+
+        document:
+          message.document,
+      });
+    } catch (
+      error: unknown
+    ) {
+      sendError(
+        socket,
+        getCommandErrorCode(
+          error,
+        ),
+      );
+    }
+  }
+
   const unsubscribe =
     options.roomStore.subscribe(
       broadcastRoom,
@@ -488,16 +686,18 @@ export function createRealtimeServer(
         return;
       }
 
-      try {
-        options.roomStore
-          .createParticipantSnapshot({
-            sessionId:
-              context.sessionId,
+      const room =
+        options.roomStore.get(
+          context.sessionId,
+        );
 
-            participantId:
-              context.participantId,
-          });
-      } catch {
+      if (
+        room === undefined ||
+        resolvePlayer(
+          room,
+          context.participantId,
+        ) === null
+      ) {
         sendError(
           socket,
           "PARTICIPANT_FORBIDDEN",
@@ -521,11 +721,19 @@ export function createRealtimeServer(
         context,
       );
 
-      participantConnections.set(
+      const key =
         getConnectionKey(
           context,
-        ),
+        );
+
+      participantConnections.set(
+        key,
         socket,
+      );
+
+      lastSeenAtMs.set(
+        key,
+        now(),
       );
 
       socket.on(
@@ -536,7 +744,6 @@ export function createRealtimeServer(
         ) => {
           handleClientMessage(
             socket,
-            options.roomStore,
             context,
             data,
             isBinary,
@@ -549,6 +756,7 @@ export function createRealtimeServer(
         () => {
           removeConnection(
             socket,
+            true,
           );
         },
       );
@@ -558,6 +766,7 @@ export function createRealtimeServer(
         () => {
           removeConnection(
             socket,
+            true,
           );
         },
       );
@@ -566,6 +775,10 @@ export function createRealtimeServer(
         socket,
         options.roomStore,
         context,
+      );
+
+      broadcastPresence(
+        context.sessionId,
       );
     },
   );
@@ -586,6 +799,7 @@ export function createRealtimeServer(
 
       connections.clear();
       participantConnections.clear();
+      lastSeenAtMs.clear();
 
       await new Promise<void>(
         (
