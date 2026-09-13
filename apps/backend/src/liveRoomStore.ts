@@ -28,6 +28,12 @@ import {
 } from "./liveRoomAbsenceResolution.js";
 
 import {
+  createActiveLiveRoomAdjudication,
+  createPlayerAbsenceForfeitAdjudication,
+  type LiveRoomAdjudication,
+} from "./liveRoomAdjudication.js";
+
+import {
   assertBotControlsLiveRoomSeat,
   createLiveRoomSeatControl,
   transferLiveRoomSeatControlToBot,
@@ -211,6 +217,17 @@ export interface TransferLiveRoomSeatControlToBotStoreOptions {
     PlayerPosition;
 }
 
+export interface ForfeitLiveRoomForPlayerAbsenceOptions {
+  readonly sessionId:
+    string;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly completedAtMs:
+    number;
+}
+
 export type LiveRoomStoreListener =
   (
     room:
@@ -250,6 +267,21 @@ export class LiveRoomAbsenceResolutionNotFoundError
   }
 }
 
+export class LiveRoomCompletedError
+  extends Error {
+  public constructor(
+    sessionId:
+      string,
+  ) {
+    super(
+      `Live room is already completed: ${sessionId}`,
+    );
+
+    this.name =
+      "LiveRoomCompletedError";
+  }
+}
+
 export class LiveRoomStore {
   readonly #rooms =
     new Map<
@@ -261,6 +293,12 @@ export class LiveRoomStore {
     new Map<
       string,
       MatchMode
+    >();
+
+  readonly #adjudications =
+    new Map<
+      string,
+      LiveRoomAdjudication
     >();
 
   readonly #absenceResolutions =
@@ -318,6 +356,11 @@ export class LiveRoomStore {
     this.#modes.set(
       sessionId,
       mode,
+    );
+
+    this.#adjudications.set(
+      sessionId,
+      createActiveLiveRoomAdjudication(),
     );
 
     this.#absenceResolutions.set(
@@ -399,6 +442,105 @@ export class LiveRoomStore {
     }
 
     return mode;
+  }
+
+  public getAdjudication(
+    sessionId:
+      string,
+  ): LiveRoomAdjudication {
+    this.#requireRoom(
+      sessionId,
+    );
+
+    const adjudication =
+      this.#adjudications.get(
+        sessionId,
+      );
+
+    if (
+      adjudication ===
+      undefined
+    ) {
+      throw new Error(
+        `Live room adjudication not found: ${sessionId}`,
+      );
+    }
+
+    return adjudication;
+  }
+
+  public forfeitForPlayerAbsence(
+    options:
+      ForfeitLiveRoomForPlayerAbsenceOptions,
+  ): LiveRoomAdjudication {
+    const room =
+      this.#requireRoom(
+        options.sessionId,
+      );
+
+    const mode =
+      this.requireMode(
+        options.sessionId,
+      );
+
+    if (
+      mode !==
+      "RANKED"
+    ) {
+      throw new Error(
+        `Player absence forfeit requires RANKED mode: ${options.sessionId}`,
+      );
+    }
+
+    if (
+      room.managedRoom.phase !==
+      "IN_PROGRESS"
+    ) {
+      throw new Error(
+        `Player absence forfeit requires an IN_PROGRESS room: ${options.sessionId}`,
+      );
+    }
+
+    const existing =
+      this.getAdjudication(
+        options.sessionId,
+      );
+
+    if (
+      existing.status ===
+      "COMPLETED"
+    ) {
+      if (
+        existing.completion ===
+          "FORFEIT" &&
+        existing.reason ===
+          "PLAYER_ABSENCE" &&
+        existing.forfeitingPlayer ===
+          options.player
+      ) {
+        return existing;
+      }
+
+      throw new LiveRoomCompletedError(
+        options.sessionId,
+      );
+    }
+
+    const adjudication =
+      createPlayerAbsenceForfeitAdjudication({
+        forfeitingPlayer:
+          options.player,
+
+        completedAtMs:
+          options.completedAtMs,
+      });
+
+    this.#adjudications.set(
+      options.sessionId,
+      adjudication,
+    );
+
+    return adjudication;
   }
 
   public createSummary(
@@ -531,6 +673,10 @@ export class LiveRoomStore {
         options.sessionId,
       );
 
+    this.#assertRoomActive(
+      options.sessionId,
+    );
+
     const result =
       applyLiveMatchRoomNetworkCommand({
         room,
@@ -565,6 +711,10 @@ export class LiveRoomStore {
       this.#requireRoom(
         options.sessionId,
       );
+
+    this.#assertRoomActive(
+      options.sessionId,
+    );
 
     const control =
       this.getSeatControl(
@@ -959,6 +1109,25 @@ export class LiveRoomStore {
     ) {
       listener(
         nextRoom,
+      );
+    }
+  }
+
+  #assertRoomActive(
+    sessionId:
+      string,
+  ): void {
+    const adjudication =
+      this.getAdjudication(
+        sessionId,
+      );
+
+    if (
+      adjudication.status ===
+      "COMPLETED"
+    ) {
+      throw new LiveRoomCompletedError(
+        sessionId,
       );
     }
   }
