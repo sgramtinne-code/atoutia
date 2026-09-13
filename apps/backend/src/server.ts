@@ -848,7 +848,102 @@ async function handleReleaseSeat(
 
   sessionId:
     string,
+
+  authService:
+    AuthService | undefined,
 ): Promise<void> {
+  if (
+    authService !==
+      undefined
+  ) {
+    const authentication =
+      authenticateHttpParticipant(
+        request,
+        authService,
+      );
+
+    if (
+      authentication.status ===
+        "MISSING"
+    ) {
+      sendJson(
+        response,
+        401,
+        {
+          error:
+            "AUTH_REQUIRED",
+        },
+      );
+
+      return;
+    }
+
+    if (
+      authentication.status ===
+        "INVALID"
+    ) {
+      sendJson(
+        response,
+        401,
+        {
+          error:
+            "AUTH_INVALID",
+        },
+      );
+
+      return;
+    }
+
+    const body =
+      parseAuthenticatedSeatMutationBody(
+        await readJsonBody(
+          request,
+        ),
+      );
+
+    if (
+      body ===
+        null
+    ) {
+      sendJson(
+        response,
+        400,
+        {
+          error:
+            "INVALID_REQUEST",
+        },
+      );
+
+      return;
+    }
+
+    const room =
+      roomStore.releaseSeat({
+        sessionId,
+
+        expectedRevision:
+          body.expectedRevision,
+
+        player:
+          body.player,
+
+        participantId:
+          authentication
+            .identity
+            .participantId,
+      });
+
+    sendJson(
+      response,
+      200,
+      roomStore.createSummary(
+        room,
+      ),
+    );
+
+    return;
+  }
+
   const body =
     parseSeatMutationBody(
       await readJsonBody(
@@ -1460,6 +1555,7 @@ async function handleRequest(
         response,
         roomStore,
         sessionId,
+        authService,
       );
 
       return;
