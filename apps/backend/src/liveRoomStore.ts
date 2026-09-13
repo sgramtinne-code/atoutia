@@ -29,6 +29,7 @@ import {
 
 import {
   createActiveLiveRoomAdjudication,
+  createNormalLiveRoomAdjudication,
   createPlayerAbsenceForfeitAdjudication,
   type LiveRoomAdjudication,
 } from "./liveRoomAdjudication.js";
@@ -88,6 +89,11 @@ export interface LiveRoomSummary {
 
   readonly adjudication:
     LiveRoomAdjudicationDocument;
+}
+
+export interface LiveRoomStoreOptions {
+  readonly now?:
+    () => number;
 }
 
 export interface CreateLiveRoomOptions {
@@ -350,6 +356,18 @@ export class LiveRoomStore {
     new Set<
       LiveRoomAdjudicationListener
     >();
+
+  readonly #now:
+    () => number;
+
+  public constructor(
+    options:
+      LiveRoomStoreOptions = {},
+  ) {
+    this.#now =
+      options.now ??
+      Date.now;
+  }
 
   public create(
     options:
@@ -731,6 +749,11 @@ export class LiveRoomStore {
       result.room,
     );
 
+    this.#completeNormalAdjudicationIfNeeded(
+      options.sessionId,
+      result.room,
+    );
+
     return Object.freeze({
       room:
         result.room,
@@ -780,6 +803,11 @@ export class LiveRoomStore {
     this.#storeMutation(
       options.sessionId,
       room,
+      result.room,
+    );
+
+    this.#completeNormalAdjudicationIfNeeded(
+      options.sessionId,
       result.room,
     );
 
@@ -1163,6 +1191,51 @@ export class LiveRoomStore {
         nextRoom,
       );
     }
+  }
+
+  #completeNormalAdjudicationIfNeeded(
+    sessionId:
+      string,
+
+    room:
+      RevisionedLiveMatchRoom,
+  ): void {
+    if (
+      room.managedRoom.phase !==
+        "FINISHED" ||
+      !room.managedRoom.room.session.state
+        .score.completed
+    ) {
+      return;
+    }
+
+    const existing =
+      this.getAdjudication(
+        sessionId,
+      );
+
+    if (
+      existing.status ===
+      "COMPLETED"
+    ) {
+      return;
+    }
+
+    const adjudication =
+      createNormalLiveRoomAdjudication({
+        completedAtMs:
+          this.#now(),
+      });
+
+    this.#adjudications.set(
+      sessionId,
+      adjudication,
+    );
+
+    this.#notifyAdjudicationChanged(
+      sessionId,
+      adjudication,
+    );
   }
 
   #notifyAdjudicationChanged(
