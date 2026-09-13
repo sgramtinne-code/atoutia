@@ -5,6 +5,10 @@ import {
 } from "vitest";
 
 import {
+  createAuthIdentitySubjectHash,
+} from "../src/authIdentity.js";
+
+import {
   AuthService,
 } from "../src/authService.js";
 
@@ -344,6 +348,356 @@ describe(
           )?.accountId,
         ).toBe(
           account.accountId,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "creates an account, identity and session for a new verified external identity",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                1_000,
+
+            sessionDurationMs:
+              10_000,
+          });
+
+        const result =
+          service
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject:
+                "google-user-123",
+            });
+
+        expect(
+          result.accountCreated,
+        ).toBe(
+          true,
+        );
+
+        expect(
+          result.identity.accountId,
+        ).toBe(
+          result.account.accountId,
+        );
+
+        expect(
+          result.identity.provider,
+        ).toBe(
+          "GOOGLE",
+        );
+
+        expect(
+          result.identity.subjectHash,
+        ).toBe(
+          createAuthIdentitySubjectHash(
+            "GOOGLE",
+            "google-user-123",
+          ),
+        );
+
+        expect(
+          repository.getAccount(
+            result.account.accountId,
+          ),
+        ).toEqual(
+          result.account,
+        );
+
+        expect(
+          repository.getIdentity(
+            result.identity.identityId,
+          ),
+        ).toEqual(
+          result.identity,
+        );
+
+        expect(
+          service.authenticate(
+            result.createdSession.token,
+          ),
+        ).toEqual({
+          accountId:
+            result.account.accountId,
+
+          authSessionId:
+            result.createdSession
+              .session
+              .sessionId,
+        });
+
+        repository.close();
+      },
+    );
+
+    it(
+      "reuses the same account for an already known verified external identity",
+      () => {
+        let now =
+          1_000;
+
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                now,
+          });
+
+        const first =
+          service
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject:
+                "google-user-123",
+            });
+
+        now =
+          2_000;
+
+        const second =
+          service
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject:
+                "google-user-123",
+            });
+
+        expect(
+          first.accountCreated,
+        ).toBe(
+          true,
+        );
+
+        expect(
+          second.accountCreated,
+        ).toBe(
+          false,
+        );
+
+        expect(
+          second.account.accountId,
+        ).toBe(
+          first.account.accountId,
+        );
+
+        expect(
+          second.identity.identityId,
+        ).toBe(
+          first.identity.identityId,
+        );
+
+        expect(
+          second.createdSession
+            .session
+            .sessionId,
+        ).not.toBe(
+          first.createdSession
+            .session
+            .sessionId,
+        );
+
+        expect(
+          service.authenticate(
+            first.createdSession.token,
+          )?.accountId,
+        ).toBe(
+          first.account.accountId,
+        );
+
+        expect(
+          service.authenticate(
+            second.createdSession.token,
+          )?.accountId,
+        ).toBe(
+          first.account.accountId,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "creates different accounts for different verified external identities",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                1_000,
+          });
+
+        const first =
+          service
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject:
+                "google-user-a",
+            });
+
+        const second =
+          service
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject:
+                "google-user-b",
+            });
+
+        expect(
+          first.account.accountId,
+        ).not.toBe(
+          second.account.accountId,
+        );
+
+        expect(
+          first.identity.subjectHash,
+        ).not.toBe(
+          second.identity.subjectHash,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "rejects an invalid verified external identity subject",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                1_000,
+          });
+
+        expect(
+          () =>
+            service
+              .createSessionForVerifiedExternalIdentity({
+                provider:
+                  "GOOGLE",
+
+                providerSubject:
+                  "",
+              }),
+        ).toThrow(
+          "Authentication identity provider subject is invalid.",
+        );
+
+        expect(
+          () =>
+            service
+              .createSessionForVerifiedExternalIdentity({
+                provider:
+                  "GOOGLE",
+
+                providerSubject:
+                  " invalid ",
+              }),
+        ).toThrow(
+          "Authentication identity provider subject is invalid.",
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "stores only the derived subject hash and not the external provider subject",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                1_000,
+          });
+
+        const providerSubject =
+          "sensitive-google-subject";
+
+        const result =
+          service
+            .createSessionForVerifiedExternalIdentity({
+              provider:
+                "GOOGLE",
+
+              providerSubject,
+            });
+
+        const persisted =
+          repository
+            .findIdentityByProviderAndSubjectHash(
+              "GOOGLE",
+              createAuthIdentitySubjectHash(
+                "GOOGLE",
+                providerSubject,
+              ),
+            );
+
+        expect(
+          persisted,
+        ).toEqual(
+          result.identity,
+        );
+
+        expect(
+          result.identity.subjectHash,
+        ).not.toContain(
+          providerSubject,
         );
 
         repository.close();
