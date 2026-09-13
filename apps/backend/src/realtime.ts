@@ -16,6 +16,10 @@ import {
   type RawData,
 } from "ws";
 
+import type {
+  AuthService,
+} from "./authService.js";
+
 import {
   createCasualAbsencePolicy,
   createPrivateAbsencePolicy,
@@ -37,6 +41,10 @@ import {
   broadcastRealtimeAdjudication,
   sendRealtimeAdjudication,
 } from "./realtimeAdjudication.js";
+
+import {
+  authenticateRealtimeConnection,
+} from "./realtimeAuthentication.js";
 
 import {
   createRealtimeErrorMessage,
@@ -115,6 +123,9 @@ export interface CreateRealtimeServerOptions {
   readonly roomStore:
     LiveRoomStore;
 
+  readonly authService?:
+    AuthService;
+
   readonly now?:
     () => number;
 
@@ -185,7 +196,7 @@ function isValidParticipantId(
   );
 }
 
-function getConnectionContext(
+function getLegacyConnectionContext(
   request:
     IncomingMessage,
 ): ConnectionContext | null {
@@ -546,7 +557,7 @@ export function createRealtimeServer(
 
     if (
       room ===
-      undefined
+        undefined
     ) {
       return Object.freeze(
         [],
@@ -632,7 +643,7 @@ export function createRealtimeServer(
 
     if (
       room ===
-      undefined
+        undefined
     ) {
       return Object.freeze(
         [],
@@ -968,7 +979,7 @@ export function createRealtimeServer(
   ): void {
     if (
       socket.readyState !==
-      WebSocket.OPEN
+        WebSocket.OPEN
     ) {
       return;
     }
@@ -1131,7 +1142,7 @@ export function createRealtimeServer(
       participantConnections.get(
         key,
       ) ===
-      socket
+        socket
     ) {
       participantConnections.delete(
         key,
@@ -1683,21 +1694,87 @@ export function createRealtimeServer(
       socket,
       request,
     ) => {
-      const context =
-        getConnectionContext(
-          request,
-        );
+      let context:
+        ConnectionContext;
 
       if (
-        context ===
-          null
+        options.authService !==
+          undefined
       ) {
-        socket.close(
-          1008,
-          "Invalid WebSocket connection parameters",
-        );
+        const authentication =
+          authenticateRealtimeConnection(
+            request,
+            options.authService,
+          );
 
-        return;
+        if (
+          authentication.status ===
+            "AUTH_REQUIRED"
+        ) {
+          socket.close(
+            1008,
+            "WebSocket authentication required",
+          );
+
+          return;
+        }
+
+        if (
+          authentication.status ===
+            "AUTH_INVALID"
+        ) {
+          socket.close(
+            1008,
+            "Invalid WebSocket authentication",
+          );
+
+          return;
+        }
+
+        if (
+          authentication.status ===
+            "INVALID_CONNECTION_PARAMETERS"
+        ) {
+          socket.close(
+            1008,
+            "Invalid WebSocket connection parameters",
+          );
+
+          return;
+        }
+
+        context =
+          Object.freeze({
+            sessionId:
+              authentication
+                .connection
+                .sessionId,
+
+            participantId:
+              authentication
+                .connection
+                .participantId,
+          });
+      } else {
+        const legacyContext =
+          getLegacyConnectionContext(
+            request,
+          );
+
+        if (
+          legacyContext ===
+            null
+        ) {
+          socket.close(
+            1008,
+            "Invalid WebSocket connection parameters",
+          );
+
+          return;
+        }
+
+        context =
+          legacyContext;
       }
 
       const room =
