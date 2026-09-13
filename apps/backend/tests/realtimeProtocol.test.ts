@@ -33,19 +33,25 @@ describe(
         const message =
           parseRealtimeClientMessage(
             JSON.stringify({
-              protocolVersion: 1,
+              protocolVersion:
+                1,
 
               type:
                 "COMMAND",
 
               document: {
-                formatVersion: 1,
+                formatVersion:
+                  1,
+
                 engineVersion:
                   "0.1.0",
+
                 sessionId:
                   SESSION_ID,
+
                 expectedRevision:
                   5,
+
                 command: {
                   type:
                     "PASS",
@@ -57,24 +63,62 @@ describe(
         expect(
           message,
         ).toEqual({
-          protocolVersion: 1,
+          protocolVersion:
+            1,
 
           type:
             "COMMAND",
 
           document: {
-            formatVersion: 1,
+            formatVersion:
+              1,
+
             engineVersion:
               "0.1.0",
+
             sessionId:
               SESSION_ID,
+
             expectedRevision:
               5,
+
             command: {
               type:
                 "PASS",
             },
           },
+        });
+      },
+    );
+
+    it(
+      "parses a valid RESYNC message",
+      () => {
+        const message =
+          parseRealtimeClientMessage(
+            JSON.stringify({
+              protocolVersion:
+                1,
+
+              type:
+                "RESYNC",
+
+              knownRevision:
+                12,
+            }),
+          );
+
+        expect(
+          message,
+        ).toEqual({
+          protocolVersion:
+            1,
+
+          type:
+            "RESYNC",
+
+          knownRevision:
+            12,
         });
       },
     );
@@ -102,22 +146,10 @@ describe(
                   2,
 
                 type:
-                  "COMMAND",
+                  "RESYNC",
 
-                document: {
-                  formatVersion:
-                    1,
-                  engineVersion:
-                    "0.1.0",
-                  sessionId:
-                    SESSION_ID,
-                  expectedRevision:
-                    5,
-                  command: {
-                    type:
-                      "PASS",
-                  },
-                },
+                knownRevision:
+                  5,
               }),
             ),
         ).toThrow();
@@ -136,8 +168,6 @@ describe(
 
                 type:
                   "HELLO",
-
-                document: {},
               }),
             ),
         ).toThrow();
@@ -160,12 +190,16 @@ describe(
                 document: {
                   formatVersion:
                     1,
+
                   engineVersion:
                     "0.1.0",
+
                   sessionId:
                     SESSION_ID,
+
                   expectedRevision:
                     5,
+
                   command: {
                     type:
                       "PASS",
@@ -174,6 +208,27 @@ describe(
 
                 unexpected:
                   true,
+              }),
+            ),
+        ).toThrow();
+      },
+    );
+
+    it(
+      "rejects an invalid RESYNC revision",
+      () => {
+        expect(
+          () =>
+            parseRealtimeClientMessage(
+              JSON.stringify({
+                protocolVersion:
+                  1,
+
+                type:
+                  "RESYNC",
+
+                knownRevision:
+                  -1,
               }),
             ),
         ).toThrow();
@@ -204,91 +259,124 @@ describe(
       "creates and serializes a snapshot envelope",
       () => {
         const snapshot = {
-          formatVersion: 1,
+          formatVersion:
+            1,
+
           engineVersion:
             "0.1.0",
+
           sessionId:
             SESSION_ID,
-          revision: 5,
+
+          revision:
+            5,
+
           phase:
             "IN_PROGRESS",
+
           player:
             "PLAYER_0",
+
           seats: [
             {
               player:
                 "PLAYER_0",
+
               occupied:
                 true,
             },
             {
               player:
                 "PLAYER_1",
+
               occupied:
                 true,
             },
             {
               player:
                 "PLAYER_2",
+
               occupied:
                 true,
             },
             {
               player:
                 "PLAYER_3",
+
               occupied:
                 true,
             },
           ],
+
           game: {
             match: {
               public: {
                 dealNumber:
                   1,
+
                 dealer:
                   "PLAYER_0",
+
                 phase:
                   "BIDDING",
+
                 score: {
                   targetScore:
                     1000,
+
                   scores: {
                     TEAM_0:
                       0,
+
                     TEAM_1:
                       0,
                   },
+
                   completed:
                     false,
+
                   winner:
                     null,
                 },
+
                 biddingPlayer:
                   "PLAYER_1",
+
                 taker:
                   null,
+
                 trumpSuit:
                   null,
+
                 turnUpCard: {
                   suit:
                     "HEARTS",
+
                   rank:
                     "ACE",
                 },
+
                 currentTrick:
                   null,
               },
+
               player:
                 "PLAYER_0",
+
               hand: [],
+
               legalCards: [],
             },
+
             actions: {
               player:
                 "PLAYER_0",
+
               mode:
                 "WAIT",
+
               biddingActions: [],
+
               legalCards: [],
             },
           },

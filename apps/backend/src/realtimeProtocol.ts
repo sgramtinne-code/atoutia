@@ -14,8 +14,15 @@ export interface RealtimeCommandMessage {
     LiveMatchRoomCommandDocument;
 }
 
+export interface RealtimeResyncMessage {
+  readonly protocolVersion: 1;
+  readonly type: "RESYNC";
+  readonly knownRevision: number;
+}
+
 export type RealtimeClientMessage =
-  RealtimeCommandMessage;
+  | RealtimeCommandMessage
+  | RealtimeResyncMessage;
 
 export interface RealtimeSnapshotMessage {
   readonly protocolVersion: 1;
@@ -86,28 +93,24 @@ function hasExactKeys(
   );
 }
 
-export function parseRealtimeClientMessage(
-  text: string,
-): RealtimeClientMessage {
-  let value: unknown;
+function isValidRevision(
+  value: unknown,
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(
+      value,
+    ) &&
+    value >= 0
+  );
+}
 
-  try {
-    value =
-      JSON.parse(
-        text,
-      ) as unknown;
-  } catch {
-    throw new Error(
-      "Invalid realtime JSON message.",
-    );
-  }
-
-  if (!isObject(value)) {
-    throw new Error(
-      "Realtime message must be an object.",
-    );
-  }
-
+function parseCommandMessage(
+  value: Record<
+    string,
+    unknown
+  >,
+): RealtimeCommandMessage {
   if (
     !hasExactKeys(
       value,
@@ -119,25 +122,7 @@ export function parseRealtimeClientMessage(
     )
   ) {
     throw new Error(
-      "Realtime message contains invalid fields.",
-    );
-  }
-
-  if (
-    value.protocolVersion !==
-    REALTIME_PROTOCOL_VERSION
-  ) {
-    throw new Error(
-      "Unsupported realtime protocol version.",
-    );
-  }
-
-  if (
-    value.type !==
-    "COMMAND"
-  ) {
-    throw new Error(
-      "Unsupported realtime message type.",
+      "Realtime command message contains invalid fields.",
     );
   }
 
@@ -166,6 +151,103 @@ export function parseRealtimeClientMessage(
 
     document,
   });
+}
+
+function parseResyncMessage(
+  value: Record<
+    string,
+    unknown
+  >,
+): RealtimeResyncMessage {
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "protocolVersion",
+        "type",
+        "knownRevision",
+      ],
+    )
+  ) {
+    throw new Error(
+      "Realtime resync message contains invalid fields.",
+    );
+  }
+
+  if (
+    !isValidRevision(
+      value.knownRevision,
+    )
+  ) {
+    throw new Error(
+      "Realtime resync revision is invalid.",
+    );
+  }
+
+  return Object.freeze({
+    protocolVersion:
+      REALTIME_PROTOCOL_VERSION,
+
+    type:
+      "RESYNC",
+
+    knownRevision:
+      value.knownRevision,
+  });
+}
+
+export function parseRealtimeClientMessage(
+  text: string,
+): RealtimeClientMessage {
+  let value: unknown;
+
+  try {
+    value =
+      JSON.parse(
+        text,
+      ) as unknown;
+  } catch {
+    throw new Error(
+      "Invalid realtime JSON message.",
+    );
+  }
+
+  if (!isObject(value)) {
+    throw new Error(
+      "Realtime message must be an object.",
+    );
+  }
+
+  if (
+    value.protocolVersion !==
+    REALTIME_PROTOCOL_VERSION
+  ) {
+    throw new Error(
+      "Unsupported realtime protocol version.",
+    );
+  }
+
+  if (
+    value.type ===
+    "COMMAND"
+  ) {
+    return parseCommandMessage(
+      value,
+    );
+  }
+
+  if (
+    value.type ===
+    "RESYNC"
+  ) {
+    return parseResyncMessage(
+      value,
+    );
+  }
+
+  throw new Error(
+    "Unsupported realtime message type.",
+  );
 }
 
 export function createRealtimeSnapshotMessage(

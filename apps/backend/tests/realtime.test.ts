@@ -260,7 +260,10 @@ function waitForMessage<T>(
 
 function waitForClose(
   socket: WebSocket,
-): Promise<number> {
+): Promise<{
+  readonly code: number;
+  readonly reason: string;
+}> {
   return new Promise(
     (
       resolve,
@@ -270,10 +273,14 @@ function waitForClose(
         "close",
         (
           code,
+          reason,
         ) => {
-          resolve(
+          resolve({
             code,
-          );
+
+            reason:
+              reason.toString(),
+          });
         },
       );
 
@@ -402,6 +409,23 @@ function sendCommand(
   );
 }
 
+function sendResync(
+  socket: WebSocket,
+  knownRevision: number,
+): void {
+  socket.send(
+    JSON.stringify({
+      protocolVersion:
+        1,
+
+      type:
+        "RESYNC",
+
+      knownRevision,
+    }),
+  );
+}
+
 afterEach(
   async () => {
     const servers =
@@ -521,6 +545,7 @@ describe(
           socket,
           {
             sessionId,
+
             expectedRevision:
               5,
 
@@ -631,6 +656,7 @@ describe(
           socket1,
           {
             sessionId,
+
             expectedRevision:
               5,
 
@@ -856,6 +882,7 @@ describe(
           socket,
           {
             sessionId,
+
             expectedRevision:
               4,
 
@@ -923,6 +950,7 @@ describe(
           socket,
           {
             sessionId,
+
             expectedRevision:
               5,
 
@@ -979,12 +1007,319 @@ describe(
           socket,
         );
 
-        const code =
+        const close =
           await closePromise;
 
         expect(
-          code,
+          close.code,
         ).toBe(1008);
+      },
+    );
+
+    it(
+      "resynchronizes explicitly with the current authoritative snapshot",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const socket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        await waitForOpen(
+          socket,
+        );
+
+        await initialPromise;
+
+        const resyncPromise =
+          waitForMessage<SnapshotEnvelope>(
+            socket,
+          );
+
+        sendResync(
+          socket,
+          2,
+        );
+
+        const resync =
+          await resyncPromise;
+
+        expect(
+          resync.type,
+        ).toBe(
+          "SNAPSHOT",
+        );
+
+        expect(
+          resync.snapshot.revision,
+        ).toBe(5);
+
+        expect(
+          resync.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        expect(
+          resync.snapshot.game.match
+            .public.biddingPlayer,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        socket.close();
+      },
+    );
+
+    it(
+      "reconnects with the latest authoritative snapshot after missing updates",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const firstSocket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const initialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            firstSocket,
+          );
+
+        await waitForOpen(
+          firstSocket,
+        );
+
+        const initial =
+          await initialPromise;
+
+        expect(
+          initial.snapshot.revision,
+        ).toBe(5);
+
+        const closePromise =
+          waitForClose(
+            firstSocket,
+          );
+
+        firstSocket.close();
+
+        await closePromise;
+
+        running.roomStore.applyCommand({
+          sessionId,
+
+          participantId:
+            "participant-1",
+
+          document: {
+            formatVersion:
+              1,
+
+            engineVersion:
+              "0.1.0",
+
+            sessionId,
+
+            expectedRevision:
+              5,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        });
+
+        expect(
+          running.roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(6);
+
+        const secondSocket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const reconnectPromise =
+          waitForMessage<SnapshotEnvelope>(
+            secondSocket,
+          );
+
+        await waitForOpen(
+          secondSocket,
+        );
+
+        const reconnect =
+          await reconnectPromise;
+
+        expect(
+          reconnect.snapshot.revision,
+        ).toBe(6);
+
+        expect(
+          reconnect.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        expect(
+          reconnect.snapshot.game.match
+            .public.biddingPlayer,
+        ).toBe(
+          "PLAYER_2",
+        );
+
+        expect(
+          reconnect.snapshot.game.actions
+            .mode,
+        ).toBe(
+          "WAIT",
+        );
+
+        secondSocket.close();
+      },
+    );
+
+    it(
+      "replaces an older simultaneous connection for the same participant",
+      async () => {
+        const running =
+          await startServer();
+
+        const sessionId =
+          createStartedRoom(
+            running.roomStore,
+          );
+
+        const oldSocket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const oldInitialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            oldSocket,
+          );
+
+        await waitForOpen(
+          oldSocket,
+        );
+
+        await oldInitialPromise;
+
+        const oldClosePromise =
+          waitForClose(
+            oldSocket,
+          );
+
+        const newSocket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-1",
+          );
+
+        const newInitialPromise =
+          waitForMessage<SnapshotEnvelope>(
+            newSocket,
+          );
+
+        await waitForOpen(
+          newSocket,
+        );
+
+        const [
+          oldClose,
+          newInitial,
+        ] =
+          await Promise.all([
+            oldClosePromise,
+            newInitialPromise,
+          ]);
+
+        expect(
+          oldClose.code,
+        ).toBe(4001);
+
+        expect(
+          oldClose.reason,
+        ).toBe(
+          "Connection replaced by a newer connection",
+        );
+
+        expect(
+          newInitial.snapshot.revision,
+        ).toBe(5);
+
+        expect(
+          newInitial.snapshot.player,
+        ).toBe(
+          "PLAYER_1",
+        );
+
+        const updatePromise =
+          waitForMessage<SnapshotEnvelope>(
+            newSocket,
+          );
+
+        sendCommand(
+          newSocket,
+          {
+            sessionId,
+
+            expectedRevision:
+              5,
+
+            command: {
+              type:
+                "PASS",
+            },
+          },
+        );
+
+        const update =
+          await updatePromise;
+
+        expect(
+          update.snapshot.revision,
+        ).toBe(6);
+
+        expect(
+          update.snapshot.game.actions
+            .mode,
+        ).toBe(
+          "WAIT",
+        );
+
+        newSocket.close();
       },
     );
   },

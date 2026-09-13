@@ -94,6 +94,17 @@ function getConnectionContext(
   });
 }
 
+function getConnectionKey(
+  context: ConnectionContext,
+): string {
+  return [
+    context.sessionId,
+    context.participantId,
+  ].join(
+    "\u0000",
+  );
+}
+
 function sendError(
   socket: WebSocket,
   code: RealtimeErrorCode,
@@ -280,6 +291,19 @@ function handleClientMessage(
   }
 
   if (
+    message.type ===
+    "RESYNC"
+  ) {
+    sendSnapshot(
+      socket,
+      roomStore,
+      context,
+    );
+
+    return;
+  }
+
+  if (
     message.document.sessionId !==
     context.sessionId
   ) {
@@ -324,6 +348,12 @@ export function createRealtimeServer(
       ConnectionContext
     >();
 
+  const participantConnections =
+    new Map<
+      string,
+      WebSocket
+    >();
+
   const webSocketServer =
     new WebSocketServer({
       server:
@@ -332,6 +362,76 @@ export function createRealtimeServer(
       path:
         "/ws",
     });
+
+  function removeConnection(
+    socket: WebSocket,
+  ): void {
+    const context =
+      connections.get(
+        socket,
+      );
+
+    connections.delete(
+      socket,
+    );
+
+    if (context === undefined) {
+      return;
+    }
+
+    const key =
+      getConnectionKey(
+        context,
+      );
+
+    if (
+      participantConnections.get(
+        key,
+      ) === socket
+    ) {
+      participantConnections.delete(
+        key,
+      );
+    }
+  }
+
+  function replacePreviousConnection(
+    socket: WebSocket,
+    context: ConnectionContext,
+  ): void {
+    const key =
+      getConnectionKey(
+        context,
+      );
+
+    const previousSocket =
+      participantConnections.get(
+        key,
+      );
+
+    if (
+      previousSocket === undefined ||
+      previousSocket === socket
+    ) {
+      return;
+    }
+
+    removeConnection(
+      previousSocket,
+    );
+
+    if (
+      previousSocket.readyState ===
+        WebSocket.OPEN ||
+      previousSocket.readyState ===
+        WebSocket.CONNECTING
+    ) {
+      previousSocket.close(
+        4001,
+        "Connection replaced by a newer connection",
+      );
+    }
+  }
 
   function broadcastRoom(
     room:
@@ -411,9 +511,21 @@ export function createRealtimeServer(
         return;
       }
 
+      replacePreviousConnection(
+        socket,
+        context,
+      );
+
       connections.set(
         socket,
         context,
+      );
+
+      participantConnections.set(
+        getConnectionKey(
+          context,
+        ),
+        socket,
       );
 
       socket.on(
@@ -435,7 +547,7 @@ export function createRealtimeServer(
       socket.on(
         "close",
         () => {
-          connections.delete(
+          removeConnection(
             socket,
           );
         },
@@ -444,7 +556,7 @@ export function createRealtimeServer(
       socket.on(
         "error",
         () => {
-          connections.delete(
+          removeConnection(
             socket,
           );
         },
@@ -473,6 +585,7 @@ export function createRealtimeServer(
       }
 
       connections.clear();
+      participantConnections.clear();
 
       await new Promise<void>(
         (
