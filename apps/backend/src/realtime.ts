@@ -31,6 +31,18 @@ import {
   type RealtimePresencePlayer,
 } from "./realtimeProtocol.js";
 
+export const DEFAULT_HEARTBEAT_TIMEOUT_MS =
+  30_000;
+
+export const DEFAULT_HEARTBEAT_CHECK_INTERVAL_MS =
+  1_000;
+
+export const HEARTBEAT_TIMEOUT_CLOSE_CODE =
+  4002;
+
+export const HEARTBEAT_TIMEOUT_CLOSE_REASON =
+  "Heartbeat timeout";
+
 interface ConnectionContext {
   readonly sessionId: string;
   readonly participantId: string;
@@ -45,12 +57,41 @@ export interface RealtimeServer {
 }
 
 export interface CreateRealtimeServerOptions {
-  readonly server: Server;
+  readonly server:
+    Server;
+
   readonly roomStore:
     LiveRoomStore;
 
   readonly now?:
     () => number;
+
+  readonly heartbeatTimeoutMs?:
+    number;
+
+  readonly heartbeatCheckIntervalMs?:
+    number;
+}
+
+function resolvePositiveInteger(
+  value: number | undefined,
+  fallback: number,
+  name: string,
+): number {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (
+    !Number.isSafeInteger(value) ||
+    value <= 0
+  ) {
+    throw new Error(
+      `${name} must be a positive safe integer.`,
+    );
+  }
+
+  return value;
 }
 
 function isValidParticipantId(
@@ -293,6 +334,20 @@ export function createRealtimeServer(
   const now =
     options.now ??
     Date.now;
+
+  const heartbeatTimeoutMs =
+    resolvePositiveInteger(
+      options.heartbeatTimeoutMs,
+      DEFAULT_HEARTBEAT_TIMEOUT_MS,
+      "heartbeatTimeoutMs",
+    );
+
+  const heartbeatCheckIntervalMs =
+    resolvePositiveInteger(
+      options.heartbeatCheckIntervalMs,
+      DEFAULT_HEARTBEAT_CHECK_INTERVAL_MS,
+      "heartbeatCheckIntervalMs",
+    );
 
   const connections =
     new Map<
@@ -661,10 +716,73 @@ export function createRealtimeServer(
     }
   }
 
+  function sweepHeartbeatTimeouts():
+    void {
+    const currentTime =
+      now();
+
+    for (
+      const [
+        socket,
+        context,
+      ]
+      of connections
+    ) {
+      const key =
+        getConnectionKey(
+          context,
+        );
+
+      const lastSeen =
+        lastSeenAtMs.get(
+          key,
+        );
+
+      if (
+        lastSeen === undefined
+      ) {
+        continue;
+      }
+
+      if (
+        currentTime -
+          lastSeen <
+        heartbeatTimeoutMs
+      ) {
+        continue;
+      }
+
+      removeConnection(
+        socket,
+        true,
+      );
+
+      if (
+        socket.readyState ===
+          WebSocket.OPEN ||
+        socket.readyState ===
+          WebSocket.CONNECTING
+      ) {
+        socket.close(
+          HEARTBEAT_TIMEOUT_CLOSE_CODE,
+          HEARTBEAT_TIMEOUT_CLOSE_REASON,
+        );
+      }
+    }
+  }
+
   const unsubscribe =
     options.roomStore.subscribe(
       broadcastRoom,
     );
+
+  const heartbeatTimer =
+    setInterval(
+      sweepHeartbeatTimeouts,
+      heartbeatCheckIntervalMs,
+    );
+
+  heartbeatTimer.unref();
 
   webSocketServer.on(
     "connection",
@@ -788,6 +906,10 @@ export function createRealtimeServer(
 
     async close():
       Promise<void> {
+      clearInterval(
+        heartbeatTimer,
+      );
+
       unsubscribe();
 
       for (
