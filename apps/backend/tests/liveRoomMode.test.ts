@@ -6,6 +6,7 @@ import {
 
 import {
   LiveRoomStore,
+  createLiveRoomSummary,
 } from "../src/liveRoomStore.js";
 
 describe(
@@ -112,6 +113,7 @@ describe(
 
         store.claimSeat({
           sessionId,
+
           expectedRevision:
             0,
 
@@ -124,6 +126,7 @@ describe(
 
         store.claimSeat({
           sessionId,
+
           expectedRevision:
             1,
 
@@ -180,6 +183,141 @@ describe(
         ).toThrow(
           "Live room not found",
         );
+      },
+    );
+
+    it(
+      "includes CASUAL in a legacy room summary by default",
+      () => {
+        const store =
+          new LiveRoomStore();
+
+        const room =
+          store.create();
+
+        expect(
+          createLiveRoomSummary(
+            room,
+          ).mode,
+        ).toBe(
+          "CASUAL",
+        );
+      },
+    );
+
+    it(
+      "creates a summary with the stored PRIVATE mode",
+      () => {
+        const store =
+          new LiveRoomStore();
+
+        const room =
+          store.create({
+            mode:
+              "PRIVATE",
+          });
+
+        expect(
+          store.createSummary(
+            room,
+          ),
+        ).toEqual({
+          sessionId:
+            room.managedRoom.room
+              .session.sessionId,
+
+          mode:
+            "PRIVATE",
+
+          revision:
+            0,
+
+          phase:
+            "WAITING_FOR_PLAYERS",
+
+          occupiedSeats:
+            0,
+
+          seats: {
+            PLAYER_0:
+              false,
+
+            PLAYER_1:
+              false,
+
+            PLAYER_2:
+              false,
+
+            PLAYER_3:
+              false,
+          },
+        });
+      },
+    );
+
+    it(
+      "keeps RANKED in summaries after mutations",
+      () => {
+        const store =
+          new LiveRoomStore();
+
+        const room =
+          store.create({
+            mode:
+              "RANKED",
+          });
+
+        const sessionId =
+          room.managedRoom.room
+            .session.sessionId;
+
+        const claimed =
+          store.claimSeat({
+            sessionId,
+
+            expectedRevision:
+              0,
+
+            player:
+              "PLAYER_0",
+
+            participantId:
+              "participant-0",
+          });
+
+        expect(
+          store.createSummary(
+            claimed,
+          ),
+        ).toEqual({
+          sessionId,
+
+          mode:
+            "RANKED",
+
+          revision:
+            1,
+
+          phase:
+            "WAITING_FOR_PLAYERS",
+
+          occupiedSeats:
+            1,
+
+          seats: {
+            PLAYER_0:
+              true,
+
+            PLAYER_1:
+              false,
+
+            PLAYER_2:
+              false,
+
+            PLAYER_3:
+              false,
+          },
+        });
       },
     );
   },

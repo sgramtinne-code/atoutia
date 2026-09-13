@@ -38,8 +38,12 @@ describe(
             .session.sessionId;
 
         expect(
-          store.get(sessionId),
-        ).toBe(room);
+          store.get(
+            sessionId,
+          ),
+        ).toBe(
+          room,
+        );
 
         expect(
           store.count(),
@@ -65,18 +69,30 @@ describe(
             room.managedRoom.room
               .session.sessionId,
 
-          revision: 0,
+          mode:
+            "CASUAL",
+
+          revision:
+            0,
 
           phase:
             "WAITING_FOR_PLAYERS",
 
-          occupiedSeats: 0,
+          occupiedSeats:
+            0,
 
           seats: {
-            PLAYER_0: false,
-            PLAYER_1: false,
-            PLAYER_2: false,
-            PLAYER_3: false,
+            PLAYER_0:
+              false,
+
+            PLAYER_1:
+              false,
+
+            PLAYER_2:
+              false,
+
+            PLAYER_3:
+              false,
           },
         });
       },
@@ -98,8 +114,13 @@ describe(
         const claimed =
           store.claimSeat({
             sessionId,
-            expectedRevision: 0,
-            player: "PLAYER_0",
+
+            expectedRevision:
+              0,
+
+            player:
+              "PLAYER_0",
+
             participantId:
               "participant-a",
           });
@@ -117,8 +138,13 @@ describe(
         const released =
           store.releaseSeat({
             sessionId,
-            expectedRevision: 1,
-            player: "PLAYER_0",
+
+            expectedRevision:
+              1,
+
+            player:
+              "PLAYER_0",
+
             participantId:
               "participant-a",
           });
@@ -150,31 +176,55 @@ describe(
 
         store.claimSeat({
           sessionId,
-          expectedRevision: 0,
-          player: "PLAYER_0",
-          participantId: "p0",
+
+          expectedRevision:
+            0,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "p0",
         });
 
         store.claimSeat({
           sessionId,
-          expectedRevision: 1,
-          player: "PLAYER_1",
-          participantId: "p1",
+
+          expectedRevision:
+            1,
+
+          player:
+            "PLAYER_1",
+
+          participantId:
+            "p1",
         });
 
         store.claimSeat({
           sessionId,
-          expectedRevision: 2,
-          player: "PLAYER_2",
-          participantId: "p2",
+
+          expectedRevision:
+            2,
+
+          player:
+            "PLAYER_2",
+
+          participantId:
+            "p2",
         });
 
         const ready =
           store.claimSeat({
             sessionId,
-            expectedRevision: 3,
-            player: "PLAYER_3",
-            participantId: "p3",
+
+            expectedRevision:
+              3,
+
+            player:
+              "PLAYER_3",
+
+            participantId:
+              "p3",
           });
 
         expect(
@@ -183,12 +233,16 @@ describe(
 
         expect(
           ready.managedRoom.phase,
-        ).toBe("READY");
+        ).toBe(
+          "READY",
+        );
 
         const started =
           store.start({
             sessionId,
-            expectedRevision: 4,
+
+            expectedRevision:
+              4,
           });
 
         expect(
@@ -197,7 +251,9 @@ describe(
 
         expect(
           started.managedRoom.phase,
-        ).toBe("IN_PROGRESS");
+        ).toBe(
+          "IN_PROGRESS",
+        );
       },
     );
 
@@ -216,20 +272,30 @@ describe(
 
         store.claimSeat({
           sessionId,
-          expectedRevision: 0,
-          player: "PLAYER_0",
-          participantId: "p0",
+
+          expectedRevision:
+            0,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "p0",
         });
 
         const snapshot =
           store.createParticipantSnapshot({
             sessionId,
-            participantId: "p0",
+
+            participantId:
+              "p0",
           });
 
         expect(
           snapshot.sessionId,
-        ).toBe(sessionId);
+        ).toBe(
+          sessionId,
+        );
 
         expect(
           snapshot.revision,
@@ -237,26 +303,40 @@ describe(
 
         expect(
           snapshot.player,
-        ).toBe("PLAYER_0");
+        ).toBe(
+          "PLAYER_0",
+        );
 
         expect(
           snapshot.seats,
         ).toEqual([
           {
-            player: "PLAYER_0",
-            occupied: true,
+            player:
+              "PLAYER_0",
+
+            occupied:
+              true,
           },
           {
-            player: "PLAYER_1",
-            occupied: false,
+            player:
+              "PLAYER_1",
+
+            occupied:
+              false,
           },
           {
-            player: "PLAYER_2",
-            occupied: false,
+            player:
+              "PLAYER_2",
+
+            occupied:
+              false,
           },
           {
-            player: "PLAYER_3",
-            occupied: false,
+            player:
+              "PLAYER_3",
+
+            occupied:
+              false,
           },
         ]);
       },
@@ -279,6 +359,7 @@ describe(
           () =>
             store.createParticipantSnapshot({
               sessionId,
+
               participantId:
                 "not-seated",
             }),

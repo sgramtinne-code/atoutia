@@ -28,11 +28,19 @@ export interface LiveRoomSeatSummary {
 
 export interface LiveRoomSummary {
   readonly sessionId: string;
+
+  readonly mode:
+    MatchMode;
+
   readonly revision: number;
+
   readonly phase:
     RevisionedLiveMatchRoom["managedRoom"]["phase"];
+
   readonly occupiedSeats: number;
-  readonly seats: LiveRoomSeatSummary;
+
+  readonly seats:
+    LiveRoomSeatSummary;
 }
 
 export interface CreateLiveRoomOptions {
@@ -190,6 +198,22 @@ export class LiveRoomStore {
     return mode;
   }
 
+  public createSummary(
+    room:
+      RevisionedLiveMatchRoom,
+  ): LiveRoomSummary {
+    const sessionId =
+      room.managedRoom.room.session
+        .sessionId;
+
+    return createLiveRoomSummary(
+      room,
+      this.requireMode(
+        sessionId,
+      ),
+    );
+  }
+
   public claimSeat(
     options:
       ClaimLiveRoomSeatOptions,
@@ -202,10 +226,13 @@ export class LiveRoomStore {
     const nextRoom =
       claimRevisionedLiveMatchRoomSeat({
         room,
+
         expectedRevision:
           options.expectedRevision,
+
         player:
           options.player,
+
         participantId:
           options.participantId,
       });
@@ -231,10 +258,13 @@ export class LiveRoomStore {
     const nextRoom =
       releaseRevisionedLiveMatchRoomSeat({
         room,
+
         expectedRevision:
           options.expectedRevision,
+
         player:
           options.player,
+
         participantId:
           options.participantId,
       });
@@ -260,6 +290,7 @@ export class LiveRoomStore {
     const nextRoom =
       startRevisionedLiveMatchRoom({
         room,
+
         expectedRevision:
           options.expectedRevision,
       });
@@ -300,8 +331,10 @@ export class LiveRoomStore {
     const result =
       applyLiveMatchRoomNetworkCommand({
         room,
+
         participantId:
           options.participantId,
+
         document:
           options.document,
       });
@@ -342,8 +375,10 @@ export class LiveRoomStore {
 
   #storeMutation(
     sessionId: string,
+
     previousRoom:
       RevisionedLiveMatchRoom,
+
     nextRoom:
       RevisionedLiveMatchRoom,
   ): void {
@@ -377,7 +412,10 @@ export class LiveRoomStore {
         sessionId,
       );
 
-    if (room === undefined) {
+    if (
+      room ===
+      undefined
+    ) {
       throw new LiveRoomNotFoundError(
         sessionId,
       );
@@ -388,7 +426,12 @@ export class LiveRoomStore {
 }
 
 export function createLiveRoomSummary(
-  room: RevisionedLiveMatchRoom,
+  room:
+    RevisionedLiveMatchRoom,
+
+  mode:
+    MatchMode =
+      "CASUAL",
 ): LiveRoomSummary {
   const assignments =
     room.managedRoom.room.seats
@@ -401,13 +444,16 @@ export function createLiveRoomSummary(
       (
         participantId,
       ) =>
-        participantId !== null,
+        participantId !==
+        null,
     ).length;
 
   return Object.freeze({
     sessionId:
       room.managedRoom.room.session
         .sessionId,
+
+    mode,
 
     revision:
       room.revision,
