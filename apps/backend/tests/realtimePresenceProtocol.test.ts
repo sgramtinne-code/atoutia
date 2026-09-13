@@ -58,7 +58,7 @@ describe(
     );
 
     it(
-      "creates a versioned PRESENCE message",
+      "creates a versioned PRESENCE message with connection states",
       () => {
         const message =
           createRealtimePresenceMessage(
@@ -82,7 +82,35 @@ describe(
                   false,
 
                 lastSeenAtMs:
+                  1200,
+              },
+            ],
+            [
+              {
+                player:
+                  "PLAYER_0",
+
+                state:
+                  "CONNECTED",
+
+                disconnectedAtMs:
                   null,
+
+                graceDeadlineAtMs:
+                  null,
+              },
+              {
+                player:
+                  "PLAYER_1",
+
+                state:
+                  "RECONNECTING",
+
+                disconnectedAtMs:
+                  1300,
+
+                graceDeadlineAtMs:
+                  121300,
               },
             ],
           );
@@ -118,7 +146,36 @@ describe(
                 false,
 
               lastSeenAtMs:
+                1200,
+            },
+          ],
+
+          connectionStates: [
+            {
+              player:
+                "PLAYER_0",
+
+              state:
+                "CONNECTED",
+
+              disconnectedAtMs:
                 null,
+
+              graceDeadlineAtMs:
+                null,
+            },
+            {
+              player:
+                "PLAYER_1",
+
+              state:
+                "RECONNECTING",
+
+              disconnectedAtMs:
+                1300,
+
+              graceDeadlineAtMs:
+                121300,
             },
           ],
         });

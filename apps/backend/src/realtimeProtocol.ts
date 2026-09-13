@@ -49,13 +49,37 @@ export interface RealtimePresencePlayer {
     number | null;
 }
 
+export type RealtimeConnectionStateName =
+  | "CONNECTED"
+  | "RECONNECTING"
+  | "ABSENT";
+
+export interface RealtimeConnectionState {
+  readonly player:
+    PlayerPosition;
+
+  readonly state:
+    RealtimeConnectionStateName;
+
+  readonly disconnectedAtMs:
+    number | null;
+
+  readonly graceDeadlineAtMs:
+    number | null;
+}
+
 export interface RealtimePresenceMessage {
   readonly protocolVersion: 1;
   readonly type: "PRESENCE";
+
   readonly sessionId:
     string;
+
   readonly players:
     readonly RealtimePresencePlayer[];
+
+  readonly connectionStates:
+    readonly RealtimeConnectionState[];
 }
 
 export type RealtimeErrorCode =
@@ -335,6 +359,9 @@ export function createRealtimePresenceMessage(
   sessionId: string,
   players:
     readonly RealtimePresencePlayer[],
+  connectionStates:
+    readonly RealtimeConnectionState[] =
+      [],
 ): RealtimePresenceMessage {
   return Object.freeze({
     protocolVersion:
@@ -348,6 +375,11 @@ export function createRealtimePresenceMessage(
     players:
       Object.freeze(
         [...players],
+      ),
+
+    connectionStates:
+      Object.freeze(
+        [...connectionStates],
       ),
   });
 }

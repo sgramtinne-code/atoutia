@@ -27,6 +27,7 @@ import {
   createRealtimeSnapshotMessage,
   parseRealtimeClientMessage,
   serializeRealtimeServerMessage,
+  type RealtimeConnectionState,
   type RealtimeErrorCode,
   type RealtimePresencePlayer,
 } from "./realtimeProtocol.js";
@@ -37,6 +38,9 @@ export const DEFAULT_HEARTBEAT_TIMEOUT_MS =
 export const DEFAULT_HEARTBEAT_CHECK_INTERVAL_MS =
   1_000;
 
+export const DEFAULT_RECONNECT_GRACE_MS =
+  120_000;
+
 export const HEARTBEAT_TIMEOUT_CLOSE_CODE =
   4002;
 
@@ -46,6 +50,17 @@ export const HEARTBEAT_TIMEOUT_CLOSE_REASON =
 interface ConnectionContext {
   readonly sessionId: string;
   readonly participantId: string;
+}
+
+interface DisconnectionState {
+  readonly context:
+    ConnectionContext;
+
+  readonly disconnectedAtMs:
+    number;
+
+  readonly graceExpired:
+    boolean;
 }
 
 export interface RealtimeServer {
@@ -70,6 +85,9 @@ export interface CreateRealtimeServerOptions {
     number;
 
   readonly heartbeatCheckIntervalMs?:
+    number;
+
+  readonly reconnectGraceMs?:
     number;
 }
 
@@ -349,6 +367,13 @@ export function createRealtimeServer(
       "heartbeatCheckIntervalMs",
     );
 
+  const reconnectGraceMs =
+    resolvePositiveInteger(
+      options.reconnectGraceMs,
+      DEFAULT_RECONNECT_GRACE_MS,
+      "reconnectGraceMs",
+    );
+
   const connections =
     new Map<
       WebSocket,
@@ -365,6 +390,12 @@ export function createRealtimeServer(
     new Map<
       string,
       number
+    >();
+
+  const disconnectionStates =
+    new Map<
+      string,
+      DisconnectionState
     >();
 
   const webSocketServer =
@@ -452,6 +483,129 @@ export function createRealtimeServer(
     );
   }
 
+  function createConnectionStates(
+    sessionId: string,
+  ): readonly RealtimeConnectionState[] {
+    const room =
+      options.roomStore.get(
+        sessionId,
+      );
+
+    if (room === undefined) {
+      return Object.freeze([]);
+    }
+
+    const assignments =
+      room.managedRoom.room.seats
+        .assignments;
+
+    return Object.freeze(
+      PLAYER_POSITIONS.map(
+        (
+          player,
+        ): RealtimeConnectionState => {
+          const participantId =
+            assignments[player];
+
+          if (
+            participantId ===
+            null
+          ) {
+            return Object.freeze({
+              player,
+
+              state:
+                "ABSENT",
+
+              disconnectedAtMs:
+                null,
+
+              graceDeadlineAtMs:
+                null,
+            });
+          }
+
+          const context:
+            ConnectionContext = {
+              sessionId,
+              participantId,
+            };
+
+          const key =
+            getConnectionKey(
+              context,
+            );
+
+          const socket =
+            participantConnections.get(
+              key,
+            );
+
+          if (
+            socket !== undefined &&
+            socket.readyState ===
+              WebSocket.OPEN
+          ) {
+            return Object.freeze({
+              player,
+
+              state:
+                "CONNECTED",
+
+              disconnectedAtMs:
+                null,
+
+              graceDeadlineAtMs:
+                null,
+            });
+          }
+
+          const disconnectionState =
+            disconnectionStates.get(
+              key,
+            );
+
+          if (
+            disconnectionState ===
+            undefined
+          ) {
+            return Object.freeze({
+              player,
+
+              state:
+                "ABSENT",
+
+              disconnectedAtMs:
+                null,
+
+              graceDeadlineAtMs:
+                null,
+            });
+          }
+
+          return Object.freeze({
+            player,
+
+            state:
+              disconnectionState
+                .graceExpired
+                ? "ABSENT"
+                : "RECONNECTING",
+
+            disconnectedAtMs:
+              disconnectionState
+                .disconnectedAtMs,
+
+            graceDeadlineAtMs:
+              disconnectionState
+                .disconnectedAtMs +
+              reconnectGraceMs,
+          });
+        },
+      ),
+    );
+  }
+
   function sendPresence(
     socket: WebSocket,
     sessionId: string,
@@ -467,7 +621,12 @@ export function createRealtimeServer(
       serializeRealtimeServerMessage(
         createRealtimePresenceMessage(
           sessionId,
+
           createPresencePlayers(
+            sessionId,
+          ),
+
+          createConnectionStates(
             sessionId,
           ),
         ),
@@ -503,6 +662,8 @@ export function createRealtimeServer(
     socket: WebSocket,
     broadcast:
       boolean,
+    recordDisconnection:
+      boolean = true,
   ): void {
     const context =
       connections.get(
@@ -530,6 +691,23 @@ export function createRealtimeServer(
       participantConnections.delete(
         key,
       );
+
+      if (
+        recordDisconnection
+      ) {
+        disconnectionStates.set(
+          key,
+          Object.freeze({
+            context,
+
+            disconnectedAtMs:
+              now(),
+
+            graceExpired:
+              false,
+          }),
+        );
+      }
     }
 
     if (broadcast) {
@@ -562,6 +740,7 @@ export function createRealtimeServer(
 
     removeConnection(
       previousSocket,
+      false,
       false,
     );
 
@@ -755,6 +934,7 @@ export function createRealtimeServer(
       removeConnection(
         socket,
         true,
+        true,
       );
 
       if (
@@ -771,6 +951,78 @@ export function createRealtimeServer(
     }
   }
 
+  function sweepReconnectGracePeriods():
+    void {
+    const currentTime =
+      now();
+
+    const sessionsToBroadcast =
+      new Set<string>();
+
+    for (
+      const [
+        key,
+        disconnectionState,
+      ]
+      of disconnectionStates
+    ) {
+      if (
+        disconnectionState
+          .graceExpired
+      ) {
+        continue;
+      }
+
+      if (
+        participantConnections.has(
+          key,
+        )
+      ) {
+        continue;
+      }
+
+      if (
+        currentTime -
+          disconnectionState
+            .disconnectedAtMs <
+        reconnectGraceMs
+      ) {
+        continue;
+      }
+
+      disconnectionStates.set(
+        key,
+        Object.freeze({
+          context:
+            disconnectionState
+              .context,
+
+          disconnectedAtMs:
+            disconnectionState
+              .disconnectedAtMs,
+
+          graceExpired:
+            true,
+        }),
+      );
+
+      sessionsToBroadcast.add(
+        disconnectionState
+          .context
+          .sessionId,
+      );
+    }
+
+    for (
+      const sessionId
+      of sessionsToBroadcast
+    ) {
+      broadcastPresence(
+        sessionId,
+      );
+    }
+  }
+
   const unsubscribe =
     options.roomStore.subscribe(
       broadcastRoom,
@@ -778,7 +1030,10 @@ export function createRealtimeServer(
 
   const heartbeatTimer =
     setInterval(
-      sweepHeartbeatTimeouts,
+      () => {
+        sweepHeartbeatTimeouts();
+        sweepReconnectGracePeriods();
+      },
       heartbeatCheckIntervalMs,
     );
 
@@ -854,6 +1109,10 @@ export function createRealtimeServer(
         now(),
       );
 
+      disconnectionStates.delete(
+        key,
+      );
+
       socket.on(
         "message",
         (
@@ -875,6 +1134,7 @@ export function createRealtimeServer(
           removeConnection(
             socket,
             true,
+            true,
           );
         },
       );
@@ -884,6 +1144,7 @@ export function createRealtimeServer(
         () => {
           removeConnection(
             socket,
+            true,
             true,
           );
         },
@@ -922,6 +1183,7 @@ export function createRealtimeServer(
       connections.clear();
       participantConnections.clear();
       lastSeenAtMs.clear();
+      disconnectionStates.clear();
 
       await new Promise<void>(
         (
