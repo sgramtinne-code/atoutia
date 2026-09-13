@@ -85,6 +85,9 @@ const authService =
     repository:
       authRepository,
 
+    bootstrapAuthenticationEnabled:
+      config.authBootstrapEnabled,
+
     ...(
       googleIdentityVerifier ===
         undefined
@@ -180,6 +183,12 @@ server.listen(
         undefined
         ? "Atoutia Google authentication: disabled"
         : "Atoutia Google authentication: enabled",
+    );
+
+    console.log(
+      config.authBootstrapEnabled
+        ? "Atoutia bootstrap authentication: enabled"
+        : "Atoutia bootstrap authentication: disabled",
     );
   },
 );

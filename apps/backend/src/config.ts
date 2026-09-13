@@ -16,6 +16,9 @@ export const DEFAULT_DATABASE_PATH =
     ),
   );
 
+export const DEFAULT_AUTH_BOOTSTRAP_ENABLED =
+  false;
+
 export interface BackendConfig {
   readonly host:
     string;
@@ -28,6 +31,9 @@ export interface BackendConfig {
 
   readonly googleClientId:
     string | undefined;
+
+  readonly authBootstrapEnabled:
+    boolean;
 }
 
 function parsePort(
@@ -121,6 +127,42 @@ function parseGoogleClientId(
   return trimmed;
 }
 
+function parseBoolean(
+  name:
+    string,
+
+  value:
+    string | undefined,
+
+  defaultValue:
+    boolean,
+): boolean {
+  if (
+    value ===
+      undefined
+  ) {
+    return defaultValue;
+  }
+
+  if (
+    value ===
+      "true"
+  ) {
+    return true;
+  }
+
+  if (
+    value ===
+      "false"
+  ) {
+    return false;
+  }
+
+  throw new Error(
+    `${name} must be either "true" or "false".`,
+  );
+}
+
 export function loadBackendConfig(
   environment:
     NodeJS.ProcessEnv =
@@ -146,6 +188,14 @@ export function loadBackendConfig(
       parseGoogleClientId(
         environment
           .ATOUTIA_GOOGLE_CLIENT_ID,
+      ),
+
+    authBootstrapEnabled:
+      parseBoolean(
+        "ATOUTIA_AUTH_BOOTSTRAP_ENABLED",
+        environment
+          .ATOUTIA_AUTH_BOOTSTRAP_ENABLED,
+        DEFAULT_AUTH_BOOTSTRAP_ENABLED,
       ),
   });
 }

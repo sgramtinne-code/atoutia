@@ -43,7 +43,10 @@ interface RunningAuthServer {
 const runningServers:
   RunningAuthServer[] = [];
 
-async function startAuthServer():
+async function startAuthServer(
+  bootstrapAuthenticationEnabled =
+    true,
+):
   Promise<
     RunningAuthServer
   > {
@@ -63,6 +66,8 @@ async function startAuthServer():
 
       sessionDurationMs:
         60_000,
+
+      bootstrapAuthenticationEnabled,
     });
 
   const server =
@@ -154,58 +159,6 @@ async function startAuthServer():
   );
 
   return running;
-}
-
-async function closeRunningServer(
-  running:
-    RunningAuthServer,
-): Promise<void> {
-  if (
-    running.server.listening
-  ) {
-    await new Promise<void>(
-      (
-        resolve,
-        reject,
-      ) => {
-        running.server.close(
-          (
-            error,
-          ) => {
-            if (
-              error !==
-                undefined
-            ) {
-              reject(
-                error,
-              );
-
-              return;
-            }
-
-            resolve();
-          },
-        );
-      },
-    );
-  }
-
-  running.repository.close();
-
-  const index =
-    runningServers.indexOf(
-      running,
-    );
-
-  if (
-    index >=
-      0
-  ) {
-    runningServers.splice(
-      index,
-      1,
-    );
-  }
 }
 
 async function createAccount(
@@ -359,7 +312,7 @@ describe(
   "auth HTTP",
   () => {
     it(
-      "creates an account",
+      "creates an account when bootstrap authentication is enabled",
       async () => {
         const {
           baseUrl,
@@ -528,6 +481,137 @@ describe(
         ).toEqual({
           error:
             "AUTH_ACCOUNT_NOT_FOUND",
+        });
+      },
+    );
+
+    it(
+      "hides account bootstrap endpoint when bootstrap authentication is disabled",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startAuthServer(
+            false,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/auth/accounts`,
+            {
+              method:
+                "POST",
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(
+          404,
+        );
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          error:
+            "NOT_FOUND",
+        });
+      },
+    );
+
+    it(
+      "hides session bootstrap endpoint when bootstrap authentication is disabled",
+      async () => {
+        const {
+          baseUrl,
+          authService,
+        } =
+          await startAuthServer(
+            false,
+          );
+
+        const account =
+          authService.createAccount();
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/auth/sessions`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  accountId:
+                    account.accountId,
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(
+          404,
+        );
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          error:
+            "NOT_FOUND",
+        });
+      },
+    );
+
+    it(
+      "keeps current account authentication available when bootstrap is disabled",
+      async () => {
+        const {
+          baseUrl,
+          authService,
+        } =
+          await startAuthServer(
+            false,
+          );
+
+        const account =
+          authService.createAccount();
+
+        const created =
+          authService.createSession(
+            account.accountId,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/auth/me`,
+            {
+              headers: {
+                authorization:
+                  `Bearer ${created.token}`,
+              },
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(
+          200,
+        );
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          accountId:
+            account.accountId,
+
+          authSessionId:
+            created.session.sessionId,
         });
       },
     );

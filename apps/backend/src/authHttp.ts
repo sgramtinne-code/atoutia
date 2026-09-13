@@ -291,6 +291,7 @@ function getBearerToken(
     return Object.freeze({
       status:
         "INVALID",
+
     });
   }
 
@@ -723,6 +724,17 @@ export async function handleAuthHttpRequest(
         "/api/v1/auth/accounts"
     ) {
       if (
+        !authService
+          .isBootstrapAuthenticationEnabled()
+      ) {
+        sendNotFound(
+          response,
+        );
+
+        return true;
+      }
+
+      if (
         request.method !==
           "POST"
       ) {
@@ -746,6 +758,17 @@ export async function handleAuthHttpRequest(
       pathname ===
         "/api/v1/auth/sessions"
     ) {
+      if (
+        !authService
+          .isBootstrapAuthenticationEnabled()
+      ) {
+        sendNotFound(
+          response,
+        );
+
+        return true;
+      }
+
       if (
         request.method !==
           "POST"

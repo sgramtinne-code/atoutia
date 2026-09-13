@@ -61,6 +61,9 @@ async function startServer():
 
       sessionDurationMs:
         60_000,
+
+      bootstrapAuthenticationEnabled:
+        true,
     });
 
   const server =

@@ -31,6 +31,9 @@ export interface AuthServiceOptions {
   readonly sessionDurationMs?:
     number;
 
+  readonly bootstrapAuthenticationEnabled?:
+    boolean;
+
   readonly externalIdentityVerifiers?:
     Readonly<
       Partial<
@@ -84,6 +87,9 @@ export class AuthService {
   readonly #sessionDurationMs:
     number | undefined;
 
+  readonly #bootstrapAuthenticationEnabled:
+    boolean;
+
   readonly #externalIdentityVerifiers:
     Readonly<
       Partial<
@@ -108,6 +114,11 @@ export class AuthService {
     this.#sessionDurationMs =
       options.sessionDurationMs;
 
+    this.#bootstrapAuthenticationEnabled =
+      options
+        .bootstrapAuthenticationEnabled ??
+      false;
+
     this.#externalIdentityVerifiers =
       options.externalIdentityVerifiers ===
         undefined
@@ -115,6 +126,12 @@ export class AuthService {
         : Object.freeze({
             ...options.externalIdentityVerifiers,
           });
+  }
+
+  public isBootstrapAuthenticationEnabled():
+    boolean {
+    return this
+      .#bootstrapAuthenticationEnabled;
   }
 
   public createAccount():

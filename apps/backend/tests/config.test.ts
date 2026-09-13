@@ -5,6 +5,7 @@ import {
 } from "vitest";
 
 import {
+  DEFAULT_AUTH_BOOTSTRAP_ENABLED,
   DEFAULT_DATABASE_PATH,
   DEFAULT_HOST,
   DEFAULT_PORT,
@@ -36,6 +37,9 @@ describe(
 
           googleClientId:
             undefined,
+
+          authBootstrapEnabled:
+            DEFAULT_AUTH_BOOTSTRAP_ENABLED,
         });
       },
     );
@@ -216,6 +220,73 @@ describe(
         ).toThrow(
           "ATOUTIA_GOOGLE_CLIENT_ID must be a non-empty value of at most 512 characters.",
         );
+      },
+    );
+
+    it(
+      "disables bootstrap authentication by default",
+      () => {
+        expect(
+          loadBackendConfig(
+            {},
+          ).authBootstrapEnabled,
+        ).toBe(
+          false,
+        );
+      },
+    );
+
+    it(
+      "enables bootstrap authentication explicitly",
+      () => {
+        expect(
+          loadBackendConfig({
+            ATOUTIA_AUTH_BOOTSTRAP_ENABLED:
+              "true",
+          }).authBootstrapEnabled,
+        ).toBe(
+          true,
+        );
+      },
+    );
+
+    it(
+      "keeps bootstrap authentication disabled explicitly",
+      () => {
+        expect(
+          loadBackendConfig({
+            ATOUTIA_AUTH_BOOTSTRAP_ENABLED:
+              "false",
+          }).authBootstrapEnabled,
+        ).toBe(
+          false,
+        );
+      },
+    );
+
+    it(
+      "rejects an invalid bootstrap authentication value",
+      () => {
+        for (
+          const value
+          of [
+            "",
+            "TRUE",
+            "False",
+            "1",
+            "yes",
+          ]
+        ) {
+          expect(
+            () =>
+              loadBackendConfig({
+                ATOUTIA_AUTH_BOOTSTRAP_ENABLED:
+                  value,
+              }),
+          ).toThrow(
+            'ATOUTIA_AUTH_BOOTSTRAP_ENABLED must be either "true" or "false".',
+          );
+        }
       },
     );
 
