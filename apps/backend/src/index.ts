@@ -119,6 +119,7 @@ const realtime =
   createRealtimeServer({
     server,
     roomStore,
+    authService,
 
     onAbsenceResolutionPending:
       (
