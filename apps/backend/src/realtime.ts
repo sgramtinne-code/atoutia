@@ -25,6 +25,10 @@ import {
 } from "./absencePolicy.js";
 
 import {
+  decideAbsenceResolution,
+} from "./absenceResolution.js";
+
+import {
   LiveRoomNotFoundError,
   LiveRoomStore,
 } from "./liveRoomStore.js";
@@ -73,6 +77,14 @@ interface DisconnectionState {
 
   readonly graceExpired:
     boolean;
+}
+
+interface SessionPresenceState {
+  readonly connectionStates:
+    readonly RealtimeConnectionState[];
+
+  readonly absences:
+    readonly RealtimeAbsencePlayer[];
 }
 
 export interface RealtimeServer {
@@ -783,12 +795,132 @@ export function createRealtimeServer(
     );
   }
 
+  function createSessionPresenceState(
+    sessionId:
+      string,
+  ): SessionPresenceState {
+    const connectionStates =
+      createConnectionStates(
+        sessionId,
+      );
+
+    const absencePolicy =
+      getAbsencePolicy(
+        sessionId,
+      );
+
+    return Object.freeze({
+      connectionStates,
+
+      absences:
+        createAbsencePlayers(
+          connectionStates,
+          now(),
+          absencePolicy,
+        ),
+    });
+  }
+
+  function syncAbsenceResolutionState(
+    sessionId:
+      string,
+
+    absences:
+      readonly RealtimeAbsencePlayer[],
+  ): void {
+    for (
+      const absence
+      of absences
+    ) {
+      const decision =
+        decideAbsenceResolution(
+          absence,
+        );
+
+      const existing =
+        options.roomStore
+          .getAbsenceResolution(
+            sessionId,
+            absence.player,
+          );
+
+      if (
+        decision.action ===
+        "NONE"
+      ) {
+        if (
+          existing?.status ===
+          "PENDING"
+        ) {
+          options.roomStore
+            .clearAbsenceResolution({
+              sessionId,
+
+              player:
+                absence.player,
+            });
+        }
+
+        continue;
+      }
+
+      if (
+        existing ===
+        undefined
+      ) {
+        options.roomStore
+          .markAbsenceResolutionPending({
+            sessionId,
+
+            player:
+              absence.player,
+
+            action:
+              decision.action,
+          });
+
+        continue;
+      }
+
+      if (
+        existing.status !==
+        "PENDING" ||
+        existing.action ===
+        decision.action
+      ) {
+        continue;
+      }
+
+      options.roomStore
+        .clearAbsenceResolution({
+          sessionId,
+
+          player:
+            absence.player,
+        });
+
+      options.roomStore
+        .markAbsenceResolutionPending({
+          sessionId,
+
+          player:
+            absence.player,
+
+          action:
+            decision.action,
+        });
+    }
+  }
+
   function sendPresence(
     socket:
       WebSocket,
 
     sessionId:
       string,
+
+    presenceState?:
+      SessionPresenceState,
   ): void {
     if (
       socket.readyState !==
@@ -797,18 +929,21 @@ export function createRealtimeServer(
       return;
     }
 
-    const connectionStates =
-      createConnectionStates(
+    const state =
+      presenceState ??
+      createSessionPresenceState(
         sessionId,
       );
 
-    const currentTime =
-      now();
-
-    const absencePolicy =
-      getAbsencePolicy(
+    if (
+      presenceState ===
+      undefined
+    ) {
+      syncAbsenceResolutionState(
         sessionId,
+        state.absences,
       );
+    }
 
     socket.send(
       serializeRealtimeServerMessage(
@@ -819,13 +954,9 @@ export function createRealtimeServer(
             sessionId,
           ),
 
-          connectionStates,
+          state.connectionStates,
 
-          createAbsencePlayers(
-            connectionStates,
-            currentTime,
-            absencePolicy,
-          ),
+          state.absences,
         ),
       ),
     );
@@ -835,6 +966,16 @@ export function createRealtimeServer(
     sessionId:
       string,
   ): void {
+    const state =
+      createSessionPresenceState(
+        sessionId,
+      );
+
+    syncAbsenceResolutionState(
+      sessionId,
+      state.absences,
+    );
+
     for (
       const [
         socket,
@@ -852,6 +993,7 @@ export function createRealtimeServer(
       sendPresence(
         socket,
         sessionId,
+        state,
       );
     }
   }
