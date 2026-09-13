@@ -1055,7 +1055,101 @@ async function handleSnapshot(
 
   sessionId:
     string,
+
+  authService:
+    AuthService | undefined,
 ): Promise<void> {
+  if (
+    authService !==
+      undefined
+  ) {
+    const authentication =
+      authenticateHttpParticipant(
+        request,
+        authService,
+      );
+
+    if (
+      authentication.status ===
+        "MISSING"
+    ) {
+      sendJson(
+        response,
+        401,
+        {
+          error:
+            "AUTH_REQUIRED",
+        },
+      );
+
+      return;
+    }
+
+    if (
+      authentication.status ===
+        "INVALID"
+    ) {
+      sendJson(
+        response,
+        401,
+        {
+          error:
+            "AUTH_INVALID",
+        },
+      );
+
+      return;
+    }
+
+    const body =
+      await readJsonBody(
+        request,
+      );
+
+    if (
+      body !==
+        null &&
+      !(
+        isObject(
+          body,
+        ) &&
+        Object.keys(
+          body,
+        ).length ===
+          0
+      )
+    ) {
+      sendJson(
+        response,
+        400,
+        {
+          error:
+            "INVALID_REQUEST",
+        },
+      );
+
+      return;
+    }
+
+    const snapshot =
+      roomStore.createParticipantSnapshot({
+        sessionId,
+
+        participantId:
+          authentication
+            .identity
+            .participantId,
+      });
+
+    sendJson(
+      response,
+      200,
+      snapshot,
+    );
+
+    return;
+  }
+
   const body =
     parseParticipantBody(
       await readJsonBody(
@@ -1613,6 +1707,7 @@ async function handleRequest(
       response,
       roomStore,
       sessionId,
+      authService,
     );
 
     return;
