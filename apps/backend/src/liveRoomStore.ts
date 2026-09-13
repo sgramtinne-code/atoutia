@@ -3,10 +3,12 @@ import {
 } from "node:crypto";
 
 import {
+  PLAYER_POSITIONS,
   applyLiveMatchRoomNetworkCommand,
   claimRevisionedLiveMatchRoomSeat,
   createLiveMatchRoomSnapshotDocument,
   createRevisionedLiveMatchRoom,
+  getLiveMatchSeatParticipant,
   releaseRevisionedLiveMatchRoomSeat,
   startRevisionedLiveMatchRoom,
   type LiveMatchRoomCommandDocument,
@@ -22,6 +24,12 @@ import {
   type PendingAbsenceResolutionAction,
   type ResolvedLiveRoomAbsenceResolutionStatus,
 } from "./liveRoomAbsenceResolution.js";
+
+import {
+  createLiveRoomSeatControl,
+  transferLiveRoomSeatControlToBot,
+  type LiveRoomSeatControl,
+} from "./liveRoomSeatControl.js";
 
 import type {
   MatchMode,
@@ -163,6 +171,14 @@ export interface ClearLiveRoomAbsenceResolutionOptions {
     PlayerPosition;
 }
 
+export interface TransferLiveRoomSeatControlToBotStoreOptions {
+  readonly sessionId:
+    string;
+
+  readonly player:
+    PlayerPosition;
+}
+
 export type LiveRoomStoreListener =
   (
     room:
@@ -224,6 +240,15 @@ export class LiveRoomStore {
       >
     >();
 
+  readonly #seatControls =
+    new Map<
+      string,
+      Map<
+        PlayerPosition,
+        LiveRoomSeatControl
+      >
+    >();
+
   readonly #listeners =
     new Set<
       LiveRoomStoreListener
@@ -269,6 +294,29 @@ export class LiveRoomStore {
         PlayerPosition,
         LiveRoomAbsenceResolution
       >(),
+    );
+
+    const seatControls =
+      new Map<
+        PlayerPosition,
+        LiveRoomSeatControl
+      >();
+
+    for (
+      const player
+      of PLAYER_POSITIONS
+    ) {
+      seatControls.set(
+        player,
+        createLiveRoomSeatControl({
+          player,
+        }),
+      );
+    }
+
+    this.#seatControls.set(
+      sessionId,
+      seatControls,
     );
 
     return room;
@@ -652,6 +700,134 @@ export class LiveRoomStore {
     return true;
   }
 
+  public getSeatControl(
+    sessionId:
+      string,
+
+    player:
+      PlayerPosition,
+  ): LiveRoomSeatControl {
+    this.#requireRoom(
+      sessionId,
+    );
+
+    const controls =
+      this.#requireSeatControlMap(
+        sessionId,
+      );
+
+    const control =
+      controls.get(
+        player,
+      );
+
+    if (
+      control ===
+      undefined
+    ) {
+      throw new Error(
+        `Live room seat control not found: ${sessionId} ${player}`,
+      );
+    }
+
+    return control;
+  }
+
+  public listSeatControls(
+    sessionId:
+      string,
+  ): readonly LiveRoomSeatControl[] {
+    this.#requireRoom(
+      sessionId,
+    );
+
+    const controls =
+      this.#requireSeatControlMap(
+        sessionId,
+      );
+
+    return Object.freeze(
+      PLAYER_POSITIONS.map(
+        (
+          player,
+        ) => {
+          const control =
+            controls.get(
+              player,
+            );
+
+          if (
+            control ===
+            undefined
+          ) {
+            throw new Error(
+              `Live room seat control not found: ${sessionId} ${player}`,
+            );
+          }
+
+          return control;
+        },
+      ),
+    );
+  }
+
+  public transferSeatControlToBot(
+    options:
+      TransferLiveRoomSeatControlToBotStoreOptions,
+  ): LiveRoomSeatControl {
+    const room =
+      this.#requireRoom(
+        options.sessionId,
+      );
+
+    const participantId =
+      getLiveMatchSeatParticipant(
+        room.managedRoom.room.seats,
+        options.player,
+      );
+
+    if (
+      participantId ===
+      null
+    ) {
+      throw new Error(
+        `Cannot transfer unoccupied live room seat ${options.player} to BOT control.`,
+      );
+    }
+
+    const controls =
+      this.#requireSeatControlMap(
+        options.sessionId,
+      );
+
+    const existing =
+      controls.get(
+        options.player,
+      );
+
+    if (
+      existing ===
+      undefined
+    ) {
+      throw new Error(
+        `Live room seat control not found: ${options.sessionId} ${options.player}`,
+      );
+    }
+
+    const nextControl =
+      transferLiveRoomSeatControlToBot({
+        control:
+          existing,
+      });
+
+    controls.set(
+      options.player,
+      nextControl,
+    );
+
+    return nextControl;
+  }
+
   public subscribe(
     listener:
       LiveRoomStoreListener,
@@ -726,6 +902,30 @@ export class LiveRoomStore {
     }
 
     return resolutions;
+  }
+
+  #requireSeatControlMap(
+    sessionId:
+      string,
+  ): Map<
+    PlayerPosition,
+    LiveRoomSeatControl
+  > {
+    const controls =
+      this.#seatControls.get(
+        sessionId,
+      );
+
+    if (
+      controls ===
+      undefined
+    ) {
+      throw new Error(
+        `Live room seat control state not found: ${sessionId}`,
+      );
+    }
+
+    return controls;
   }
 
   #requireRoom(
