@@ -3,6 +3,11 @@ import type {
   AuthSession,
 } from "./auth.js";
 
+import type {
+  AuthIdentity,
+  AuthIdentityProvider,
+} from "./authIdentity.js";
+
 export interface AuthRepository {
   saveAccount(
     account:
@@ -33,6 +38,28 @@ export interface AuthRepository {
       string,
   ):
     | AuthSession
+    | undefined;
+
+  saveIdentity(
+    identity:
+      AuthIdentity,
+  ): void;
+
+  getIdentity(
+    identityId:
+      string,
+  ):
+    | AuthIdentity
+    | undefined;
+
+  findIdentityByProviderAndSubjectHash(
+    provider:
+      AuthIdentityProvider,
+
+    subjectHash:
+      string,
+  ):
+    | AuthIdentity
     | undefined;
 
   close():

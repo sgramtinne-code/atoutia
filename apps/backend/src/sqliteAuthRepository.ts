@@ -8,6 +8,12 @@ import type {
   AuthSession,
 } from "./auth.js";
 
+import {
+  isAuthIdentityProvider,
+  type AuthIdentity,
+  type AuthIdentityProvider,
+} from "./authIdentity.js";
+
 import type {
   AuthRepository,
 } from "./authRepository.js";
@@ -43,6 +49,23 @@ interface AuthSessionRow {
     number | null;
 }
 
+interface AuthIdentityRow {
+  readonly identity_id:
+    string;
+
+  readonly account_id:
+    string;
+
+  readonly provider:
+    string;
+
+  readonly subject_hash:
+    string;
+
+  readonly created_at_ms:
+    number;
+}
+
 export interface SQLiteAuthRepositoryOptions {
   readonly databasePath:
     string;
@@ -58,6 +81,23 @@ function parseAccountStatus(
   ) {
     throw new Error(
       `Unsupported auth account status: ${value}`,
+    );
+  }
+
+  return value;
+}
+
+function parseIdentityProvider(
+  value:
+    string,
+): AuthIdentityProvider {
+  if (
+    !isAuthIdentityProvider(
+      value,
+    )
+  ) {
+    throw new Error(
+      `Unsupported auth identity provider: ${value}`,
     );
   }
 
@@ -107,6 +147,30 @@ function mapSessionRow(
   });
 }
 
+function mapIdentityRow(
+  row:
+    AuthIdentityRow,
+): AuthIdentity {
+  return Object.freeze({
+    identityId:
+      row.identity_id,
+
+    accountId:
+      row.account_id,
+
+    provider:
+      parseIdentityProvider(
+        row.provider,
+      ),
+
+    subjectHash:
+      row.subject_hash,
+
+    createdAtMs:
+      row.created_at_ms,
+  });
+}
+
 export class SQLiteAuthRepository
   implements AuthRepository {
   readonly #database:
@@ -147,6 +211,21 @@ export class SQLiteAuthRepository
 
       CREATE INDEX IF NOT EXISTS auth_sessions_account_id_idx
       ON auth_sessions(account_id);
+
+      CREATE TABLE IF NOT EXISTS auth_identities (
+        identity_id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        subject_hash TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        FOREIGN KEY(account_id)
+          REFERENCES auth_accounts(account_id)
+          ON DELETE CASCADE,
+        UNIQUE(provider, subject_hash)
+      ) STRICT;
+
+      CREATE INDEX IF NOT EXISTS auth_identities_account_id_idx
+      ON auth_identities(account_id);
     `);
   }
 
@@ -314,6 +393,114 @@ export class SQLiteAuthRepository
       undefined
       ? undefined
       : mapSessionRow(
+          row,
+        );
+  }
+
+  public saveIdentity(
+    identity:
+      AuthIdentity,
+  ): void {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        INSERT INTO auth_identities (
+          identity_id,
+          account_id,
+          provider,
+          subject_hash,
+          created_at_ms
+        )
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(identity_id)
+        DO UPDATE SET
+          account_id = excluded.account_id,
+          provider = excluded.provider,
+          subject_hash = excluded.subject_hash,
+          created_at_ms = excluded.created_at_ms
+      `);
+
+    statement.run(
+      identity.identityId,
+      identity.accountId,
+      identity.provider,
+      identity.subjectHash,
+      identity.createdAtMs,
+    );
+  }
+
+  public getIdentity(
+    identityId:
+      string,
+  ):
+    | AuthIdentity
+    | undefined {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        SELECT
+          identity_id,
+          account_id,
+          provider,
+          subject_hash,
+          created_at_ms
+        FROM auth_identities
+        WHERE identity_id = ?
+      `);
+
+    const row =
+      statement.get(
+        identityId,
+      ) as unknown as
+        | AuthIdentityRow
+        | undefined;
+
+    return row ===
+      undefined
+      ? undefined
+      : mapIdentityRow(
+          row,
+        );
+  }
+
+  public findIdentityByProviderAndSubjectHash(
+    provider:
+      AuthIdentityProvider,
+
+    subjectHash:
+      string,
+  ):
+    | AuthIdentity
+    | undefined {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        SELECT
+          identity_id,
+          account_id,
+          provider,
+          subject_hash,
+          created_at_ms
+        FROM auth_identities
+        WHERE provider = ?
+          AND subject_hash = ?
+      `);
+
+    const row =
+      statement.get(
+        provider,
+        subjectHash,
+      ) as unknown as
+        | AuthIdentityRow
+        | undefined;
+
+    return row ===
+      undefined
+      ? undefined
+      : mapIdentityRow(
           row,
         );
   }

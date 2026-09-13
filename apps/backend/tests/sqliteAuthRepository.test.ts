@@ -25,6 +25,10 @@ import {
 } from "../src/auth.js";
 
 import {
+  createAuthIdentity,
+} from "../src/authIdentity.js";
+
+import {
   SQLiteAuthRepository,
 } from "../src/sqliteAuthRepository.js";
 
@@ -226,6 +230,220 @@ describe(
     );
 
     it(
+      "stores and retrieves an external authentication identity",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const account =
+          createAuthAccount({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+          });
+
+        repository.saveAccount(
+          account,
+        );
+
+        const identity =
+          createAuthIdentity({
+            accountId:
+              account.accountId,
+
+            provider:
+              "GOOGLE",
+
+            providerSubject:
+              "google-user-123",
+
+            createdAtMs:
+              2_000,
+          });
+
+        repository.saveIdentity(
+          identity,
+        );
+
+        expect(
+          repository.getIdentity(
+            identity.identityId,
+          ),
+        ).toEqual(
+          identity,
+        );
+
+        expect(
+          repository.findIdentityByProviderAndSubjectHash(
+            identity.provider,
+            identity.subjectHash,
+          ),
+        ).toEqual(
+          identity,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "returns undefined for an unknown external authentication identity",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        expect(
+          repository.getIdentity(
+            "aid1_00000000000000000000000000000000",
+          ),
+        ).toBeUndefined();
+
+        expect(
+          repository.findIdentityByProviderAndSubjectHash(
+            "GOOGLE",
+            "0".repeat(
+              64,
+            ),
+          ),
+        ).toBeUndefined();
+
+        repository.close();
+      },
+    );
+
+    it(
+      "prevents one provider subject from being linked to multiple accounts",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const firstAccount =
+          createAuthAccount({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+          });
+
+        const secondAccount =
+          createAuthAccount({
+            accountId:
+              "acc1_11111111111111111111111111111111",
+
+            createdAtMs:
+              1_000,
+          });
+
+        repository.saveAccount(
+          firstAccount,
+        );
+
+        repository.saveAccount(
+          secondAccount,
+        );
+
+        const firstIdentity =
+          createAuthIdentity({
+            accountId:
+              firstAccount.accountId,
+
+            provider:
+              "GOOGLE",
+
+            providerSubject:
+              "shared-google-user",
+
+            createdAtMs:
+              2_000,
+          });
+
+        const secondIdentity =
+          createAuthIdentity({
+            accountId:
+              secondAccount.accountId,
+
+            provider:
+              "GOOGLE",
+
+            providerSubject:
+              "shared-google-user",
+
+            createdAtMs:
+              3_000,
+          });
+
+        repository.saveIdentity(
+          firstIdentity,
+        );
+
+        expect(
+          () =>
+            repository.saveIdentity(
+              secondIdentity,
+            ),
+        ).toThrow();
+
+        expect(
+          repository.findIdentityByProviderAndSubjectHash(
+            firstIdentity.provider,
+            firstIdentity.subjectHash,
+          ),
+        ).toEqual(
+          firstIdentity,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "rejects an external authentication identity whose account does not exist",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const identity =
+          createAuthIdentity({
+            accountId:
+              "acc1_ffffffffffffffffffffffffffffffff",
+
+            provider:
+              "GOOGLE",
+
+            providerSubject:
+              "google-user-123",
+
+            createdAtMs:
+              1_000,
+          });
+
+        expect(
+          () =>
+            repository.saveIdentity(
+              identity,
+            ),
+        ).toThrow();
+
+        repository.close();
+      },
+    );
+
+    it(
       "survives close and reopen",
       async () => {
         const databasePath =
@@ -262,6 +480,25 @@ describe(
           created.session,
         );
 
+        const identity =
+          createAuthIdentity({
+            accountId:
+              account.accountId,
+
+            provider:
+              "GOOGLE",
+
+            providerSubject:
+              "google-user-123",
+
+            createdAtMs:
+              3_000,
+          });
+
+        firstRepository.saveIdentity(
+          identity,
+        );
+
         firstRepository.close();
 
         const secondRepository =
@@ -283,6 +520,23 @@ describe(
           ),
         ).toEqual(
           created.session,
+        );
+
+        expect(
+          secondRepository.getIdentity(
+            identity.identityId,
+          ),
+        ).toEqual(
+          identity,
+        );
+
+        expect(
+          secondRepository.findIdentityByProviderAndSubjectHash(
+            identity.provider,
+            identity.subjectHash,
+          ),
+        ).toEqual(
+          identity,
         );
 
         secondRepository.close();
@@ -333,6 +587,15 @@ describe(
           () =>
             repository.getAccount(
               "acc1_00000000000000000000000000000000",
+            ),
+        ).toThrow(
+          "SQLite auth repository is closed.",
+        );
+
+        expect(
+          () =>
+            repository.getIdentity(
+              "aid1_00000000000000000000000000000000",
             ),
         ).toThrow(
           "SQLite auth repository is closed.",
