@@ -14,6 +14,10 @@ import {
   LiveRoomStore,
 } from "./liveRoomStore.js";
 
+import {
+  createTeamForfeitHandler,
+} from "./teamForfeitHandler.js";
+
 export interface AbsenceResolutionCoordinator {
   request(
     sessionId:
@@ -44,6 +48,9 @@ export interface CreateAbsenceResolutionCoordinatorOptions {
       sessionId:
         string,
     ) => void;
+
+  readonly now?:
+    () => number;
 
   readonly onError?:
     (
@@ -84,6 +91,27 @@ export function createAbsenceResolutionCoordinator(
       string
     >();
 
+  const botTakeoverHandler =
+    createBotTakeoverHandler({
+      roomStore:
+        options.roomStore,
+    });
+
+  const teamForfeitHandler =
+    options.now ===
+      undefined
+      ? createTeamForfeitHandler({
+          roomStore:
+            options.roomStore,
+        })
+      : createTeamForfeitHandler({
+          roomStore:
+            options.roomStore,
+
+          now:
+            options.now,
+        });
+
   let closed =
     false;
 
@@ -105,9 +133,14 @@ export function createAbsenceResolutionCoordinator(
       resolution ===
         undefined ||
       resolution.status !==
-        "PENDING" ||
-      resolution.action !==
-        "BOT_TAKEOVER"
+        "PENDING"
+    ) {
+      return;
+    }
+
+    if (
+      resolution.action ===
+      "MANUAL_ONLY"
     ) {
       return;
     }
@@ -123,17 +156,10 @@ export function createAbsenceResolutionCoordinator(
 
         handlers: {
           executeBotTakeover:
-            createBotTakeoverHandler({
-              roomStore:
-                options.roomStore,
-            }),
+            botTakeoverHandler,
 
           executeTeamForfeit:
-            () => {
-              throw new Error(
-                "Automatic TEAM_FORFEIT execution is not implemented.",
-              );
-            },
+            teamForfeitHandler,
         },
       });
 

@@ -13,6 +13,11 @@ import {
   LiveRoomStore,
 } from "../src/liveRoomStore.js";
 
+type MatchMode =
+  "PRIVATE"
+  | "CASUAL"
+  | "RANKED";
+
 interface StartedRoom {
   readonly roomStore:
     LiveRoomStore;
@@ -21,15 +26,18 @@ interface StartedRoom {
     string;
 }
 
-function createStartedRoom():
+function createStartedRoom(
+  mode:
+    MatchMode =
+      "CASUAL",
+):
   StartedRoom {
   const roomStore =
     new LiveRoomStore();
 
   const room =
     roomStore.create({
-      mode:
-        "CASUAL",
+      mode,
     });
 
   const sessionId =
@@ -208,6 +216,107 @@ describe(
     );
 
     it(
+      "executes a pending TEAM_FORFEIT for a ranked room",
+      async () => {
+        const {
+          roomStore,
+          sessionId,
+        } =
+          createStartedRoom(
+            "RANKED",
+          );
+
+        roomStore
+          .markAbsenceResolutionPending({
+            sessionId,
+
+            player:
+              "PLAYER_1",
+
+            action:
+              "TEAM_FORFEIT",
+          });
+
+        const requestBotCycle =
+          vi.fn();
+
+        const coordinator =
+          createAbsenceResolutionCoordinator({
+            roomStore,
+            requestBotCycle,
+
+            now:
+              () =>
+                123_456,
+          });
+
+        coordinator.request(
+          sessionId,
+          "PLAYER_1",
+        );
+
+        await flushMicrotasks();
+
+        expect(
+          roomStore.getAdjudication(
+            sessionId,
+          ),
+        ).toEqual({
+          status:
+            "COMPLETED",
+
+          completion:
+            "FORFEIT",
+
+          reason:
+            "PLAYER_ABSENCE",
+
+          forfeitingPlayer:
+            "PLAYER_1",
+
+          losingTeam:
+            "TEAM_1",
+
+          winningTeam:
+            "TEAM_0",
+
+          completedAtMs:
+            123_456,
+        });
+
+        expect(
+          roomStore.getAbsenceResolution(
+            sessionId,
+            "PLAYER_1",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_1",
+
+          action:
+            "TEAM_FORFEIT",
+
+          status:
+            "RESOLVED_BY_FORFEIT",
+        });
+
+        expect(
+          roomStore.get(
+            sessionId,
+          )?.revision,
+        ).toBe(
+          5,
+        );
+
+        expect(
+          requestBotCycle,
+        ).not.toHaveBeenCalled();
+
+        coordinator.close();
+      },
+    );
+
+    it(
       "does nothing when there is no pending resolution",
       async () => {
         const {
@@ -256,7 +365,9 @@ describe(
           roomStore,
           sessionId,
         } =
-          createStartedRoom();
+          createStartedRoom(
+            "PRIVATE",
+          );
 
         roomStore
           .markAbsenceResolutionPending({
@@ -319,76 +430,7 @@ describe(
     );
 
     it(
-      "leaves TEAM_FORFEIT pending until ranked adjudication exists",
-      async () => {
-        const {
-          roomStore,
-          sessionId,
-        } =
-          createStartedRoom();
-
-        roomStore
-          .markAbsenceResolutionPending({
-            sessionId,
-
-            player:
-              "PLAYER_1",
-
-            action:
-              "TEAM_FORFEIT",
-          });
-
-        const requestBotCycle =
-          vi.fn();
-
-        const coordinator =
-          createAbsenceResolutionCoordinator({
-            roomStore,
-            requestBotCycle,
-          });
-
-        coordinator.request(
-          sessionId,
-          "PLAYER_1",
-        );
-
-        await flushMicrotasks();
-
-        expect(
-          roomStore.getAbsenceResolution(
-            sessionId,
-            "PLAYER_1",
-          ),
-        ).toEqual({
-          player:
-            "PLAYER_1",
-
-          action:
-            "TEAM_FORFEIT",
-
-          status:
-            "PENDING",
-        });
-
-        expect(
-          roomStore.getSeatControl(
-            sessionId,
-            "PLAYER_1",
-          ).controller,
-        ).toBe(
-          "HUMAN",
-        );
-
-        expect(
-          requestBotCycle,
-        ).not.toHaveBeenCalled();
-
-        coordinator.close();
-      },
-    );
-
-    it(
-      "coalesces repeated requests for the same player",
+      "coalesces repeated BOT takeover requests for the same player",
       async () => {
         const {
           roomStore,
@@ -447,6 +489,102 @@ describe(
         ).toHaveBeenCalledTimes(
           1,
         );
+
+        coordinator.close();
+      },
+    );
+
+    it(
+      "coalesces repeated TEAM_FORFEIT requests for the same player",
+      async () => {
+        const {
+          roomStore,
+          sessionId,
+        } =
+          createStartedRoom(
+            "RANKED",
+          );
+
+        roomStore
+          .markAbsenceResolutionPending({
+            sessionId,
+
+            player:
+              "PLAYER_2",
+
+            action:
+              "TEAM_FORFEIT",
+          });
+
+        const requestBotCycle =
+          vi.fn();
+
+        const coordinator =
+          createAbsenceResolutionCoordinator({
+            roomStore,
+            requestBotCycle,
+
+            now:
+              () =>
+                50_000,
+          });
+
+        coordinator.request(
+          sessionId,
+          "PLAYER_2",
+        );
+
+        coordinator.request(
+          sessionId,
+          "PLAYER_2",
+        );
+
+        coordinator.request(
+          sessionId,
+          "PLAYER_2",
+        );
+
+        await flushMicrotasks();
+
+        expect(
+          roomStore.getAbsenceResolution(
+            sessionId,
+            "PLAYER_2",
+          )?.status,
+        ).toBe(
+          "RESOLVED_BY_FORFEIT",
+        );
+
+        expect(
+          roomStore.getAdjudication(
+            sessionId,
+          ),
+        ).toEqual({
+          status:
+            "COMPLETED",
+
+          completion:
+            "FORFEIT",
+
+          reason:
+            "PLAYER_ABSENCE",
+
+          forfeitingPlayer:
+            "PLAYER_2",
+
+          losingTeam:
+            "TEAM_0",
+
+          winningTeam:
+            "TEAM_1",
+
+          completedAtMs:
+            50_000,
+        });
+
+        expect(
+          requestBotCycle,
+        ).not.toHaveBeenCalled();
 
         coordinator.close();
       },
@@ -552,7 +690,113 @@ describe(
     );
 
     it(
-      "cancels a pending request when closed",
+      "keeps TEAM_FORFEIT pending when ranked forfeit execution fails",
+      async () => {
+        const roomStore =
+          new LiveRoomStore();
+
+        const room =
+          roomStore.create({
+            mode:
+              "RANKED",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        roomStore
+          .markAbsenceResolutionPending({
+            sessionId,
+
+            player:
+              "PLAYER_0",
+
+            action:
+              "TEAM_FORFEIT",
+          });
+
+        const requestBotCycle =
+          vi.fn();
+
+        const onError =
+          vi.fn();
+
+        const coordinator =
+          createAbsenceResolutionCoordinator({
+            roomStore,
+            requestBotCycle,
+
+            now:
+              () =>
+                10_000,
+
+            onError,
+          });
+
+        coordinator.request(
+          sessionId,
+          "PLAYER_0",
+        );
+
+        await flushMicrotasks();
+
+        expect(
+          roomStore.getAbsenceResolution(
+            sessionId,
+            "PLAYER_0",
+          ),
+        ).toEqual({
+          player:
+            "PLAYER_0",
+
+          action:
+            "TEAM_FORFEIT",
+
+          status:
+            "PENDING",
+        });
+
+        expect(
+          roomStore.getAdjudication(
+            sessionId,
+          ),
+        ).toEqual({
+          status:
+            "ACTIVE",
+
+          completion:
+            null,
+
+          completedAtMs:
+            null,
+        });
+
+        expect(
+          requestBotCycle,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          onError,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          onError.mock.calls[0]?.[1],
+        ).toEqual({
+          sessionId,
+
+          player:
+            "PLAYER_0",
+        });
+
+        coordinator.close();
+      },
+    );
+
+    it(
+      "cancels a pending BOT takeover request when closed",
       async () => {
         const {
           roomStore,
@@ -614,7 +858,7 @@ describe(
     );
 
     it(
-      "keeps different players independent",
+      "keeps different BOT takeover players independent",
       async () => {
         const {
           roomStore,
