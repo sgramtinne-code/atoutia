@@ -87,6 +87,14 @@ interface SessionPresenceState {
     readonly RealtimeAbsencePlayer[];
 }
 
+export interface RealtimeAbsenceResolutionPendingEvent {
+  readonly sessionId:
+    string;
+
+  readonly player:
+    PlayerPosition;
+}
+
 export interface RealtimeServer {
   readonly webSocketServer:
     WebSocketServer;
@@ -116,6 +124,12 @@ export interface CreateRealtimeServerOptions {
 
   readonly absencePolicy?:
     AbsencePolicy;
+
+  readonly onAbsenceResolutionPending?:
+    (
+      event:
+        RealtimeAbsenceResolutionPendingEvent,
+    ) => void;
 }
 
 function resolvePositiveInteger(
@@ -821,6 +835,21 @@ export function createRealtimeServer(
     });
   }
 
+  function notifyAbsenceResolutionPending(
+    sessionId:
+      string,
+
+    player:
+      PlayerPosition,
+  ): void {
+    options.onAbsenceResolutionPending?.(
+      Object.freeze({
+        sessionId,
+        player,
+      }),
+    );
+  }
+
   function syncAbsenceResolutionState(
     sessionId:
       string,
@@ -879,6 +908,11 @@ export function createRealtimeServer(
               decision.action,
           });
 
+        notifyAbsenceResolutionPending(
+          sessionId,
+          absence.player,
+        );
+
         continue;
       }
 
@@ -909,6 +943,11 @@ export function createRealtimeServer(
           action:
             decision.action,
         });
+
+      notifyAbsenceResolutionPending(
+        sessionId,
+        absence.player,
+      );
     }
   }
 

@@ -1,4 +1,8 @@
 import {
+  createAbsenceResolutionCoordinator,
+} from "./absenceResolutionCoordinator.js";
+
+import {
   createBotCycleScheduler,
 } from "./botCycleScheduler.js";
 
@@ -29,6 +33,31 @@ const botCycleScheduler =
     roomStore,
   });
 
+const absenceResolutionCoordinator =
+  createAbsenceResolutionCoordinator({
+    roomStore,
+
+    requestBotCycle:
+      (
+        sessionId,
+      ) => {
+        botCycleScheduler.request(
+          sessionId,
+        );
+      },
+
+    onError:
+      (
+        error,
+        context,
+      ) => {
+        console.error(
+          `Automatic absence resolution failed for ${context.sessionId} / ${context.player}.`,
+          error,
+        );
+      },
+  });
+
 const server =
   createBackendServer({
     roomStore,
@@ -38,6 +67,17 @@ const realtime =
   createRealtimeServer({
     server,
     roomStore,
+
+    onAbsenceResolutionPending:
+      (
+        event,
+      ) => {
+        absenceResolutionCoordinator
+          .request(
+            event.sessionId,
+            event.player,
+          );
+      },
   });
 
 server.listen(
@@ -58,7 +98,8 @@ let shuttingDown =
   false;
 
 async function shutdown(
-  signal: string,
+  signal:
+    string,
 ): Promise<void> {
   if (
     shuttingDown
@@ -73,12 +114,16 @@ async function shutdown(
     `Received ${signal}, shutting down.`,
   );
 
+  absenceResolutionCoordinator
+    .close();
+
   botCycleScheduler.close();
 
   try {
     await realtime.close();
   } catch (
-    error: unknown
+    error:
+      unknown
   ) {
     console.error(
       error,
