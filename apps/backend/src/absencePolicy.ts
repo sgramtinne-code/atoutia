@@ -1,10 +1,12 @@
+import type {
+  MatchMode,
+} from "./matchMode.js";
+
 export const DEFAULT_ABSENCE_RESOLUTION_DELAY_MS =
   180_000;
 
 export type MatchAbsenceMode =
-  | "PRIVATE"
-  | "CASUAL"
-  | "RANKED";
+  MatchMode;
 
 export type AbsenceResolutionStatus =
   | "NOT_ABSENT"

@@ -15,6 +15,10 @@ import {
   type RevisionedLiveMatchRoom,
 } from "@atoutia/belote-engine";
 
+import type {
+  MatchMode,
+} from "./matchMode.js";
+
 export interface LiveRoomSeatSummary {
   readonly PLAYER_0: boolean;
   readonly PLAYER_1: boolean;
@@ -29,6 +33,11 @@ export interface LiveRoomSummary {
     RevisionedLiveMatchRoom["managedRoom"]["phase"];
   readonly occupiedSeats: number;
   readonly seats: LiveRoomSeatSummary;
+}
+
+export interface CreateLiveRoomOptions {
+  readonly mode?:
+    MatchMode;
 }
 
 export interface ClaimLiveRoomSeatOptions {
@@ -92,12 +101,21 @@ export class LiveRoomStore {
       RevisionedLiveMatchRoom
     >();
 
+  readonly #modes =
+    new Map<
+      string,
+      MatchMode
+    >();
+
   readonly #listeners =
     new Set<
       LiveRoomStoreListener
     >();
 
-  public create():
+  public create(
+    options:
+      CreateLiveRoomOptions = {},
+  ):
     RevisionedLiveMatchRoom {
     const baseSeed =
       randomInt(
@@ -114,9 +132,18 @@ export class LiveRoomStore {
       room.managedRoom.room.session
         .sessionId;
 
+    const mode =
+      options.mode ??
+      "CASUAL";
+
     this.#rooms.set(
       sessionId,
       room,
+    );
+
+    this.#modes.set(
+      sessionId,
+      mode,
     );
 
     return room;
@@ -130,6 +157,37 @@ export class LiveRoomStore {
     return this.#rooms.get(
       sessionId,
     );
+  }
+
+  public getMode(
+    sessionId: string,
+  ):
+    | MatchMode
+    | undefined {
+    return this.#modes.get(
+      sessionId,
+    );
+  }
+
+  public requireMode(
+    sessionId: string,
+  ): MatchMode {
+    this.#requireRoom(
+      sessionId,
+    );
+
+    const mode =
+      this.#modes.get(
+        sessionId,
+      );
+
+    if (mode === undefined) {
+      throw new Error(
+        `Live room mode not found: ${sessionId}`,
+      );
+    }
+
+    return mode;
   }
 
   public claimSeat(
