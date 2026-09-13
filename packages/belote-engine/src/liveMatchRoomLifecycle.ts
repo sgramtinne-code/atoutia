@@ -1,10 +1,12 @@
 import {
   applyLiveMatchRoomParticipantCommand,
+  applyLiveMatchRoomPlayerCommand,
   claimLiveMatchRoomSeat,
   createLiveMatchRoom,
   createLiveMatchRoomParticipantSnapshot,
   releaseLiveMatchRoomSeat,
   type ApplyLiveMatchRoomParticipantCommandResult,
+  type ApplyLiveMatchRoomPlayerCommandResult,
   type LiveMatchRoom,
 } from "./liveMatchRoom.js";
 import {
@@ -62,6 +64,18 @@ export interface ApplyManagedLiveMatchRoomCommandResult {
   readonly snapshot: PlayerClientSnapshot;
 }
 
+export interface ApplyManagedLiveMatchRoomPlayerCommandOptions {
+  readonly managedRoom: ManagedLiveMatchRoom;
+  readonly player: PlayerPosition;
+  readonly command: PlayerCommand;
+}
+
+export interface ApplyManagedLiveMatchRoomPlayerCommandResult {
+  readonly managedRoom: ManagedLiveMatchRoom;
+  readonly player: PlayerPosition;
+  readonly snapshot: PlayerClientSnapshot;
+}
+
 function createManagedRoom(
   room: LiveMatchRoom,
   phase: LiveMatchRoomPhase,
@@ -82,6 +96,15 @@ function getLobbyPhase(
     : "WAITING_FOR_PLAYERS";
 }
 
+function getCommandResultPhase(
+  room: LiveMatchRoom,
+): LiveMatchRoomPhase {
+  return room.session.state
+    .score.completed
+    ? "FINISHED"
+    : "IN_PROGRESS";
+}
+
 function assertLobbyCanChangeSeats(
   managedRoom: ManagedLiveMatchRoom,
 ): void {
@@ -93,6 +116,19 @@ function assertLobbyCanChangeSeats(
   ) {
     throw new Error(
       `Cannot change match seats while room phase is ${managedRoom.phase}`,
+    );
+  }
+}
+
+function assertMatchCommandCanApply(
+  managedRoom: ManagedLiveMatchRoom,
+): void {
+  if (
+    managedRoom.phase !==
+    "IN_PROGRESS"
+  ) {
+    throw new Error(
+      `Cannot apply match command while room phase is ${managedRoom.phase}`,
     );
   }
 }
@@ -125,19 +161,24 @@ export function claimManagedLiveMatchRoomSeat(
     claimLiveMatchRoomSeat({
       room:
         managedRoom.room,
+
       player,
+
       participantId,
     });
 
   if (
-    room === managedRoom.room
+    room ===
+    managedRoom.room
   ) {
     return managedRoom;
   }
 
   return createManagedRoom(
     room,
-    getLobbyPhase(room),
+    getLobbyPhase(
+      room,
+    ),
   );
 }
 
@@ -158,13 +199,17 @@ export function releaseManagedLiveMatchRoomSeat(
     releaseLiveMatchRoomSeat({
       room:
         managedRoom.room,
+
       player,
+
       participantId,
     });
 
   return createManagedRoom(
     room,
-    getLobbyPhase(room),
+    getLobbyPhase(
+      room,
+    ),
   );
 }
 
@@ -205,36 +250,70 @@ export function applyManagedLiveMatchRoomCommand(
     command,
   } = options;
 
-  if (
-    managedRoom.phase !==
-    "IN_PROGRESS"
-  ) {
-    throw new Error(
-      `Cannot apply match command while room phase is ${managedRoom.phase}`,
-    );
-  }
+  assertMatchCommandCanApply(
+    managedRoom,
+  );
 
   const result:
     ApplyLiveMatchRoomParticipantCommandResult =
       applyLiveMatchRoomParticipantCommand({
         room:
           managedRoom.room,
+
         participantId,
+
         command,
       });
-
-  const phase:
-    LiveMatchRoomPhase =
-      result.room.session.state
-        .score.completed
-        ? "FINISHED"
-        : "IN_PROGRESS";
 
   return Object.freeze({
     managedRoom:
       createManagedRoom(
         result.room,
-        phase,
+        getCommandResultPhase(
+          result.room,
+        ),
+      ),
+
+    player:
+      result.player,
+
+    snapshot:
+      result.snapshot,
+  });
+}
+
+export function applyManagedLiveMatchRoomPlayerCommand(
+  options:
+    ApplyManagedLiveMatchRoomPlayerCommandOptions,
+): ApplyManagedLiveMatchRoomPlayerCommandResult {
+  const {
+    managedRoom,
+    player,
+    command,
+  } = options;
+
+  assertMatchCommandCanApply(
+    managedRoom,
+  );
+
+  const result:
+    ApplyLiveMatchRoomPlayerCommandResult =
+      applyLiveMatchRoomPlayerCommand({
+        room:
+          managedRoom.room,
+
+        player,
+
+        command,
+      });
+
+  return Object.freeze({
+    managedRoom:
+      createManagedRoom(
+        result.room,
+        getCommandResultPhase(
+          result.room,
+        ),
       ),
 
     player:

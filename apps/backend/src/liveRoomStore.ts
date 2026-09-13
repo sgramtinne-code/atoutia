@@ -5,6 +5,7 @@ import {
 import {
   PLAYER_POSITIONS,
   applyLiveMatchRoomNetworkCommand,
+  applyRevisionedLiveMatchRoomPlayerCommand,
   claimRevisionedLiveMatchRoomSeat,
   createLiveMatchRoomSnapshotDocument,
   createRevisionedLiveMatchRoom,
@@ -13,6 +14,7 @@ import {
   startRevisionedLiveMatchRoom,
   type LiveMatchRoomCommandDocument,
   type LiveMatchRoomSnapshotDocument,
+  type PlayerCommand,
   type PlayerPosition,
   type RevisionedLiveMatchRoom,
 } from "@atoutia/belote-engine";
@@ -26,6 +28,7 @@ import {
 } from "./liveRoomAbsenceResolution.js";
 
 import {
+  assertBotControlsLiveRoomSeat,
   createLiveRoomSeatControl,
   transferLiveRoomSeatControlToBot,
   type LiveRoomSeatControl,
@@ -133,12 +136,41 @@ export interface ApplyLiveRoomCommandOptions {
     LiveMatchRoomCommandDocument;
 }
 
+export interface ApplyLiveRoomBotCommandOptions {
+  readonly sessionId:
+    string;
+
+  readonly expectedRevision:
+    number;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly command:
+    PlayerCommand;
+}
+
 export interface ApplyLiveRoomCommandResult {
   readonly room:
     RevisionedLiveMatchRoom;
 
   readonly snapshot:
     LiveMatchRoomSnapshotDocument;
+}
+
+export interface ApplyLiveRoomBotCommandResult {
+  readonly room:
+    RevisionedLiveMatchRoom;
+
+  readonly player:
+    PlayerPosition;
+
+  readonly snapshot:
+    ReturnType<
+      typeof applyRevisionedLiveMatchRoomPlayerCommand
+    >[
+      "snapshot"
+    ];
 }
 
 export interface MarkLiveRoomAbsenceResolutionPendingOptions {
@@ -519,6 +551,57 @@ export class LiveRoomStore {
     return Object.freeze({
       room:
         result.room,
+
+      snapshot:
+        result.snapshot,
+    });
+  }
+
+  public applyBotCommand(
+    options:
+      ApplyLiveRoomBotCommandOptions,
+  ): ApplyLiveRoomBotCommandResult {
+    const room =
+      this.#requireRoom(
+        options.sessionId,
+      );
+
+    const control =
+      this.getSeatControl(
+        options.sessionId,
+        options.player,
+      );
+
+    assertBotControlsLiveRoomSeat(
+      control,
+    );
+
+    const result =
+      applyRevisionedLiveMatchRoomPlayerCommand({
+        room,
+
+        expectedRevision:
+          options.expectedRevision,
+
+        player:
+          options.player,
+
+        command:
+          options.command,
+      });
+
+    this.#storeMutation(
+      options.sessionId,
+      room,
+      result.room,
+    );
+
+    return Object.freeze({
+      room:
+        result.room,
+
+      player:
+        result.player,
 
       snapshot:
         result.snapshot,

@@ -1,11 +1,13 @@
 import {
   applyManagedLiveMatchRoomCommand,
+  applyManagedLiveMatchRoomPlayerCommand,
   claimManagedLiveMatchRoomSeat,
   createManagedLiveMatchRoom,
   createManagedLiveMatchRoomParticipantSnapshot,
   releaseManagedLiveMatchRoomSeat,
   startManagedLiveMatchRoom,
   type ApplyManagedLiveMatchRoomCommandResult,
+  type ApplyManagedLiveMatchRoomPlayerCommandResult,
   type ManagedLiveMatchRoom,
 } from "./liveMatchRoomLifecycle.js";
 import type {
@@ -58,12 +60,28 @@ export interface ApplyRevisionedLiveMatchRoomCommandResult {
   readonly snapshot: PlayerClientSnapshot;
 }
 
+export interface ApplyRevisionedLiveMatchRoomPlayerCommandOptions {
+  readonly room: RevisionedLiveMatchRoom;
+  readonly expectedRevision: number;
+  readonly player: PlayerPosition;
+  readonly command: PlayerCommand;
+}
+
+export interface ApplyRevisionedLiveMatchRoomPlayerCommandResult {
+  readonly room: RevisionedLiveMatchRoom;
+  readonly player: PlayerPosition;
+  readonly snapshot: PlayerClientSnapshot;
+}
+
 function assertValidRevision(
   revision: number,
 ): void {
   if (
-    !Number.isSafeInteger(revision) ||
-    revision < 0
+    !Number.isSafeInteger(
+      revision,
+    ) ||
+    revision <
+      0
   ) {
     throw new Error(
       "Match room revision must be a non-negative safe integer",
@@ -106,6 +124,7 @@ function createRevisionedRoom(
 function createNextRevisionedRoom(
   current:
     RevisionedLiveMatchRoom,
+
   managedRoom:
     ManagedLiveMatchRoom,
 ): RevisionedLiveMatchRoom {
@@ -127,7 +146,8 @@ function createNextRevisionedRoom(
 
   return createRevisionedRoom(
     managedRoom,
-    current.revision + 1,
+    current.revision +
+      1,
   );
 }
 
@@ -162,7 +182,9 @@ export function claimRevisionedLiveMatchRoomSeat(
     claimManagedLiveMatchRoomSeat({
       managedRoom:
         room.managedRoom,
+
       player,
+
       participantId,
     });
 
@@ -192,7 +214,9 @@ export function releaseRevisionedLiveMatchRoomSeat(
     releaseManagedLiveMatchRoomSeat({
       managedRoom:
         room.managedRoom,
+
       player,
+
       participantId,
     });
 
@@ -258,7 +282,54 @@ export function applyRevisionedLiveMatchRoomCommand(
       applyManagedLiveMatchRoomCommand({
         managedRoom:
           room.managedRoom,
+
         participantId,
+
+        command,
+      });
+
+  const nextRoom =
+    createNextRevisionedRoom(
+      room,
+      result.managedRoom,
+    );
+
+  return Object.freeze({
+    room:
+      nextRoom,
+
+    player:
+      result.player,
+
+    snapshot:
+      result.snapshot,
+  });
+}
+
+export function applyRevisionedLiveMatchRoomPlayerCommand(
+  options:
+    ApplyRevisionedLiveMatchRoomPlayerCommandOptions,
+): ApplyRevisionedLiveMatchRoomPlayerCommandResult {
+  const {
+    room,
+    expectedRevision,
+    player,
+    command,
+  } = options;
+
+  assertExpectedRevision(
+    room,
+    expectedRevision,
+  );
+
+  const result:
+    ApplyManagedLiveMatchRoomPlayerCommandResult =
+      applyManagedLiveMatchRoomPlayerCommand({
+        managedRoom:
+          room.managedRoom,
+
+        player,
+
         command,
       });
 

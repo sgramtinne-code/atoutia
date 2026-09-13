@@ -7,10 +7,12 @@ import {
 import {
   claimLiveMatchSeat,
   createEmptyLiveMatchSeats,
+  getLiveMatchSeatParticipant,
   releaseLiveMatchSeat,
   type LiveMatchSeats,
 } from "./liveMatchSeats.js";
 import {
+  applyLiveMatchSessionCommand,
   createLiveMatchSession,
   type CreateLiveMatchSessionOptions,
   type LiveMatchSession,
@@ -18,8 +20,9 @@ import {
 import type {
   PlayerClientSnapshot,
 } from "./playerClientSnapshot.js";
-import type {
-  PlayerCommand,
+import {
+  createPlayerCommandDocument,
+  type PlayerCommand,
 } from "./playerCommandFormat.js";
 import type {
   PlayerPosition,
@@ -49,6 +52,18 @@ export interface ApplyLiveMatchRoomParticipantCommandOptions {
 }
 
 export interface ApplyLiveMatchRoomParticipantCommandResult {
+  readonly room: LiveMatchRoom;
+  readonly player: PlayerPosition;
+  readonly snapshot: PlayerClientSnapshot;
+}
+
+export interface ApplyLiveMatchRoomPlayerCommandOptions {
+  readonly room: LiveMatchRoom;
+  readonly player: PlayerPosition;
+  readonly command: PlayerCommand;
+}
+
+export interface ApplyLiveMatchRoomPlayerCommandResult {
   readonly room: LiveMatchRoom;
   readonly player: PlayerPosition;
   readonly snapshot: PlayerClientSnapshot;
@@ -100,7 +115,9 @@ export function claimLiveMatchRoomSeat(
       participantId,
     });
 
-  if (seats === room.seats) {
+  if (
+    seats === room.seats
+  ) {
     return room;
   }
 
@@ -178,6 +195,62 @@ export function applyLiveMatchRoomParticipantCommand(
 
     player:
       result.player,
+
+    snapshot:
+      result.snapshot,
+  });
+}
+
+export function applyLiveMatchRoomPlayerCommand(
+  options: ApplyLiveMatchRoomPlayerCommandOptions,
+): ApplyLiveMatchRoomPlayerCommandResult {
+  const {
+    room,
+    player,
+    command,
+  } = options;
+
+  const participantId =
+    getLiveMatchSeatParticipant(
+      room.seats,
+      player,
+    );
+
+  if (
+    participantId ===
+    null
+  ) {
+    throw new Error(
+      `Cannot apply authoritative command for unoccupied match seat ${player}`,
+    );
+  }
+
+  const commandDocument =
+    createPlayerCommandDocument(
+      player,
+      command,
+    );
+
+  const result =
+    applyLiveMatchSessionCommand({
+      session:
+        room.session,
+
+      authenticatedPlayer:
+        player,
+
+      command:
+        commandDocument,
+    });
+
+  return Object.freeze({
+    room:
+      createRoom(
+        result.session,
+        room.seats,
+      ),
+
+    player,
 
     snapshot:
       result.snapshot,

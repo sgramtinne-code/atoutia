@@ -49,7 +49,9 @@ export {
   type CompleteDealResolution,
 } from "./completeDealResult.js";
 
-export { shuffleDeck } from "./deck.js";
+export {
+  shuffleDeck,
+} from "./deck.js";
 
 export {
   INITIAL_DEAL_PATTERNS,
@@ -83,7 +85,9 @@ export {
   type DealResultStatus,
 } from "./dealResult.js";
 
-export { getLegalCards } from "./legalPlays.js";
+export {
+  getLegalCards,
+} from "./legalPlays.js";
 
 export {
   createLitigeState,
@@ -311,12 +315,15 @@ export {
 
 export {
   applyLiveMatchRoomParticipantCommand,
+  applyLiveMatchRoomPlayerCommand,
   claimLiveMatchRoomSeat,
   createLiveMatchRoom,
   createLiveMatchRoomParticipantSnapshot,
   releaseLiveMatchRoomSeat,
   type ApplyLiveMatchRoomParticipantCommandOptions,
   type ApplyLiveMatchRoomParticipantCommandResult,
+  type ApplyLiveMatchRoomPlayerCommandOptions,
+  type ApplyLiveMatchRoomPlayerCommandResult,
   type ClaimLiveMatchRoomSeatOptions,
   type LiveMatchRoom,
   type ReleaseLiveMatchRoomSeatOptions,
@@ -325,6 +332,7 @@ export {
 export {
   LIVE_MATCH_ROOM_PHASES,
   applyManagedLiveMatchRoomCommand,
+  applyManagedLiveMatchRoomPlayerCommand,
   claimManagedLiveMatchRoomSeat,
   createManagedLiveMatchRoom,
   createManagedLiveMatchRoomParticipantSnapshot,
@@ -332,6 +340,8 @@ export {
   startManagedLiveMatchRoom,
   type ApplyManagedLiveMatchRoomCommandOptions,
   type ApplyManagedLiveMatchRoomCommandResult,
+  type ApplyManagedLiveMatchRoomPlayerCommandOptions,
+  type ApplyManagedLiveMatchRoomPlayerCommandResult,
   type ClaimManagedLiveMatchRoomSeatOptions,
   type LiveMatchRoomPhase,
   type ManagedLiveMatchRoom,
@@ -340,6 +350,7 @@ export {
 
 export {
   applyRevisionedLiveMatchRoomCommand,
+  applyRevisionedLiveMatchRoomPlayerCommand,
   claimRevisionedLiveMatchRoomSeat,
   createRevisionedLiveMatchRoom,
   createRevisionedLiveMatchRoomParticipantSnapshot,
@@ -347,6 +358,8 @@ export {
   startRevisionedLiveMatchRoom,
   type ApplyRevisionedLiveMatchRoomCommandOptions,
   type ApplyRevisionedLiveMatchRoomCommandResult,
+  type ApplyRevisionedLiveMatchRoomPlayerCommandOptions,
+  type ApplyRevisionedLiveMatchRoomPlayerCommandResult,
   type ClaimRevisionedLiveMatchRoomSeatOptions,
   type ReleaseRevisionedLiveMatchRoomSeatOptions,
   type RevisionedLiveMatchRoom,
