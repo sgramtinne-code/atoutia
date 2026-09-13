@@ -11,6 +11,10 @@ import {
 } from "./absenceResolutionCoordinator.js";
 
 import {
+  AuthService,
+} from "./authService.js";
+
+import {
   createBotCycleScheduler,
 } from "./botCycleScheduler.js";
 
@@ -29,6 +33,10 @@ import {
 import {
   createBackendServer,
 } from "./server.js";
+
+import {
+  SQLiteAuthRepository,
+} from "./sqliteAuthRepository.js";
 
 import {
   SQLiteLiveRoomRepository,
@@ -52,6 +60,20 @@ const roomRepository =
     databasePath:
       config.databasePath,
   });
+
+const authRepository =
+  new SQLiteAuthRepository({
+    databasePath:
+      config.databasePath,
+  });
+
+const authService =
+  new AuthService({
+    repository:
+      authRepository,
+  });
+
+void authService;
 
 const roomStore =
   new LiveRoomStore({
@@ -193,6 +215,20 @@ async function shutdown(
       );
     },
   );
+
+  try {
+    authRepository.close();
+  } catch (
+    error:
+      unknown
+  ) {
+    console.error(
+      error,
+    );
+
+    process.exitCode =
+      1;
+  }
 
   try {
     roomRepository.close();
