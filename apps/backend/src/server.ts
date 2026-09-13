@@ -24,21 +24,32 @@ import {
 } from "./http.js";
 
 import {
-  createLiveRoomSummary,
   LiveRoomNotFoundError,
   LiveRoomStore,
 } from "./liveRoomStore.js";
+
+import {
+  isMatchMode,
+  type MatchMode,
+} from "./matchMode.js";
 
 export interface CreateBackendServerOptions {
   readonly roomStore?:
     LiveRoomStore;
 }
 
+interface CreateRoomBody {
+  readonly mode?:
+    MatchMode;
+}
+
 interface SeatMutationBody {
   readonly participantId:
     string;
+
   readonly player:
     PlayerPosition;
+
   readonly expectedRevision:
     number;
 }
@@ -56,16 +67,20 @@ interface ParticipantBody {
 interface CommandBody {
   readonly participantId:
     string;
+
   readonly document:
     LiveMatchRoomCommandDocument;
 }
 
 function getPathname(
-  request: IncomingMessage,
+  request:
+    IncomingMessage,
 ): string {
   const url =
     new URL(
-      request.url ?? "/",
+      request.url ??
+        "/",
+
       "http://localhost",
     );
 
@@ -97,28 +112,41 @@ function getRoomRouteParts(
     );
 
   if (
-    remaining.length === 0
+    remaining.length ===
+    0
   ) {
     return null;
   }
 
   const parts =
-    remaining.split("/");
+    remaining.split(
+      "/",
+    );
 
-  if (parts.length === 1) {
+  if (
+    parts.length ===
+    1
+  ) {
     return [
-      parts[0] ?? "",
+      parts[0] ??
+        "",
+
       null,
     ];
   }
 
   if (
-    parts.length === 2 &&
-    parts[1] !== ""
+    parts.length ===
+      2 &&
+    parts[1] !==
+      ""
   ) {
     return [
-      parts[0] ?? "",
-      parts[1] ?? null,
+      parts[0] ??
+        "",
+
+      parts[1] ??
+        null,
     ];
   }
 
@@ -132,9 +160,13 @@ function isObject(
   unknown
 > {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
+    typeof value ===
+      "object" &&
+    value !==
+      null &&
+    !Array.isArray(
+      value,
+    )
   );
 }
 
@@ -143,13 +175,19 @@ function hasExactKeys(
     string,
     unknown
   >,
-  keys: readonly string[],
+
+  keys:
+    readonly string[],
 ): boolean {
   const actualKeys =
-    Object.keys(value).sort();
+    Object.keys(
+      value,
+    ).sort();
 
   const expectedKeys =
-    [...keys].sort();
+    [
+      ...keys,
+    ].sort();
 
   return (
     actualKeys.length ===
@@ -160,7 +198,9 @@ function hasExactKeys(
         index,
       ) =>
         key ===
-        expectedKeys[index],
+        expectedKeys[
+          index
+        ],
     )
   );
 }
@@ -169,11 +209,14 @@ function isPlayerPosition(
   value: unknown,
 ): value is PlayerPosition {
   return (
-    typeof value === "string" &&
+    typeof value ===
+      "string" &&
     (
       PLAYER_POSITIONS as
         readonly string[]
-    ).includes(value)
+    ).includes(
+      value,
+    )
   );
 }
 
@@ -181,10 +224,14 @@ function isValidParticipantId(
   value: unknown,
 ): value is string {
   return (
-    typeof value === "string" &&
-    value.trim().length > 0 &&
-    value === value.trim() &&
-    value.length <= 128
+    typeof value ===
+      "string" &&
+    value.trim().length >
+      0 &&
+    value ===
+      value.trim() &&
+    value.length <=
+      128
   );
 }
 
@@ -192,16 +239,82 @@ function isValidRevision(
   value: unknown,
 ): value is number {
   return (
-    typeof value === "number" &&
-    Number.isSafeInteger(value) &&
-    value >= 0
+    typeof value ===
+      "number" &&
+    Number.isSafeInteger(
+      value,
+    ) &&
+    value >=
+      0
   );
+}
+
+function parseCreateRoomBody(
+  value: unknown,
+):
+  | CreateRoomBody
+  | null {
+  if (
+    value ===
+    null
+  ) {
+    return Object.freeze(
+      {},
+    );
+  }
+
+  if (
+    !isObject(
+      value,
+    )
+  ) {
+    return null;
+  }
+
+  const keys =
+    Object.keys(
+      value,
+    );
+
+  if (
+    keys.length ===
+    0
+  ) {
+    return Object.freeze(
+      {},
+    );
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "mode",
+      ],
+    ) ||
+    !isMatchMode(
+      value.mode,
+    )
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    mode:
+      value.mode,
+  });
 }
 
 function parseSeatMutationBody(
   value: unknown,
-): SeatMutationBody | null {
-  if (!isObject(value)) {
+):
+  | SeatMutationBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
     return null;
   }
 
@@ -246,8 +359,14 @@ function parseSeatMutationBody(
 
 function parseStartRoomBody(
   value: unknown,
-): StartRoomBody | null {
-  if (!isObject(value)) {
+):
+  | StartRoomBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
     return null;
   }
 
@@ -278,8 +397,14 @@ function parseStartRoomBody(
 
 function parseParticipantBody(
   value: unknown,
-): ParticipantBody | null {
-  if (!isObject(value)) {
+):
+  | ParticipantBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
     return null;
   }
 
@@ -310,8 +435,14 @@ function parseParticipantBody(
 
 function parseCommandBody(
   value: unknown,
-): CommandBody | null {
-  if (!isObject(value)) {
+):
+  | CommandBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
     return null;
   }
 
@@ -355,51 +486,101 @@ function parseCommandBody(
 }
 
 function handleHealth(
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
 ): void {
   sendJson(
     response,
     200,
     {
-      status: "ok",
+      status:
+        "ok",
+
       service:
         "@atoutia/backend",
+
       engineVersion:
         BELOTE_ENGINE_VERSION,
+
       liveRooms:
         roomStore.count(),
     },
   );
 }
 
-function handleCreateRoom(
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-): void {
+async function handleCreateRoom(
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+): Promise<void> {
+  const body =
+    parseCreateRoomBody(
+      await readJsonBody(
+        request,
+      ),
+    );
+
+  if (
+    body ===
+    null
+  ) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_REQUEST",
+      },
+    );
+
+    return;
+  }
+
   const room =
-    roomStore.create();
+    body.mode ===
+    undefined
+      ? roomStore.create()
+      : roomStore.create({
+          mode:
+            body.mode,
+        });
 
   sendJson(
     response,
     201,
-    createLiveRoomSummary(
+    roomStore.createSummary(
       room,
     ),
   );
 }
 
 function handleGetRoom(
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-  sessionId: string,
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+
+  sessionId:
+    string,
 ): void {
   const room =
     roomStore.get(
       sessionId,
     );
 
-  if (room === undefined) {
+  if (
+    room ===
+    undefined
+  ) {
     sendJson(
       response,
       404,
@@ -415,17 +596,24 @@ function handleGetRoom(
   sendJson(
     response,
     200,
-    createLiveRoomSummary(
+    roomStore.createSummary(
       room,
     ),
   );
 }
 
 async function handleClaimSeat(
-  request: IncomingMessage,
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-  sessionId: string,
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+
+  sessionId:
+    string,
 ): Promise<void> {
   const body =
     parseSeatMutationBody(
@@ -434,7 +622,10 @@ async function handleClaimSeat(
       ),
     );
 
-  if (body === null) {
+  if (
+    body ===
+    null
+  ) {
     sendJson(
       response,
       400,
@@ -450,10 +641,13 @@ async function handleClaimSeat(
   const room =
     roomStore.claimSeat({
       sessionId,
+
       expectedRevision:
         body.expectedRevision,
+
       player:
         body.player,
+
       participantId:
         body.participantId,
     });
@@ -461,17 +655,24 @@ async function handleClaimSeat(
   sendJson(
     response,
     200,
-    createLiveRoomSummary(
+    roomStore.createSummary(
       room,
     ),
   );
 }
 
 async function handleReleaseSeat(
-  request: IncomingMessage,
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-  sessionId: string,
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+
+  sessionId:
+    string,
 ): Promise<void> {
   const body =
     parseSeatMutationBody(
@@ -480,7 +681,10 @@ async function handleReleaseSeat(
       ),
     );
 
-  if (body === null) {
+  if (
+    body ===
+    null
+  ) {
     sendJson(
       response,
       400,
@@ -496,10 +700,13 @@ async function handleReleaseSeat(
   const room =
     roomStore.releaseSeat({
       sessionId,
+
       expectedRevision:
         body.expectedRevision,
+
       player:
         body.player,
+
       participantId:
         body.participantId,
     });
@@ -507,17 +714,24 @@ async function handleReleaseSeat(
   sendJson(
     response,
     200,
-    createLiveRoomSummary(
+    roomStore.createSummary(
       room,
     ),
   );
 }
 
 async function handleStartRoom(
-  request: IncomingMessage,
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-  sessionId: string,
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+
+  sessionId:
+    string,
 ): Promise<void> {
   const body =
     parseStartRoomBody(
@@ -526,7 +740,10 @@ async function handleStartRoom(
       ),
     );
 
-  if (body === null) {
+  if (
+    body ===
+    null
+  ) {
     sendJson(
       response,
       400,
@@ -542,6 +759,7 @@ async function handleStartRoom(
   const room =
     roomStore.start({
       sessionId,
+
       expectedRevision:
         body.expectedRevision,
     });
@@ -549,17 +767,24 @@ async function handleStartRoom(
   sendJson(
     response,
     200,
-    createLiveRoomSummary(
+    roomStore.createSummary(
       room,
     ),
   );
 }
 
 async function handleSnapshot(
-  request: IncomingMessage,
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-  sessionId: string,
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+
+  sessionId:
+    string,
 ): Promise<void> {
   const body =
     parseParticipantBody(
@@ -568,7 +793,10 @@ async function handleSnapshot(
       ),
     );
 
-  if (body === null) {
+  if (
+    body ===
+    null
+  ) {
     sendJson(
       response,
       400,
@@ -584,6 +812,7 @@ async function handleSnapshot(
   const snapshot =
     roomStore.createParticipantSnapshot({
       sessionId,
+
       participantId:
         body.participantId,
     });
@@ -596,10 +825,17 @@ async function handleSnapshot(
 }
 
 async function handleCommand(
-  request: IncomingMessage,
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
-  sessionId: string,
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
+
+  sessionId:
+    string,
 ): Promise<void> {
   const body =
     parseCommandBody(
@@ -608,7 +844,10 @@ async function handleCommand(
       ),
     );
 
-  if (body === null) {
+  if (
+    body ===
+    null
+  ) {
     sendJson(
       response,
       400,
@@ -622,7 +861,8 @@ async function handleCommand(
   }
 
   if (
-    body.document.sessionId !==
+    body.document
+      .sessionId !==
     sessionId
   ) {
     sendJson(
@@ -640,8 +880,10 @@ async function handleCommand(
   const result =
     roomStore.applyCommand({
       sessionId,
+
       participantId:
         body.participantId,
+
       document:
         body.document,
     });
@@ -657,7 +899,8 @@ function isRevisionMismatchError(
   error: unknown,
 ): boolean {
   return (
-    error instanceof Error &&
+    error instanceof
+      Error &&
     error.message.startsWith(
       "Match room revision mismatch:",
     )
@@ -668,7 +911,8 @@ function isParticipantError(
   error: unknown,
 ): boolean {
   return (
-    error instanceof Error &&
+    error instanceof
+      Error &&
     (
       error.message.includes(
         "Participant",
@@ -683,7 +927,12 @@ function isParticipantError(
 function isCommandConflictError(
   error: unknown,
 ): boolean {
-  if (!(error instanceof Error)) {
+  if (
+    !(
+      error instanceof
+      Error
+    )
+  ) {
     return false;
   }
 
@@ -703,7 +952,12 @@ function isCommandConflictError(
 function isRoomConflictError(
   error: unknown,
 ): boolean {
-  if (!(error instanceof Error)) {
+  if (
+    !(
+      error instanceof
+      Error
+    )
+  ) {
     return false;
   }
 
@@ -721,8 +975,11 @@ function isRoomConflictError(
 }
 
 function handleDomainError(
-  response: ServerResponse,
-  error: unknown,
+  response:
+    ServerResponse,
+
+  error:
+    unknown,
 ): void {
   if (
     error instanceof
@@ -851,18 +1108,27 @@ function handleDomainError(
 }
 
 async function handleRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-  roomStore: LiveRoomStore,
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  roomStore:
+    LiveRoomStore,
 ): Promise<void> {
   const pathname =
-    getPathname(request);
+    getPathname(
+      request,
+    );
 
   if (
-    pathname === "/health"
+    pathname ===
+    "/health"
   ) {
     if (
-      request.method !== "GET"
+      request.method !==
+      "GET"
     ) {
       sendMethodNotAllowed(
         response,
@@ -884,7 +1150,8 @@ async function handleRequest(
     "/api/v1/rooms"
   ) {
     if (
-      request.method !== "POST"
+      request.method !==
+      "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -893,7 +1160,8 @@ async function handleRequest(
       return;
     }
 
-    handleCreateRoom(
+    await handleCreateRoom(
+      request,
       response,
       roomStore,
     );
@@ -906,7 +1174,10 @@ async function handleRequest(
       pathname,
     );
 
-  if (roomRoute === null) {
+  if (
+    roomRoute ===
+    null
+  ) {
     sendNotFound(
       response,
     );
@@ -936,9 +1207,13 @@ async function handleRequest(
     return;
   }
 
-  if (action === null) {
+  if (
+    action ===
+    null
+  ) {
     if (
-      request.method !== "GET"
+      request.method !==
+      "GET"
     ) {
       sendMethodNotAllowed(
         response,
@@ -956,9 +1231,13 @@ async function handleRequest(
     return;
   }
 
-  if (action === "seats") {
+  if (
+    action ===
+    "seats"
+  ) {
     if (
-      request.method === "POST"
+      request.method ===
+      "POST"
     ) {
       await handleClaimSeat(
         request,
@@ -971,7 +1250,8 @@ async function handleRequest(
     }
 
     if (
-      request.method === "DELETE"
+      request.method ===
+      "DELETE"
     ) {
       await handleReleaseSeat(
         request,
@@ -990,9 +1270,13 @@ async function handleRequest(
     return;
   }
 
-  if (action === "start") {
+  if (
+    action ===
+    "start"
+  ) {
     if (
-      request.method !== "POST"
+      request.method !==
+      "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1011,9 +1295,13 @@ async function handleRequest(
     return;
   }
 
-  if (action === "snapshot") {
+  if (
+    action ===
+    "snapshot"
+  ) {
     if (
-      request.method !== "POST"
+      request.method !==
+      "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1032,9 +1320,13 @@ async function handleRequest(
     return;
   }
 
-  if (action === "commands") {
+  if (
+    action ===
+    "commands"
+  ) {
     if (
-      request.method !== "POST"
+      request.method !==
+      "POST"
     ) {
       sendMethodNotAllowed(
         response,
@@ -1077,7 +1369,8 @@ export function createBackendServer(
         roomStore,
       ).catch(
         (
-          error: unknown,
+          error:
+            unknown,
         ) => {
           handleDomainError(
             response,

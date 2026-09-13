@@ -10,6 +10,7 @@ export class InvalidJsonBodyError
   extends Error {
   public constructor() {
     super("Invalid JSON body");
+
     this.name =
       "InvalidJsonBodyError";
   }
@@ -18,7 +19,10 @@ export class InvalidJsonBodyError
 export class RequestBodyTooLargeError
   extends Error {
   public constructor() {
-    super("Request body too large");
+    super(
+      "Request body too large",
+    );
+
     this.name =
       "RequestBodyTooLargeError";
   }
@@ -56,7 +60,8 @@ export function sendNotFound(
     response,
     404,
     {
-      error: "NOT_FOUND",
+      error:
+        "NOT_FOUND",
     },
   );
 }
@@ -80,15 +85,20 @@ export async function readJsonBody(
   const chunks:
     Buffer[] = [];
 
-  let totalBytes = 0;
+  let totalBytes =
+    0;
 
   for await (
     const chunk of request
   ) {
     const buffer =
-      Buffer.isBuffer(chunk)
+      Buffer.isBuffer(
+        chunk,
+      )
         ? chunk
-        : Buffer.from(chunk);
+        : Buffer.from(
+            chunk,
+          );
 
     totalBytes +=
       buffer.length;
@@ -100,20 +110,29 @@ export async function readJsonBody(
       throw new RequestBodyTooLargeError();
     }
 
-    chunks.push(buffer);
+    chunks.push(
+      buffer,
+    );
   }
 
-  if (chunks.length === 0) {
-    throw new InvalidJsonBodyError();
+  if (
+    chunks.length ===
+    0
+  ) {
+    return null;
   }
 
   const text =
     Buffer.concat(
       chunks,
-    ).toString("utf8");
+    ).toString(
+      "utf8",
+    );
 
   try {
-    return JSON.parse(text);
+    return JSON.parse(
+      text,
+    );
   } catch {
     throw new InvalidJsonBodyError();
   }
