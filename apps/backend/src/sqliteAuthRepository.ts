@@ -418,12 +418,6 @@ export class SQLiteAuthRepository
           created_at_ms
         )
         VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(identity_id)
-        DO UPDATE SET
-          account_id = excluded.account_id,
-          provider = excluded.provider,
-          subject_hash = excluded.subject_hash,
-          created_at_ms = excluded.created_at_ms
       `);
 
     statement.run(

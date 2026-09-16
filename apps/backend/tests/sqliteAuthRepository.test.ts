@@ -320,6 +320,111 @@ describe(
     );
 
     it(
+      "prevents an external authentication identity from being rebound",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const firstAccount =
+          createAuthAccount({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+          });
+
+        const secondAccount =
+          createAuthAccount({
+            accountId:
+              "acc1_11111111111111111111111111111111",
+
+            createdAtMs:
+              1_000,
+          });
+
+        repository.saveAccount(
+          firstAccount,
+        );
+
+        repository.saveAccount(
+          secondAccount,
+        );
+
+        const identity =
+          createAuthIdentity({
+            accountId:
+              firstAccount.accountId,
+
+            provider:
+              "GOOGLE",
+
+            providerSubject:
+              "google-user-123",
+
+            createdAtMs:
+              2_000,
+          });
+
+        repository.saveIdentity(
+          identity,
+        );
+
+        const reboundIdentity =
+          Object.freeze({
+            ...identity,
+
+            accountId:
+              secondAccount.accountId,
+
+            subjectHash:
+              "f".repeat(
+                64,
+              ),
+
+            createdAtMs:
+              3_000,
+          });
+
+        expect(
+          () =>
+            repository.saveIdentity(
+              reboundIdentity,
+            ),
+        ).toThrow();
+
+        expect(
+          repository.getIdentity(
+            identity.identityId,
+          ),
+        ).toEqual(
+          identity,
+        );
+
+        expect(
+          repository.findIdentityByProviderAndSubjectHash(
+            identity.provider,
+            identity.subjectHash,
+          ),
+        ).toEqual(
+          identity,
+        );
+
+        expect(
+          repository.findIdentityByProviderAndSubjectHash(
+            reboundIdentity.provider,
+            reboundIdentity.subjectHash,
+          ),
+        ).toBeUndefined();
+
+        repository.close();
+      },
+    );
+
+    it(
       "prevents one provider subject from being linked to multiple accounts",
       () => {
         const repository =
