@@ -26,6 +26,11 @@ interface GoogleAuthBody {
     string;
 }
 
+interface RefreshSessionBody {
+  readonly refreshToken:
+    string;
+}
+
 type BearerTokenResult =
   | {
       readonly status:
@@ -144,6 +149,25 @@ function isValidGoogleIdToken(
   );
 }
 
+function isValidRefreshToken(
+  value:
+    unknown,
+): value is string {
+  return (
+    typeof value ===
+      "string" &&
+    value.startsWith(
+      "art1_",
+    ) &&
+    value.trim().length >
+      0 &&
+    value ===
+      value.trim() &&
+    value.length <=
+      512
+  );
+}
+
 function parseCreateAccountBody(
   value:
     unknown,
@@ -234,6 +258,40 @@ function parseGoogleAuthBody(
   });
 }
 
+function parseRefreshSessionBody(
+  value:
+    unknown,
+):
+  | RefreshSessionBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "refreshToken",
+      ],
+    ) ||
+    !isValidRefreshToken(
+      value.refreshToken,
+    )
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    refreshToken:
+      value.refreshToken,
+  });
+}
+
 function getBearerToken(
   request:
     IncomingMessage,
@@ -291,7 +349,6 @@ function getBearerToken(
     return Object.freeze({
       status:
         "INVALID",
-
     });
   }
 
@@ -300,6 +357,69 @@ function getBearerToken(
       "VALID",
 
     token,
+  });
+}
+
+function createSessionResponse(
+  created:
+    ReturnType<
+      AuthService[
+        "createSession"
+      ]
+    >,
+): Readonly<{
+  readonly token:
+    string;
+
+  readonly accessToken:
+    string;
+
+  readonly refreshToken:
+    string;
+
+  readonly session: {
+    readonly sessionId:
+      string;
+
+    readonly accountId:
+      string;
+
+    readonly createdAtMs:
+      number;
+
+    readonly expiresAtMs:
+      number;
+
+    readonly revokedAtMs:
+      number | null;
+  };
+}> {
+  return Object.freeze({
+    token:
+      created.token,
+
+    accessToken:
+      created.accessToken,
+
+    refreshToken:
+      created.refreshToken,
+
+    session: Object.freeze({
+      sessionId:
+        created.session.sessionId,
+
+      accountId:
+        created.session.accountId,
+
+      createdAtMs:
+        created.session.createdAtMs,
+
+      expiresAtMs:
+        created.session.expiresAtMs,
+
+      revokedAtMs:
+        created.session.revokedAtMs,
+    }),
   });
 }
 
@@ -427,27 +547,72 @@ async function handleCreateSession(
   sendJson(
     response,
     201,
-    {
-      token:
-        created.token,
+    createSessionResponse(
+      created,
+    ),
+  );
+}
 
-      session: {
-        sessionId:
-          created.session.sessionId,
+async function handleRefreshSession(
+  request:
+    IncomingMessage,
 
-        accountId:
-          created.session.accountId,
+  response:
+    ServerResponse,
 
-        createdAtMs:
-          created.session.createdAtMs,
+  authService:
+    AuthService,
+): Promise<void> {
+  const body =
+    parseRefreshSessionBody(
+      await readJsonBody(
+        request,
+      ),
+    );
 
-        expiresAtMs:
-          created.session.expiresAtMs,
-
-        revokedAtMs:
-          created.session.revokedAtMs,
+  if (
+    body ===
+      null
+  ) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_REQUEST",
       },
-    },
+    );
+
+    return;
+  }
+
+  const refreshed =
+    authService.refreshSession(
+      body.refreshToken,
+    );
+
+  if (
+    refreshed ===
+      undefined
+  ) {
+    sendJson(
+      response,
+      401,
+      {
+        error:
+          "AUTH_REFRESH_INVALID",
+      },
+    );
+
+    return;
+  }
+
+  sendJson(
+    response,
+    200,
+    createSessionResponse(
+      refreshed,
+    ),
   );
 }
 
@@ -529,35 +694,9 @@ async function handleGoogleAuth(
     response,
     201,
     {
-      token:
-        result.createdSession.token,
-
-      session: {
-        sessionId:
-          result.createdSession
-            .session
-            .sessionId,
-
-        accountId:
-          result.createdSession
-            .session
-            .accountId,
-
-        createdAtMs:
-          result.createdSession
-            .session
-            .createdAtMs,
-
-        expiresAtMs:
-          result.createdSession
-            .session
-            .expiresAtMs,
-
-        revokedAtMs:
-          result.createdSession
-            .session
-            .revokedAtMs,
-      },
+      ...createSessionResponse(
+        result.createdSession,
+      ),
 
       accountCreated:
         result.accountCreated,
@@ -781,6 +920,30 @@ export async function handleAuthHttpRequest(
       }
 
       await handleCreateSession(
+        request,
+        response,
+        authService,
+      );
+
+      return true;
+    }
+
+    if (
+      pathname ===
+        "/api/v1/auth/refresh"
+    ) {
+      if (
+        request.method !==
+          "POST"
+      ) {
+        sendMethodNotAllowed(
+          response,
+        );
+
+        return true;
+      }
+
+      await handleRefreshSession(
         request,
         response,
         authService,

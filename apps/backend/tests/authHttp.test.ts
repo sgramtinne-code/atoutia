@@ -40,6 +40,34 @@ interface RunningAuthServer {
     string;
 }
 
+interface SessionHttpResponse {
+  readonly token:
+    string;
+
+  readonly accessToken:
+    string;
+
+  readonly refreshToken:
+    string;
+
+  readonly session: {
+    readonly sessionId:
+      string;
+
+    readonly accountId:
+      string;
+
+    readonly createdAtMs:
+      number;
+
+    readonly expiresAtMs:
+      number;
+
+    readonly revokedAtMs:
+      number | null;
+  };
+}
+
 const runningServers:
   RunningAuthServer[] = [];
 
@@ -152,7 +180,7 @@ async function startAuthServer(
 
       baseUrl:
         `http://127.0.0.1:${port}`,
-  };
+    };
 
   runningServers.push(
     running,
@@ -207,27 +235,9 @@ async function createSession(
 
   accountId:
     string,
-): Promise<{
-  readonly token:
-    string;
-
-  readonly session: {
-    readonly sessionId:
-      string;
-
-    readonly accountId:
-      string;
-
-    readonly createdAtMs:
-      number;
-
-    readonly expiresAtMs:
-      number;
-
-    readonly revokedAtMs:
-      number | null;
-  };
-}> {
+): Promise<
+  SessionHttpResponse
+> {
   const response =
     await fetch(
       `${baseUrl}/api/v1/auth/sessions`,
@@ -253,27 +263,8 @@ async function createSession(
     201,
   );
 
-  return await response.json() as {
-    readonly token:
-      string;
-
-    readonly session: {
-      readonly sessionId:
-        string;
-
-      readonly accountId:
-        string;
-
-      readonly createdAtMs:
-        number;
-
-      readonly expiresAtMs:
-        number;
-
-      readonly revokedAtMs:
-        number | null;
-    };
-  };
+  return await response.json() as
+    SessionHttpResponse;
 }
 
 afterEach(
@@ -388,7 +379,7 @@ describe(
     );
 
     it(
-      "creates an auth session without exposing the token hash",
+      "creates an auth session with access and refresh tokens without exposing hashes",
       async () => {
         const {
           baseUrl,
@@ -410,6 +401,18 @@ describe(
           created.token,
         ).toMatch(
           /^atk1_/,
+        );
+
+        expect(
+          created.accessToken,
+        ).toBe(
+          created.token,
+        );
+
+        expect(
+          created.refreshToken,
+        ).toMatch(
+          /^art1_/,
         );
 
         expect(
@@ -438,6 +441,376 @@ describe(
           created.session,
         ).not.toHaveProperty(
           "tokenHash",
+        );
+
+        expect(
+          created,
+        ).not.toHaveProperty(
+          "refreshCredential",
+        );
+      },
+    );
+
+    it(
+      "rotates an auth session through the refresh endpoint",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startAuthServer();
+
+        const account =
+          await createAccount(
+            baseUrl,
+          );
+
+        const created =
+          await createSession(
+            baseUrl,
+            account.accountId,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    created.refreshToken,
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(
+          200,
+        );
+
+        const refreshed =
+          await response.json() as
+            SessionHttpResponse;
+
+        expect(
+          refreshed.session.sessionId,
+        ).toBe(
+          created.session.sessionId,
+        );
+
+        expect(
+          refreshed.accessToken,
+        ).not.toBe(
+          created.accessToken,
+        );
+
+        expect(
+          refreshed.refreshToken,
+        ).not.toBe(
+          created.refreshToken,
+        );
+
+        expect(
+          refreshed.token,
+        ).toBe(
+          refreshed.accessToken,
+        );
+
+        const oldMeResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/me`,
+            {
+              headers: {
+                authorization:
+                  `Bearer ${created.accessToken}`,
+              },
+            },
+          );
+
+        expect(
+          oldMeResponse.status,
+        ).toBe(
+          401,
+        );
+
+        const newMeResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/me`,
+            {
+              headers: {
+                authorization:
+                  `Bearer ${refreshed.accessToken}`,
+              },
+            },
+          );
+
+        expect(
+          newMeResponse.status,
+        ).toBe(
+          200,
+        );
+      },
+    );
+
+    it(
+      "rejects reuse of a rotated refresh token",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startAuthServer();
+
+        const account =
+          await createAccount(
+            baseUrl,
+          );
+
+        const created =
+          await createSession(
+            baseUrl,
+            account.accountId,
+          );
+
+        const firstResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    created.refreshToken,
+                }),
+            },
+          );
+
+        expect(
+          firstResponse.status,
+        ).toBe(
+          200,
+        );
+
+        const secondResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    created.refreshToken,
+                }),
+            },
+          );
+
+        expect(
+          secondResponse.status,
+        ).toBe(
+          401,
+        );
+
+        expect(
+          await secondResponse.json(),
+        ).toEqual({
+          error:
+            "AUTH_REFRESH_INVALID",
+        });
+      },
+    );
+
+    it(
+      "rejects an unknown refresh token",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startAuthServer();
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    "art1_unknown",
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(
+          401,
+        );
+
+        expect(
+          await response.json(),
+        ).toEqual({
+          error:
+            "AUTH_REFRESH_INVALID",
+        });
+      },
+    );
+
+    it(
+      "rejects malformed refresh requests",
+      async () => {
+        const {
+          baseUrl,
+        } =
+          await startAuthServer();
+
+        const invalidBodies =
+          [
+            {},
+            {
+              refreshToken:
+                "",
+            },
+            {
+              refreshToken:
+                " invalid ",
+            },
+            {
+              refreshToken:
+                "atk1_not-a-refresh-token",
+            },
+            {
+              refreshToken:
+                123,
+            },
+            {
+              refreshToken:
+                "art1_example",
+
+              unexpected:
+                true,
+            },
+          ];
+
+        for (
+          const body
+          of invalidBodies
+        ) {
+          const response =
+            await fetch(
+              `${baseUrl}/api/v1/auth/refresh`,
+              {
+                method:
+                  "POST",
+
+                headers: {
+                  "content-type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify(
+                    body,
+                  ),
+              },
+            );
+
+          expect(
+            response.status,
+          ).toBe(
+            400,
+          );
+
+          expect(
+            await response.json(),
+          ).toEqual({
+            error:
+              "INVALID_REQUEST",
+          });
+        }
+      },
+    );
+
+    it(
+      "keeps refresh available when bootstrap authentication is disabled",
+      async () => {
+        const {
+          baseUrl,
+          authService,
+        } =
+          await startAuthServer(
+            false,
+          );
+
+        const account =
+          authService.createAccount();
+
+        const created =
+          authService.createSession(
+            account.accountId,
+          );
+
+        const response =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    created.refreshToken,
+                }),
+            },
+          );
+
+        expect(
+          response.status,
+        ).toBe(
+          200,
+        );
+
+        const refreshed =
+          await response.json() as
+            SessionHttpResponse;
+
+        expect(
+          refreshed.session.accountId,
+        ).toBe(
+          account.accountId,
         );
       },
     );
@@ -703,7 +1076,7 @@ describe(
             {
               headers: {
                 authorization:
-                  `Bearer ${created.token}`,
+                  `Bearer ${created.accessToken}`,
               },
             },
           );
@@ -781,6 +1154,24 @@ describe(
 
         expect(
           await response.json(),
+        ).toEqual({
+          error:
+            "METHOD_NOT_ALLOWED",
+        });
+
+        const refreshResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+          );
+
+        expect(
+          refreshResponse.status,
+        ).toBe(
+          405,
+        );
+
+        expect(
+          await refreshResponse.json(),
         ).toEqual({
           error:
             "METHOD_NOT_ALLOWED",

@@ -44,6 +44,12 @@ interface GoogleAuthResponse {
   readonly token:
     string;
 
+  readonly accessToken:
+    string;
+
+  readonly refreshToken:
+    string;
+
   readonly session: {
     readonly sessionId:
       string;
@@ -106,7 +112,7 @@ async function startServer(
               "google-subject-123",
           });
         },
-  };
+    };
 
   const authService =
     new AuthService({
@@ -187,7 +193,7 @@ async function startServer(
 
       baseUrl:
         `http://127.0.0.1:${port}`,
-  };
+    };
 
   runningServers.push(
     running,
@@ -274,7 +280,7 @@ describe(
   "Google authentication HTTP",
   () => {
     it(
-      "creates an Atoutia account and session from a valid Google identity proof",
+      "creates an Atoutia account and rotating session from a valid Google identity proof",
       async () => {
         const {
           baseUrl,
@@ -301,6 +307,18 @@ describe(
           body.token,
         ).toMatch(
           /^atk1_/,
+        );
+
+        expect(
+          body.accessToken,
+        ).toBe(
+          body.token,
+        );
+
+        expect(
+          body.refreshToken,
+        ).toMatch(
+          /^art1_/,
         );
 
         expect(
@@ -344,6 +362,12 @@ describe(
         );
 
         expect(
+          body,
+        ).not.toHaveProperty(
+          "refreshCredential",
+        );
+
+        expect(
           verificationCalls,
         ).toEqual([
           "valid-google-id-token",
@@ -355,7 +379,7 @@ describe(
             {
               headers: {
                 authorization:
-                  `Bearer ${body.token}`,
+                  `Bearer ${body.accessToken}`,
               },
             },
           );
@@ -384,6 +408,112 @@ describe(
           authSessionId:
             body.session.sessionId,
         });
+      },
+    );
+
+    it(
+      "refreshes a Google session without verifying Google again",
+      async () => {
+        const {
+          baseUrl,
+          verificationCalls,
+        } =
+          await startServer();
+
+        const authenticated =
+          await authenticateWithGoogle(
+            baseUrl,
+            "valid-google-id-token",
+          );
+
+        expect(
+          authenticated.response.status,
+        ).toBe(
+          201,
+        );
+
+        const refreshResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    authenticated.body
+                      .refreshToken,
+                }),
+            },
+          );
+
+        expect(
+          refreshResponse.status,
+        ).toBe(
+          200,
+        );
+
+        const refreshed =
+          await refreshResponse.json() as {
+            readonly token:
+              string;
+
+            readonly accessToken:
+              string;
+
+            readonly refreshToken:
+              string;
+
+            readonly session: {
+              readonly sessionId:
+                string;
+
+              readonly accountId:
+                string;
+            };
+          };
+
+        expect(
+          refreshed.session.sessionId,
+        ).toBe(
+          authenticated.body
+            .session
+            .sessionId,
+        );
+
+        expect(
+          refreshed.session.accountId,
+        ).toBe(
+          authenticated.body
+            .session
+            .accountId,
+        );
+
+        expect(
+          refreshed.accessToken,
+        ).not.toBe(
+          authenticated.body
+            .accessToken,
+        );
+
+        expect(
+          refreshed.refreshToken,
+        ).not.toBe(
+          authenticated.body
+            .refreshToken,
+        );
+
+        expect(
+          verificationCalls,
+        ).toEqual([
+          "valid-google-id-token",
+        ]);
       },
     );
 
@@ -444,9 +574,15 @@ describe(
         );
 
         expect(
-          second.body.token,
+          second.body.accessToken,
         ).not.toBe(
-          first.body.token,
+          first.body.accessToken,
+        );
+
+        expect(
+          second.body.refreshToken,
+        ).not.toBe(
+          first.body.refreshToken,
         );
       },
     );

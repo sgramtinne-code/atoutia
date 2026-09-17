@@ -40,6 +40,34 @@ interface RunningServer {
     string;
 }
 
+interface CreatedSessionResponse {
+  readonly token:
+    string;
+
+  readonly accessToken:
+    string;
+
+  readonly refreshToken:
+    string;
+
+  readonly session: {
+    readonly sessionId:
+      string;
+
+    readonly accountId:
+      string;
+
+    readonly createdAtMs:
+      number;
+
+    readonly expiresAtMs:
+      number;
+
+    readonly revokedAtMs:
+      number | null;
+  };
+}
+
 const runningServers:
   RunningServer[] = [];
 
@@ -123,7 +151,7 @@ async function startServer():
 
       baseUrl:
         `http://127.0.0.1:${port}`,
-  };
+    };
 
   runningServers.push(
     running,
@@ -220,7 +248,7 @@ describe(
   "backend server auth integration",
   () => {
     it(
-      "creates an account and authenticates it through the main backend server",
+      "creates an account authenticates it and rotates its session through the main backend server",
       async () => {
         const {
           baseUrl,
@@ -299,32 +327,25 @@ describe(
         );
 
         const createdSession =
-          await sessionResponse.json() as {
-            readonly token:
-              string;
-
-            readonly session: {
-              readonly sessionId:
-                string;
-
-              readonly accountId:
-                string;
-
-              readonly createdAtMs:
-                number;
-
-              readonly expiresAtMs:
-                number;
-
-              readonly revokedAtMs:
-                number | null;
-            };
-          };
+          await sessionResponse.json() as
+            CreatedSessionResponse;
 
         expect(
           createdSession.token,
         ).toMatch(
           /^atk1_/,
+        );
+
+        expect(
+          createdSession.accessToken,
+        ).toBe(
+          createdSession.token,
+        );
+
+        expect(
+          createdSession.refreshToken,
+        ).toMatch(
+          /^art1_/,
         );
 
         expect(
@@ -351,7 +372,7 @@ describe(
             {
               headers: {
                 authorization:
-                  `Bearer ${createdSession.token}`,
+                  `Bearer ${createdSession.accessToken}`,
               },
             },
           );
@@ -371,6 +392,88 @@ describe(
           authSessionId:
             createdSession.session.sessionId,
         });
+
+        const refreshResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/refresh`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "content-type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  refreshToken:
+                    createdSession.refreshToken,
+                }),
+            },
+          );
+
+        expect(
+          refreshResponse.status,
+        ).toBe(
+          200,
+        );
+
+        const refreshedSession =
+          await refreshResponse.json() as
+            CreatedSessionResponse;
+
+        expect(
+          refreshedSession.session.sessionId,
+        ).toBe(
+          createdSession.session.sessionId,
+        );
+
+        expect(
+          refreshedSession.accessToken,
+        ).not.toBe(
+          createdSession.accessToken,
+        );
+
+        expect(
+          refreshedSession.refreshToken,
+        ).not.toBe(
+          createdSession.refreshToken,
+        );
+
+        const oldAccessResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/me`,
+            {
+              headers: {
+                authorization:
+                  `Bearer ${createdSession.accessToken}`,
+              },
+            },
+          );
+
+        expect(
+          oldAccessResponse.status,
+        ).toBe(
+          401,
+        );
+
+        const refreshedMeResponse =
+          await fetch(
+            `${baseUrl}/api/v1/auth/me`,
+            {
+              headers: {
+                authorization:
+                  `Bearer ${refreshedSession.accessToken}`,
+              },
+            },
+          );
+
+        expect(
+          refreshedMeResponse.status,
+        ).toBe(
+          200,
+        );
       },
     );
 
