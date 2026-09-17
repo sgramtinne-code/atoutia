@@ -32,9 +32,23 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "ATOUTIA_API_BASE_URL",
+                "\"http://127.0.0.1:3000\"",
+            )
+        }
+
         release {
             isMinifyEnabled =
                 false
+
+            buildConfigField(
+                "String",
+                "ATOUTIA_API_BASE_URL",
+                "\"\"",
+            )
 
             proguardFiles(
                 getDefaultProguardFile(
@@ -54,6 +68,9 @@ android {
     }
 
     buildFeatures {
+        buildConfig =
+            true
+
         compose =
             true
     }
@@ -95,6 +112,10 @@ dependencies {
 
     testImplementation(
         "junit:junit:4.13.2",
+    )
+
+    testImplementation(
+        "org.json:json:20260814",
     )
 
     androidTestImplementation(
