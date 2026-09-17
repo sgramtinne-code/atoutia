@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,13 +24,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import tech.devoo.atoutia.auth.AndroidSecureAuthTokenStore
+import tech.devoo.atoutia.auth.AuthSessionCoordinator
+import tech.devoo.atoutia.auth.AuthStartupCoordinator
+import tech.devoo.atoutia.auth.AuthStartupState
+import tech.devoo.atoutia.auth.HttpAuthSessionApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(
-        savedInstanceState: Bundle?,
+        savedInstanceState:
+            Bundle?,
     ) {
         super.onCreate(
             savedInstanceState,
@@ -42,9 +49,68 @@ class MainActivity : ComponentActivity() {
                 AtoutiaApp(
                     checkBackend =
                         ::checkBackend,
+
+                    restoreAuth =
+                        ::restoreAuth,
                 )
             }
         }
+    }
+
+    private fun restoreAuth(
+        onResult:
+            (
+                AuthStartupState,
+            ) -> Unit,
+    ) {
+        Thread {
+            val state =
+                if (
+                    BuildConfig
+                        .ATOUTIA_API_BASE_URL
+                        .isBlank()
+                ) {
+                    AuthStartupState
+                        .TemporarilyUnavailable(
+                            message =
+                                "Le backend d’authentification Atoutia n’est pas configuré.",
+                        )
+                } else {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    val sessionApi =
+                        HttpAuthSessionApi(
+                            BuildConfig
+                                .ATOUTIA_API_BASE_URL,
+                        )
+
+                    val sessionCoordinator =
+                        AuthSessionCoordinator(
+                            tokenStore =
+                                tokenStore,
+
+                            sessionApi =
+                                sessionApi,
+                        )
+
+                    val startupCoordinator =
+                        AuthStartupCoordinator(
+                            sessionCoordinator =
+                                sessionCoordinator,
+                        )
+
+                    startupCoordinator.restore()
+                }
+
+            runOnUiThread {
+                onResult(
+                    state,
+                )
+            }
+        }.start()
     }
 
     private fun checkBackend(
@@ -114,6 +180,13 @@ private fun AtoutiaApp(
                 BackendCheckState,
             ) -> Unit,
         ) -> Unit,
+
+    restoreAuth:
+        (
+            (
+                AuthStartupState,
+            ) -> Unit,
+        ) -> Unit,
 ) {
     var backendState by
         remember {
@@ -123,6 +196,24 @@ private fun AtoutiaApp(
                 BackendCheckState.Idle,
             )
         }
+
+    var authState by
+        remember {
+            mutableStateOf<
+                AuthStartupState
+            >(
+                AuthStartupState.Loading,
+            )
+        }
+
+    LaunchedEffect(
+        Unit,
+    ) {
+        restoreAuth {
+            authState =
+                it
+        }
+    }
 
     Scaffold(
         modifier =
@@ -175,11 +266,22 @@ private fun AtoutiaApp(
                         .titleMedium,
             )
 
-            BackendStatus(
+            AuthStatus(
                 modifier =
                     Modifier.padding(
                         top =
                             32.dp,
+                    ),
+
+                state =
+                    authState,
+            )
+
+            BackendStatus(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            24.dp,
                     ),
 
                 state =
@@ -210,6 +312,165 @@ private fun AtoutiaApp(
                 Text(
                     text =
                         "Tester le backend",
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuthStatus(
+    modifier:
+        Modifier =
+            Modifier,
+
+    state:
+        AuthStartupState,
+) {
+    when (
+        state
+    ) {
+        AuthStartupState.Loading -> {
+            Column(
+                modifier =
+                    modifier,
+
+                horizontalAlignment =
+                    Alignment.CenterHorizontally,
+            ) {
+                CircularProgressIndicator()
+
+                Text(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                12.dp,
+                        ),
+
+                    text =
+                        "Restauration de la session…",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyLarge,
+                )
+            }
+        }
+
+        AuthStartupState.SignedOut -> {
+            Column(
+                modifier =
+                    modifier,
+
+                horizontalAlignment =
+                    Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text =
+                        "Aucune session Atoutia",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium,
+
+                    fontWeight =
+                        FontWeight.Bold,
+                )
+
+                Text(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                8.dp,
+                        ),
+
+                    text =
+                        "Connexion utilisateur à venir.",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyMedium,
+                )
+            }
+        }
+
+        is AuthStartupState.Authenticated -> {
+            Column(
+                modifier =
+                    modifier,
+
+                horizontalAlignment =
+                    Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text =
+                        "Session Atoutia restaurée",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium,
+
+                    fontWeight =
+                        FontWeight.Bold,
+                )
+
+                Text(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                8.dp,
+                        ),
+
+                    text =
+                        "Session sécurisée active.",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyMedium,
+                )
+            }
+        }
+
+        is AuthStartupState.TemporarilyUnavailable -> {
+            Column(
+                modifier =
+                    modifier,
+
+                horizontalAlignment =
+                    Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text =
+                        "Session temporairement indisponible",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium,
+
+                    fontWeight =
+                        FontWeight.Bold,
+                )
+
+                Text(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                8.dp,
+                        ),
+
+                    text =
+                        state.message,
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyMedium,
                 )
             }
         }
@@ -360,6 +621,12 @@ private fun AtoutiaAppPreview() {
     AtoutiaTheme {
         AtoutiaApp(
             checkBackend = {},
+
+            restoreAuth = {
+                it(
+                    AuthStartupState.SignedOut,
+                )
+            },
         )
     }
 }
