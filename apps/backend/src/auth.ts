@@ -12,12 +12,23 @@ export const AUTH_SESSION_ID_PREFIX =
 export const AUTH_TOKEN_PREFIX =
   "atk1_";
 
-export const DEFAULT_AUTH_SESSION_DURATION_MS =
+export const AUTH_REFRESH_TOKEN_PREFIX =
+  "art1_";
+
+export const DEFAULT_AUTH_ACCESS_TOKEN_DURATION_MS =
+  15 *
+  60 *
+  1_000;
+
+export const DEFAULT_AUTH_REFRESH_TOKEN_DURATION_MS =
   30 *
   24 *
   60 *
   60 *
   1_000;
+
+export const DEFAULT_AUTH_SESSION_DURATION_MS =
+  DEFAULT_AUTH_ACCESS_TOKEN_DURATION_MS;
 
 export const AUTH_ACCOUNT_STATUSES = [
   "ACTIVE",
@@ -57,12 +68,35 @@ export interface AuthSession {
     number | null;
 }
 
+export interface AuthRefreshCredential {
+  readonly sessionId:
+    string;
+
+  readonly tokenHash:
+    string;
+
+  readonly createdAtMs:
+    number;
+
+  readonly expiresAtMs:
+    number;
+}
+
 export interface CreatedAuthSession {
   readonly token:
     string;
 
+  readonly accessToken:
+    string;
+
+  readonly refreshToken:
+    string;
+
   readonly session:
     AuthSession;
+
+  readonly refreshCredential:
+    AuthRefreshCredential;
 }
 
 export interface AuthenticatedAccount {
@@ -93,6 +127,53 @@ function assertTimestamp(
   }
 }
 
+function assertPositiveDuration(
+  value:
+    number,
+
+  name:
+    string,
+): void {
+  if (
+    !Number.isSafeInteger(
+      value,
+    ) ||
+    value <=
+      0
+  ) {
+    throw new Error(
+      `${name} must be a positive safe integer.`,
+    );
+  }
+}
+
+function calculateExpiration(
+  createdAtMs:
+    number,
+
+  durationMs:
+    number,
+
+  errorMessage:
+    string,
+): number {
+  const expiresAtMs =
+    createdAtMs +
+    durationMs;
+
+  if (
+    !Number.isSafeInteger(
+      expiresAtMs,
+    )
+  ) {
+    throw new Error(
+      errorMessage,
+    );
+  }
+
+  return expiresAtMs;
+}
+
 export function createAuthAccountId():
   string {
   return (
@@ -121,6 +202,18 @@ export function createAuthToken():
   string {
   return (
     AUTH_TOKEN_PREFIX +
+    randomBytes(
+      32,
+    ).toString(
+      "base64url",
+    )
+  );
+}
+
+export function createAuthRefreshToken():
+  string {
+  return (
+    AUTH_REFRESH_TOKEN_PREFIX +
     randomBytes(
       32,
     ).toString(
@@ -193,6 +286,9 @@ export function createAuthSession(
 
     readonly durationMs?:
       number;
+
+    readonly refreshDurationMs?:
+      number;
   },
 ): CreatedAuthSession {
   assertTimestamp(
@@ -202,62 +298,241 @@ export function createAuthSession(
 
   const durationMs =
     options.durationMs ??
-    DEFAULT_AUTH_SESSION_DURATION_MS;
+    DEFAULT_AUTH_ACCESS_TOKEN_DURATION_MS;
+
+  assertPositiveDuration(
+    durationMs,
+    "durationMs",
+  );
+
+  const expiresAtMs =
+    calculateExpiration(
+      options.createdAtMs,
+      durationMs,
+      "Auth session expiration is outside the safe integer range.",
+    );
+
+  const refreshDurationMs =
+    options.refreshDurationMs ??
+    DEFAULT_AUTH_REFRESH_TOKEN_DURATION_MS;
+
+  assertPositiveDuration(
+    refreshDurationMs,
+    "refreshDurationMs",
+  );
+
+  const refreshExpiresAtMs =
+    calculateExpiration(
+      options.createdAtMs,
+      refreshDurationMs,
+      "Auth refresh expiration is outside the safe integer range.",
+    );
 
   if (
-    !Number.isSafeInteger(
-      durationMs,
-    ) ||
-    durationMs <=
-      0
+    expiresAtMs >
+      refreshExpiresAtMs
   ) {
     throw new Error(
-      "durationMs must be a positive safe integer.",
+      "Auth access token duration must not exceed refresh token duration.",
     );
   }
 
-  const expiresAtMs =
-    options.createdAtMs +
-    durationMs;
+  const sessionId =
+    createAuthSessionId();
+
+  const accessToken =
+    createAuthToken();
+
+  const refreshToken =
+    createAuthRefreshToken();
+
+  const session:
+    AuthSession =
+      Object.freeze({
+        sessionId,
+
+        accountId:
+          options.accountId,
+
+        tokenHash:
+          hashAuthToken(
+            accessToken,
+          ),
+
+        createdAtMs:
+          options.createdAtMs,
+
+        expiresAtMs,
+
+        revokedAtMs:
+          null,
+      });
+
+  const refreshCredential:
+    AuthRefreshCredential =
+      Object.freeze({
+        sessionId,
+
+        tokenHash:
+          hashAuthToken(
+            refreshToken,
+          ),
+
+        createdAtMs:
+          options.createdAtMs,
+
+        expiresAtMs:
+          refreshExpiresAtMs,
+      });
+
+  return Object.freeze({
+    token:
+      accessToken,
+
+    accessToken,
+
+    refreshToken,
+
+    session,
+
+    refreshCredential,
+  });
+}
+
+export function isAuthRefreshCredentialUsable(
+  session:
+    AuthSession,
+
+  refreshCredential:
+    AuthRefreshCredential,
+
+  nowMs:
+    number,
+): boolean {
+  assertTimestamp(
+    nowMs,
+    "nowMs",
+  );
+
+  return (
+    refreshCredential.sessionId ===
+      session.sessionId &&
+    session.revokedAtMs ===
+      null &&
+    nowMs >=
+      refreshCredential.createdAtMs &&
+    nowMs <
+      refreshCredential.expiresAtMs
+  );
+}
+
+export function rotateAuthSession(
+  options: {
+    readonly session:
+      AuthSession;
+
+    readonly refreshCredential:
+      AuthRefreshCredential;
+
+    readonly refreshedAtMs:
+      number;
+
+    readonly durationMs?:
+      number;
+  },
+): CreatedAuthSession {
+  assertTimestamp(
+    options.refreshedAtMs,
+    "refreshedAtMs",
+  );
 
   if (
-    !Number.isSafeInteger(
-      expiresAtMs,
+    !isAuthRefreshCredentialUsable(
+      options.session,
+      options.refreshCredential,
+      options.refreshedAtMs,
     )
   ) {
     throw new Error(
-      "Auth session expiration is outside the safe integer range.",
+      "Auth refresh credential is not usable.",
     );
   }
 
-  const token =
+  const durationMs =
+    options.durationMs ??
+    DEFAULT_AUTH_ACCESS_TOKEN_DURATION_MS;
+
+  assertPositiveDuration(
+    durationMs,
+    "durationMs",
+  );
+
+  const requestedExpiresAtMs =
+    calculateExpiration(
+      options.refreshedAtMs,
+      durationMs,
+      "Auth session expiration is outside the safe integer range.",
+    );
+
+  const expiresAtMs =
+    Math.min(
+      requestedExpiresAtMs,
+      options.refreshCredential
+        .expiresAtMs,
+    );
+
+  const accessToken =
     createAuthToken();
 
+  const refreshToken =
+    createAuthRefreshToken();
+
   const session:
-    AuthSession = Object.freeze({
-      sessionId:
-        createAuthSessionId(),
+    AuthSession =
+      Object.freeze({
+        ...options.session,
 
-      accountId:
-        options.accountId,
+        tokenHash:
+          hashAuthToken(
+            accessToken,
+          ),
 
-      tokenHash:
-        hashAuthToken(
-          token,
-        ),
+        expiresAtMs,
 
-      createdAtMs:
-        options.createdAtMs,
+        revokedAtMs:
+          null,
+      });
 
-      expiresAtMs,
+  const refreshCredential:
+    AuthRefreshCredential =
+      Object.freeze({
+        sessionId:
+          session.sessionId,
 
-      revokedAtMs:
-        null,
-  });
+        tokenHash:
+          hashAuthToken(
+            refreshToken,
+          ),
+
+        createdAtMs:
+          options.refreshedAtMs,
+
+        expiresAtMs:
+          options.refreshCredential
+            .expiresAtMs,
+      });
 
   return Object.freeze({
-    token,
+    token:
+      accessToken,
+
+    accessToken,
+
+    refreshToken,
+
     session,
+
+    refreshCredential,
   });
 }
 

@@ -2,8 +2,10 @@ import {
   createAuthAccount,
   createAuthSession,
   hashAuthToken,
+  isAuthRefreshCredentialUsable,
   isAuthSessionUsable,
   revokeAuthSession,
+  rotateAuthSession,
   type AuthAccount,
   type AuthenticatedAccount,
   type CreatedAuthSession,
@@ -29,6 +31,9 @@ export interface AuthServiceOptions {
     () => number;
 
   readonly sessionDurationMs?:
+    number;
+
+  readonly refreshSessionDurationMs?:
     number;
 
   readonly bootstrapAuthenticationEnabled?:
@@ -87,6 +92,9 @@ export class AuthService {
   readonly #sessionDurationMs:
     number | undefined;
 
+  readonly #refreshSessionDurationMs:
+    number | undefined;
+
   readonly #bootstrapAuthenticationEnabled:
     boolean;
 
@@ -113,6 +121,9 @@ export class AuthService {
 
     this.#sessionDurationMs =
       options.sessionDurationMs;
+
+    this.#refreshSessionDurationMs =
+      options.refreshSessionDurationMs;
 
     this.#bootstrapAuthenticationEnabled =
       options
@@ -153,25 +164,138 @@ export class AuthService {
     accountId:
       string,
   ): CreatedAuthSession {
-    const account =
-      this.#repository.getAccount(
-        accountId,
-      );
+    return this.#repository.transaction(
+      (
+        repository,
+      ) => {
+        const account =
+          repository.getAccount(
+            accountId,
+          );
 
-    if (
-      account ===
-        undefined ||
-      account.status !==
-        "ACTIVE"
-    ) {
-      throw new Error(
-        "Auth account is not available.",
-      );
+        if (
+          account ===
+            undefined ||
+          account.status !==
+            "ACTIVE"
+        ) {
+          throw new Error(
+            "Auth account is not available.",
+          );
+        }
+
+        return this.#createAndSaveSession(
+          account,
+          repository,
+        );
+      },
+    );
+  }
+
+  public refreshSession(
+    refreshToken:
+      string,
+  ):
+    | CreatedAuthSession
+    | undefined {
+    let refreshTokenHash:
+      string;
+
+    try {
+      refreshTokenHash =
+        hashAuthToken(
+          refreshToken,
+        );
+    } catch {
+      return undefined;
     }
 
-    return this.#createAndSaveSession(
-      account,
-      this.#repository,
+    return this.#repository.transaction(
+      (
+        repository,
+      ) => {
+        const refreshCredential =
+          repository
+            .findRefreshCredentialByTokenHash(
+              refreshTokenHash,
+            );
+
+        if (
+          refreshCredential ===
+            undefined
+        ) {
+          return undefined;
+        }
+
+        const session =
+          repository.getSession(
+            refreshCredential.sessionId,
+          );
+
+        if (
+          session ===
+            undefined
+        ) {
+          return undefined;
+        }
+
+        const now =
+          this.#now();
+
+        if (
+          !isAuthRefreshCredentialUsable(
+            session,
+            refreshCredential,
+            now,
+          )
+        ) {
+          return undefined;
+        }
+
+        const account =
+          repository.getAccount(
+            session.accountId,
+          );
+
+        if (
+          account ===
+            undefined ||
+          account.status !==
+            "ACTIVE"
+        ) {
+          return undefined;
+        }
+
+        const rotateOptions = {
+          session,
+          refreshCredential,
+          refreshedAtMs:
+            now,
+        };
+
+        const rotated =
+          this.#sessionDurationMs ===
+            undefined
+            ? rotateAuthSession(
+                rotateOptions,
+              )
+            : rotateAuthSession({
+                ...rotateOptions,
+
+                durationMs:
+                  this.#sessionDurationMs,
+              });
+
+        repository.saveSession(
+          rotated.session,
+        );
+
+        repository.saveRefreshCredential(
+          rotated.refreshCredential,
+        );
+
+        return rotated;
+      },
     );
   }
 
@@ -464,21 +588,37 @@ export class AuthService {
         this.#now(),
     };
 
-    const created =
+    const durationOptions =
       this.#sessionDurationMs ===
         undefined
-        ? createAuthSession(
-            baseOptions,
-          )
-        : createAuthSession({
-            ...baseOptions,
-
+        ? {}
+        : {
             durationMs:
               this.#sessionDurationMs,
-          });
+          };
+
+    const refreshDurationOptions =
+      this.#refreshSessionDurationMs ===
+        undefined
+        ? {}
+        : {
+            refreshDurationMs:
+              this.#refreshSessionDurationMs,
+          };
+
+    const created =
+      createAuthSession({
+        ...baseOptions,
+        ...durationOptions,
+        ...refreshDurationOptions,
+      });
 
     repository.saveSession(
       created.session,
+    );
+
+    repository.saveRefreshCredential(
+      created.refreshCredential,
     );
 
     return created;

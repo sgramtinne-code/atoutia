@@ -41,6 +41,9 @@ describe(
 
             sessionDurationMs:
               10_000,
+
+            refreshSessionDurationMs:
+              20_000,
           });
 
         const account =
@@ -53,7 +56,7 @@ describe(
 
         expect(
           service.authenticate(
-            created.token,
+            created.accessToken,
           ),
         ).toEqual({
           accountId:
@@ -117,7 +120,7 @@ describe(
     );
 
     it(
-      "stops authenticating an expired token",
+      "stops authenticating an expired access token",
       () => {
         let now =
           1_000;
@@ -138,6 +141,9 @@ describe(
 
             sessionDurationMs:
               1_000,
+
+            refreshSessionDurationMs:
+              10_000,
           });
 
         const account =
@@ -153,7 +159,7 @@ describe(
 
         expect(
           service.authenticate(
-            created.token,
+            created.accessToken,
           ),
         ).toBeDefined();
 
@@ -162,7 +168,225 @@ describe(
 
         expect(
           service.authenticate(
-            created.token,
+            created.accessToken,
+          ),
+        ).toBeUndefined();
+
+        repository.close();
+      },
+    );
+
+    it(
+      "rotates a refresh token and invalidates the previous access and refresh tokens",
+      () => {
+        let now =
+          1_000;
+
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                now,
+
+            sessionDurationMs:
+              1_000,
+
+            refreshSessionDurationMs:
+              10_000,
+          });
+
+        const account =
+          service.createAccount();
+
+        const created =
+          service.createSession(
+            account.accountId,
+          );
+
+        now =
+          1_500;
+
+        const refreshed =
+          service.refreshSession(
+            created.refreshToken,
+          );
+
+        expect(
+          refreshed,
+        ).toBeDefined();
+
+        expect(
+          refreshed?.session.sessionId,
+        ).toBe(
+          created.session.sessionId,
+        );
+
+        expect(
+          refreshed?.accessToken,
+        ).not.toBe(
+          created.accessToken,
+        );
+
+        expect(
+          refreshed?.refreshToken,
+        ).not.toBe(
+          created.refreshToken,
+        );
+
+        expect(
+          service.authenticate(
+            created.accessToken,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          service.refreshSession(
+            created.refreshToken,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          service.authenticate(
+            refreshed!.accessToken,
+          ),
+        ).toEqual({
+          accountId:
+            account.accountId,
+
+          authSessionId:
+            created.session.sessionId,
+        });
+
+        repository.close();
+      },
+    );
+
+    it(
+      "refreshes a session after its access token expires",
+      () => {
+        let now =
+          1_000;
+
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                now,
+
+            sessionDurationMs:
+              1_000,
+
+            refreshSessionDurationMs:
+              10_000,
+          });
+
+        const account =
+          service.createAccount();
+
+        const created =
+          service.createSession(
+            account.accountId,
+          );
+
+        now =
+          2_000;
+
+        expect(
+          service.authenticate(
+            created.accessToken,
+          ),
+        ).toBeUndefined();
+
+        const refreshed =
+          service.refreshSession(
+            created.refreshToken,
+          );
+
+        expect(
+          refreshed,
+        ).toBeDefined();
+
+        expect(
+          service.authenticate(
+            refreshed!.accessToken,
+          )?.accountId,
+        ).toBe(
+          account.accountId,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "rejects malformed unknown and expired refresh tokens",
+      () => {
+        let now =
+          1_000;
+
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                now,
+
+            sessionDurationMs:
+              1_000,
+
+            refreshSessionDurationMs:
+              2_000,
+          });
+
+        const account =
+          service.createAccount();
+
+        const created =
+          service.createSession(
+            account.accountId,
+          );
+
+        expect(
+          service.refreshSession(
+            " invalid ",
+          ),
+        ).toBeUndefined();
+
+        expect(
+          service.refreshSession(
+            "art1_unknown",
+          ),
+        ).toBeUndefined();
+
+        now =
+          3_000;
+
+        expect(
+          service.refreshSession(
+            created.refreshToken,
           ),
         ).toBeUndefined();
 
@@ -213,6 +437,12 @@ describe(
         expect(
           service.authenticate(
             created.token,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          service.refreshSession(
+            created.refreshToken,
           ),
         ).toBeUndefined();
 
@@ -350,6 +580,16 @@ describe(
           account.accountId,
         );
 
+        expect(
+          repository
+            .findRefreshCredentialByTokenHash(
+              created.refreshCredential
+                .tokenHash,
+            ),
+        ).toEqual(
+          created.refreshCredential,
+        );
+
         repository.close();
       },
     );
@@ -373,6 +613,9 @@ describe(
 
             sessionDurationMs:
               10_000,
+
+            refreshSessionDurationMs:
+              20_000,
           });
 
         const result =
@@ -426,6 +669,17 @@ describe(
           ),
         ).toEqual(
           result.identity,
+        );
+
+        expect(
+          repository.getRefreshCredential(
+            result.createdSession
+              .session
+              .sessionId,
+          ),
+        ).toEqual(
+          result.createdSession
+            .refreshCredential,
         );
 
         expect(
@@ -705,7 +959,7 @@ describe(
     );
 
     it(
-      "rolls back account and external identity when session creation fails",
+      "rolls back account external identity session and refresh credential when session creation fails",
       () => {
         const repository =
           new SQLiteAuthRepository({
@@ -765,6 +1019,9 @@ describe(
 
             sessionDurationMs:
               10_000,
+
+            refreshSessionDurationMs:
+              20_000,
           });
 
         const result =
@@ -790,6 +1047,17 @@ describe(
             ),
         ).toEqual(
           result.identity,
+        );
+
+        expect(
+          repository.getRefreshCredential(
+            result.createdSession
+              .session
+              .sessionId,
+          ),
+        ).toEqual(
+          result.createdSession
+            .refreshCredential,
         );
 
         expect(

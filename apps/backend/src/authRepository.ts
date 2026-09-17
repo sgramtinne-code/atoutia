@@ -1,5 +1,6 @@
 import type {
   AuthAccount,
+  AuthRefreshCredential,
   AuthSession,
 } from "./auth.js";
 
@@ -38,6 +39,25 @@ export interface AuthRepositoryTransaction {
       string,
   ):
     | AuthSession
+    | undefined;
+
+  saveRefreshCredential(
+    credential:
+      AuthRefreshCredential,
+  ): void;
+
+  getRefreshCredential(
+    sessionId:
+      string,
+  ):
+    | AuthRefreshCredential
+    | undefined;
+
+  findRefreshCredentialByTokenHash(
+    tokenHash:
+      string,
+  ):
+    | AuthRefreshCredential
     | undefined;
 
   saveIdentity(

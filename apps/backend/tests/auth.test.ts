@@ -6,13 +6,16 @@ import {
 
 import {
   AUTH_ACCOUNT_ID_PREFIX,
+  AUTH_REFRESH_TOKEN_PREFIX,
   AUTH_SESSION_ID_PREFIX,
   AUTH_TOKEN_PREFIX,
   createAuthAccount,
   createAuthSession,
   hashAuthToken,
+  isAuthRefreshCredentialUsable,
   isAuthSessionUsable,
   revokeAuthSession,
+  rotateAuthSession,
 } from "../src/auth.js";
 
 describe(
@@ -65,7 +68,7 @@ describe(
     );
 
     it(
-      "creates a session with an opaque token whose hash is stored separately",
+      "creates access and refresh credentials without storing plaintext tokens",
       () => {
         const created =
           createAuthSession({
@@ -77,6 +80,9 @@ describe(
 
             durationMs:
               5_000,
+
+            refreshDurationMs:
+              20_000,
           });
 
         expect(
@@ -94,8 +100,22 @@ describe(
         );
 
         expect(
-          created.token.startsWith(
+          created.accessToken.startsWith(
             AUTH_TOKEN_PREFIX,
+          ),
+        ).toBe(
+          true,
+        );
+
+        expect(
+          created.token,
+        ).toBe(
+          created.accessToken,
+        );
+
+        expect(
+          created.refreshToken.startsWith(
+            AUTH_REFRESH_TOKEN_PREFIX,
           ),
         ).toBe(
           true,
@@ -105,14 +125,34 @@ describe(
           created.session.tokenHash,
         ).toBe(
           hashAuthToken(
-            created.token,
+            created.accessToken,
+          ),
+        );
+
+        expect(
+          created.refreshCredential.tokenHash,
+        ).toBe(
+          hashAuthToken(
+            created.refreshToken,
           ),
         );
 
         expect(
           created.session.tokenHash,
         ).not.toContain(
-          created.token,
+          created.accessToken,
+        );
+
+        expect(
+          created.refreshCredential.tokenHash,
+        ).not.toContain(
+          created.refreshToken,
+        );
+
+        expect(
+          created.refreshCredential.sessionId,
+        ).toBe(
+          created.session.sessionId,
         );
 
         expect(
@@ -125,6 +165,12 @@ describe(
           created.session.expiresAtMs,
         ).toBe(
           15_000,
+        );
+
+        expect(
+          created.refreshCredential.expiresAtMs,
+        ).toBe(
+          30_000,
         );
 
         expect(
@@ -190,7 +236,7 @@ describe(
     );
 
     it(
-      "recognizes active and expired sessions",
+      "recognizes active and expired access sessions",
       () => {
         const created =
           createAuthSession({
@@ -202,6 +248,9 @@ describe(
 
             durationMs:
               1_000,
+
+            refreshDurationMs:
+              10_000,
           });
 
         expect(
@@ -220,6 +269,204 @@ describe(
           ),
         ).toBe(
           false,
+        );
+      },
+    );
+
+    it(
+      "keeps the refresh credential usable after the access token expires",
+      () => {
+        const created =
+          createAuthSession({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+
+            durationMs:
+              1_000,
+
+            refreshDurationMs:
+              10_000,
+          });
+
+        expect(
+          isAuthSessionUsable(
+            created.session,
+            2_000,
+          ),
+        ).toBe(
+          false,
+        );
+
+        expect(
+          isAuthRefreshCredentialUsable(
+            created.session,
+            created.refreshCredential,
+            2_000,
+          ),
+        ).toBe(
+          true,
+        );
+
+        expect(
+          isAuthRefreshCredentialUsable(
+            created.session,
+            created.refreshCredential,
+            11_000,
+          ),
+        ).toBe(
+          false,
+        );
+      },
+    );
+
+    it(
+      "rotates both tokens without extending the maximum refresh lifetime",
+      () => {
+        const created =
+          createAuthSession({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+
+            durationMs:
+              1_000,
+
+            refreshDurationMs:
+              10_000,
+          });
+
+        const rotated =
+          rotateAuthSession({
+            session:
+              created.session,
+
+            refreshCredential:
+              created.refreshCredential,
+
+            refreshedAtMs:
+              2_000,
+
+            durationMs:
+              2_000,
+          });
+
+        expect(
+          rotated.session.sessionId,
+        ).toBe(
+          created.session.sessionId,
+        );
+
+        expect(
+          rotated.session.accountId,
+        ).toBe(
+          created.session.accountId,
+        );
+
+        expect(
+          rotated.accessToken,
+        ).not.toBe(
+          created.accessToken,
+        );
+
+        expect(
+          rotated.refreshToken,
+        ).not.toBe(
+          created.refreshToken,
+        );
+
+        expect(
+          rotated.session.tokenHash,
+        ).not.toBe(
+          created.session.tokenHash,
+        );
+
+        expect(
+          rotated.refreshCredential.tokenHash,
+        ).not.toBe(
+          created.refreshCredential.tokenHash,
+        );
+
+        expect(
+          rotated.session.expiresAtMs,
+        ).toBe(
+          4_000,
+        );
+
+        expect(
+          rotated.refreshCredential.expiresAtMs,
+        ).toBe(
+          11_000,
+        );
+
+        expect(
+          rotated.refreshCredential.createdAtMs,
+        ).toBe(
+          2_000,
+        );
+      },
+    );
+
+    it(
+      "rejects refresh rotation after refresh expiration",
+      () => {
+        const created =
+          createAuthSession({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+
+            durationMs:
+              1_000,
+
+            refreshDurationMs:
+              2_000,
+          });
+
+        expect(
+          () =>
+            rotateAuthSession({
+              session:
+                created.session,
+
+              refreshCredential:
+                created.refreshCredential,
+
+              refreshedAtMs:
+                3_000,
+            }),
+        ).toThrow(
+          "Auth refresh credential is not usable.",
+        );
+      },
+    );
+
+    it(
+      "rejects an access lifetime longer than the refresh lifetime",
+      () => {
+        expect(
+          () =>
+            createAuthSession({
+              accountId:
+                "acc1_00000000000000000000000000000000",
+
+              createdAtMs:
+                1_000,
+
+              durationMs:
+                10_000,
+
+              refreshDurationMs:
+                5_000,
+            }),
+        ).toThrow(
+          "Auth access token duration must not exceed refresh token duration.",
         );
       },
     );
@@ -254,6 +501,16 @@ describe(
         expect(
           isAuthSessionUsable(
             revoked,
+            2_001,
+          ),
+        ).toBe(
+          false,
+        );
+
+        expect(
+          isAuthRefreshCredentialUsable(
+            revoked,
+            created.refreshCredential,
             2_001,
           ),
         ).toBe(

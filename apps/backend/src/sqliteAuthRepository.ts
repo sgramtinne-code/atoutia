@@ -5,6 +5,7 @@ import {
 import type {
   AuthAccount,
   AuthAccountStatus,
+  AuthRefreshCredential,
   AuthSession,
 } from "./auth.js";
 
@@ -48,6 +49,20 @@ interface AuthSessionRow {
 
   readonly revoked_at_ms:
     number | null;
+}
+
+interface AuthRefreshCredentialRow {
+  readonly session_id:
+    string;
+
+  readonly token_hash:
+    string;
+
+  readonly created_at_ms:
+    number;
+
+  readonly expires_at_ms:
+    number;
 }
 
 interface AuthIdentityRow {
@@ -148,6 +163,25 @@ function mapSessionRow(
   });
 }
 
+function mapRefreshCredentialRow(
+  row:
+    AuthRefreshCredentialRow,
+): AuthRefreshCredential {
+  return Object.freeze({
+    sessionId:
+      row.session_id,
+
+    tokenHash:
+      row.token_hash,
+
+    createdAtMs:
+      row.created_at_ms,
+
+    expiresAtMs:
+      row.expires_at_ms,
+  });
+}
+
 function mapIdentityRow(
   row:
     AuthIdentityRow,
@@ -216,6 +250,16 @@ export class SQLiteAuthRepository
 
       CREATE INDEX IF NOT EXISTS auth_sessions_account_id_idx
       ON auth_sessions(account_id);
+
+      CREATE TABLE IF NOT EXISTS auth_refresh_credentials (
+        session_id TEXT PRIMARY KEY NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at_ms INTEGER NOT NULL,
+        expires_at_ms INTEGER NOT NULL,
+        FOREIGN KEY(session_id)
+          REFERENCES auth_sessions(session_id)
+          ON DELETE CASCADE
+      ) STRICT;
 
       CREATE TABLE IF NOT EXISTS auth_identities (
         identity_id TEXT PRIMARY KEY NOT NULL,
@@ -398,6 +442,104 @@ export class SQLiteAuthRepository
       undefined
       ? undefined
       : mapSessionRow(
+          row,
+        );
+  }
+
+  public saveRefreshCredential(
+    credential:
+      AuthRefreshCredential,
+  ): void {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        INSERT INTO auth_refresh_credentials (
+          session_id,
+          token_hash,
+          created_at_ms,
+          expires_at_ms
+        )
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(session_id)
+        DO UPDATE SET
+          token_hash = excluded.token_hash,
+          created_at_ms = excluded.created_at_ms,
+          expires_at_ms = excluded.expires_at_ms
+      `);
+
+    statement.run(
+      credential.sessionId,
+      credential.tokenHash,
+      credential.createdAtMs,
+      credential.expiresAtMs,
+    );
+  }
+
+  public getRefreshCredential(
+    sessionId:
+      string,
+  ):
+    | AuthRefreshCredential
+    | undefined {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        SELECT
+          session_id,
+          token_hash,
+          created_at_ms,
+          expires_at_ms
+        FROM auth_refresh_credentials
+        WHERE session_id = ?
+      `);
+
+    const row =
+      statement.get(
+        sessionId,
+      ) as unknown as
+        | AuthRefreshCredentialRow
+        | undefined;
+
+    return row ===
+      undefined
+      ? undefined
+      : mapRefreshCredentialRow(
+          row,
+        );
+  }
+
+  public findRefreshCredentialByTokenHash(
+    tokenHash:
+      string,
+  ):
+    | AuthRefreshCredential
+    | undefined {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        SELECT
+          session_id,
+          token_hash,
+          created_at_ms,
+          expires_at_ms
+        FROM auth_refresh_credentials
+        WHERE token_hash = ?
+      `);
+
+    const row =
+      statement.get(
+        tokenHash,
+      ) as unknown as
+        | AuthRefreshCredentialRow
+        | undefined;
+
+    return row ===
+      undefined
+      ? undefined
+      : mapRefreshCredentialRow(
           row,
         );
   }

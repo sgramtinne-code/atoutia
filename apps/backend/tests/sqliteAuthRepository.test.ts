@@ -21,6 +21,7 @@ import {
 import {
   createAuthAccount,
   createAuthSession,
+  hashAuthToken,
   revokeAuthSession,
 } from "../src/auth.js";
 
@@ -118,7 +119,7 @@ describe(
     );
 
     it(
-      "stores and finds a session by token hash",
+      "stores and finds a session by access token hash",
       () => {
         const repository =
           new SQLiteAuthRepository({
@@ -167,6 +168,173 @@ describe(
         ).toEqual(
           created.session,
         );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "stores and finds a refresh credential by token hash",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const account =
+          createAuthAccount({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+          });
+
+        repository.saveAccount(
+          account,
+        );
+
+        const created =
+          createAuthSession({
+            accountId:
+              account.accountId,
+
+            createdAtMs:
+              2_000,
+          });
+
+        repository.saveSession(
+          created.session,
+        );
+
+        repository.saveRefreshCredential(
+          created.refreshCredential,
+        );
+
+        expect(
+          repository.getRefreshCredential(
+            created.session.sessionId,
+          ),
+        ).toEqual(
+          created.refreshCredential,
+        );
+
+        expect(
+          repository.findRefreshCredentialByTokenHash(
+            created.refreshCredential
+              .tokenHash,
+          ),
+        ).toEqual(
+          created.refreshCredential,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "rotates a persisted refresh credential and invalidates its previous token hash",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const account =
+          createAuthAccount({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+          });
+
+        repository.saveAccount(
+          account,
+        );
+
+        const created =
+          createAuthSession({
+            accountId:
+              account.accountId,
+
+            createdAtMs:
+              2_000,
+          });
+
+        repository.saveSession(
+          created.session,
+        );
+
+        repository.saveRefreshCredential(
+          created.refreshCredential,
+        );
+
+        const previousHash =
+          created.refreshCredential
+            .tokenHash;
+
+        const rotatedCredential =
+          Object.freeze({
+            ...created.refreshCredential,
+
+            tokenHash:
+              hashAuthToken(
+                "art1_rotated",
+              ),
+
+            createdAtMs:
+              3_000,
+          });
+
+        repository.saveRefreshCredential(
+          rotatedCredential,
+        );
+
+        expect(
+          repository.findRefreshCredentialByTokenHash(
+            previousHash,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          repository.getRefreshCredential(
+            created.session.sessionId,
+          ),
+        ).toEqual(
+          rotatedCredential,
+        );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "rejects a refresh credential whose session does not exist",
+      () => {
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const created =
+          createAuthSession({
+            accountId:
+              "acc1_00000000000000000000000000000000",
+
+            createdAtMs:
+              1_000,
+          });
+
+        expect(
+          () =>
+            repository.saveRefreshCredential(
+              created.refreshCredential,
+            ),
+        ).toThrow();
 
         repository.close();
       },
@@ -585,6 +753,10 @@ describe(
           created.session,
         );
 
+        firstRepository.saveRefreshCredential(
+          created.refreshCredential,
+        );
+
         const identity =
           createAuthIdentity({
             accountId:
@@ -625,6 +797,15 @@ describe(
           ),
         ).toEqual(
           created.session,
+        );
+
+        expect(
+          secondRepository.findRefreshCredentialByTokenHash(
+            created.refreshCredential
+              .tokenHash,
+          ),
+        ).toEqual(
+          created.refreshCredential,
         );
 
         expect(
@@ -701,6 +882,15 @@ describe(
           () =>
             repository.getIdentity(
               "aid1_00000000000000000000000000000000",
+            ),
+        ).toThrow(
+          "SQLite auth repository is closed.",
+        );
+
+        expect(
+          () =>
+            repository.getRefreshCredential(
+              "as1_00000000000000000000000000000000",
             ),
         ).toThrow(
           "SQLite auth repository is closed.",
