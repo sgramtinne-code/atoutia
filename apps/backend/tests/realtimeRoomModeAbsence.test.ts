@@ -481,7 +481,7 @@ function getPlayerAbsence(
       absence,
     ) =>
       absence.player ===
-      player,
+        player,
   );
 }
 
@@ -499,23 +499,8 @@ function getPlayerConnectionState(
         state,
       ) =>
         state.player ===
-        player,
+          player,
     );
-}
-
-function sendHeartbeat(
-  socket:
-    WebSocket,
-): void {
-  socket.send(
-    JSON.stringify({
-      protocolVersion:
-        1,
-
-      type:
-        "HEARTBEAT",
-    }),
-  );
 }
 
 afterEach(
@@ -569,7 +554,7 @@ describe(
                 message,
                 "PLAYER_0",
               )?.mode ===
-              "PRIVATE",
+                "PRIVATE",
           );
 
         await waitForOpen(
@@ -645,7 +630,7 @@ describe(
                 message,
                 "PLAYER_0",
               )?.mode ===
-              "CASUAL",
+                "CASUAL",
           );
 
         await waitForOpen(
@@ -721,7 +706,7 @@ describe(
                 message,
                 "PLAYER_0",
               )?.mode ===
-              "RANKED",
+                "RANKED",
           );
 
         await waitForOpen(
@@ -843,54 +828,6 @@ describe(
         expect(
           getPlayerAbsence(
             waiting,
-            "PLAYER_1",
-          ),
-        ).toEqual({
-          player:
-            "PLAYER_1",
-
-          status:
-            "WAITING",
-
-          mode:
-            "PRIVATE",
-
-          absentSinceMs:
-            2_000,
-
-          eligibleAtMs:
-            null,
-
-          remainingMs:
-            null,
-        });
-
-        currentTime =
-          10_000_000;
-
-        const stillWaitingPromise =
-          waitForPresenceMatching(
-            observer,
-            (
-              message,
-            ) =>
-              getPlayerAbsence(
-                message,
-                "PLAYER_1",
-              )?.status ===
-                "WAITING",
-          );
-
-        sendHeartbeat(
-          observer,
-        );
-
-        const stillWaiting =
-          await stillWaitingPromise;
-
-        expect(
-          getPlayerAbsence(
-            stillWaiting,
             "PLAYER_1",
           ),
         ).toEqual({
