@@ -212,6 +212,57 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
+    fun clearsStoredSessionWhenRefreshProtocolIsInvalid() {
+        val store =
+            FakeAuthTokenStore(
+                session(
+                    accessExpiresAtMs =
+                        10_000L,
+                ),
+            )
+
+        val failure =
+            AuthSessionProtocolException(
+                "Invalid rotated session.",
+            )
+
+        val api =
+            FakeAuthSessionApi(
+                refreshError =
+                    failure,
+            )
+
+        val coordinator =
+            AuthSessionCoordinator(
+                tokenStore =
+                    store,
+
+                sessionApi =
+                    api,
+
+                currentTimeMs = {
+                    10_000L
+                },
+            )
+
+        val thrown =
+            assertThrows(
+                AuthSessionProtocolException::class.java,
+            ) {
+                coordinator.accessTokenOrRefresh()
+            }
+
+        assertSame(
+            failure,
+            thrown,
+        )
+
+        assertNull(
+            store.load(),
+        )
+    }
+
+    @Test
     fun preservesStoredSessionWhenRefreshFailsTemporarily() {
         val previous =
             session(

@@ -64,6 +64,13 @@ class AuthSessionCoordinator(
                     tokenStore.clear()
 
                     throw error
+                } catch (
+                    error:
+                        AuthSessionProtocolException,
+                ) {
+                    tokenStore.clear()
+
+                    throw error
                 }
 
             validateRefreshedSession(
