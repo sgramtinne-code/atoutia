@@ -9,6 +9,20 @@ import type {
   AuthIdentityProvider,
 } from "./authIdentity.js";
 
+export interface AuthConsumedRefreshToken {
+  readonly sessionId:
+    string;
+
+  readonly tokenHash:
+    string;
+
+  readonly consumedAtMs:
+    number;
+
+  readonly expiresAtMs:
+    number;
+}
+
 export interface AuthRepositoryTransaction {
   saveAccount(
     account:
@@ -58,6 +72,18 @@ export interface AuthRepositoryTransaction {
       string,
   ):
     | AuthRefreshCredential
+    | undefined;
+
+  saveConsumedRefreshToken(
+    consumedRefreshToken:
+      AuthConsumedRefreshToken,
+  ): void;
+
+  findConsumedRefreshTokenByTokenHash(
+    tokenHash:
+      string,
+  ):
+    | AuthConsumedRefreshToken
     | undefined;
 
   saveIdentity(

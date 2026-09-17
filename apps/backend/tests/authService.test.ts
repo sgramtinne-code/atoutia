@@ -177,7 +177,7 @@ describe(
     );
 
     it(
-      "rotates a refresh token and invalidates the previous access and refresh tokens",
+      "rotates a refresh token and invalidates the previous access token",
       () => {
         let now =
           1_000;
@@ -248,12 +248,6 @@ describe(
         ).toBeUndefined();
 
         expect(
-          service.refreshSession(
-            created.refreshToken,
-          ),
-        ).toBeUndefined();
-
-        expect(
           service.authenticate(
             refreshed!.accessToken,
           ),
@@ -264,6 +258,92 @@ describe(
           authSessionId:
             created.session.sessionId,
         });
+
+        repository.close();
+      },
+    );
+
+    it(
+      "detects refresh token replay and revokes the whole session",
+      () => {
+        let now =
+          1_000;
+
+        const repository =
+          new SQLiteAuthRepository({
+            databasePath:
+              ":memory:",
+          });
+
+        const service =
+          new AuthService({
+            repository,
+
+            now:
+              () =>
+                now,
+
+            sessionDurationMs:
+              1_000,
+
+            refreshSessionDurationMs:
+              10_000,
+          });
+
+        const account =
+          service.createAccount();
+
+        const created =
+          service.createSession(
+            account.accountId,
+          );
+
+        now =
+          1_500;
+
+        const refreshed =
+          service.refreshSession(
+            created.refreshToken,
+          );
+
+        expect(
+          refreshed,
+        ).toBeDefined();
+
+        expect(
+          service.authenticate(
+            refreshed!.accessToken,
+          ),
+        ).toBeDefined();
+
+        now =
+          1_600;
+
+        expect(
+          service.refreshSession(
+            created.refreshToken,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          repository.getSession(
+            created.session.sessionId,
+          )?.revokedAtMs,
+        ).toBe(
+          1_600,
+        );
+
+        expect(
+          service.authenticate(
+            refreshed!.accessToken,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          service.refreshSession(
+            refreshed!.refreshToken,
+          ),
+        ).toBeUndefined();
 
         repository.close();
       },

@@ -19,6 +19,7 @@ import {
 } from "./authIdentity.js";
 
 import type {
+  AuthConsumedRefreshToken,
   AuthRepository,
   AuthRepositoryTransaction,
 } from "./authRepository.js";
@@ -224,6 +225,58 @@ export class AuthService {
           refreshCredential ===
             undefined
         ) {
+          const consumedRefreshToken =
+            repository
+              .findConsumedRefreshTokenByTokenHash(
+                refreshTokenHash,
+              );
+
+          if (
+            consumedRefreshToken ===
+              undefined
+          ) {
+            return undefined;
+          }
+
+          const replayedSession =
+            repository.getSession(
+              consumedRefreshToken.sessionId,
+            );
+
+          if (
+            replayedSession ===
+              undefined
+          ) {
+            return undefined;
+          }
+
+          const now =
+            this.#now();
+
+          if (
+            now <
+              consumedRefreshToken.consumedAtMs ||
+            now >=
+              consumedRefreshToken.expiresAtMs
+          ) {
+            return undefined;
+          }
+
+          const revoked =
+            revokeAuthSession(
+              replayedSession,
+              now,
+            );
+
+          if (
+            revoked !==
+              replayedSession
+          ) {
+            repository.saveSession(
+              revoked,
+            );
+          }
+
           return undefined;
         }
 
@@ -286,8 +339,28 @@ export class AuthService {
                   this.#sessionDurationMs,
               });
 
+        const consumedRefreshToken:
+          AuthConsumedRefreshToken =
+            Object.freeze({
+              sessionId:
+                refreshCredential.sessionId,
+
+              tokenHash:
+                refreshCredential.tokenHash,
+
+              consumedAtMs:
+                now,
+
+              expiresAtMs:
+                refreshCredential.expiresAtMs,
+            });
+
         repository.saveSession(
           rotated.session,
+        );
+
+        repository.saveConsumedRefreshToken(
+          consumedRefreshToken,
         );
 
         repository.saveRefreshCredential(

@@ -16,6 +16,7 @@ import {
 } from "./authIdentity.js";
 
 import type {
+  AuthConsumedRefreshToken,
   AuthRepository,
   AuthRepositoryTransaction,
 } from "./authRepository.js";
@@ -59,6 +60,20 @@ interface AuthRefreshCredentialRow {
     string;
 
   readonly created_at_ms:
+    number;
+
+  readonly expires_at_ms:
+    number;
+}
+
+interface AuthConsumedRefreshTokenRow {
+  readonly session_id:
+    string;
+
+  readonly token_hash:
+    string;
+
+  readonly consumed_at_ms:
     number;
 
   readonly expires_at_ms:
@@ -182,6 +197,25 @@ function mapRefreshCredentialRow(
   });
 }
 
+function mapConsumedRefreshTokenRow(
+  row:
+    AuthConsumedRefreshTokenRow,
+): AuthConsumedRefreshToken {
+  return Object.freeze({
+    sessionId:
+      row.session_id,
+
+    tokenHash:
+      row.token_hash,
+
+    consumedAtMs:
+      row.consumed_at_ms,
+
+    expiresAtMs:
+      row.expires_at_ms,
+  });
+}
+
 function mapIdentityRow(
   row:
     AuthIdentityRow,
@@ -260,6 +294,19 @@ export class SQLiteAuthRepository
           REFERENCES auth_sessions(session_id)
           ON DELETE CASCADE
       ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS auth_consumed_refresh_tokens (
+        token_hash TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT NOT NULL,
+        consumed_at_ms INTEGER NOT NULL,
+        expires_at_ms INTEGER NOT NULL,
+        FOREIGN KEY(session_id)
+          REFERENCES auth_sessions(session_id)
+          ON DELETE CASCADE
+      ) STRICT;
+
+      CREATE INDEX IF NOT EXISTS auth_consumed_refresh_tokens_session_id_idx
+      ON auth_consumed_refresh_tokens(session_id);
 
       CREATE TABLE IF NOT EXISTS auth_identities (
         identity_id TEXT PRIMARY KEY NOT NULL,
@@ -540,6 +587,65 @@ export class SQLiteAuthRepository
       undefined
       ? undefined
       : mapRefreshCredentialRow(
+          row,
+        );
+  }
+
+  public saveConsumedRefreshToken(
+    consumedRefreshToken:
+      AuthConsumedRefreshToken,
+  ): void {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        INSERT INTO auth_consumed_refresh_tokens (
+          token_hash,
+          session_id,
+          consumed_at_ms,
+          expires_at_ms
+        )
+        VALUES (?, ?, ?, ?)
+      `);
+
+    statement.run(
+      consumedRefreshToken.tokenHash,
+      consumedRefreshToken.sessionId,
+      consumedRefreshToken.consumedAtMs,
+      consumedRefreshToken.expiresAtMs,
+    );
+  }
+
+  public findConsumedRefreshTokenByTokenHash(
+    tokenHash:
+      string,
+  ):
+    | AuthConsumedRefreshToken
+    | undefined {
+    this.#assertOpen();
+
+    const statement =
+      this.#database.prepare(`
+        SELECT
+          session_id,
+          token_hash,
+          consumed_at_ms,
+          expires_at_ms
+        FROM auth_consumed_refresh_tokens
+        WHERE token_hash = ?
+      `);
+
+    const row =
+      statement.get(
+        tokenHash,
+      ) as unknown as
+        | AuthConsumedRefreshTokenRow
+        | undefined;
+
+    return row ===
+      undefined
+      ? undefined
+      : mapConsumedRefreshTokenRow(
           row,
         );
   }
