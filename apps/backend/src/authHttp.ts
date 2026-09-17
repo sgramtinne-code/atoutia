@@ -31,6 +31,11 @@ interface RefreshSessionBody {
     string;
 }
 
+interface LogoutBody {
+  readonly refreshToken:
+    string;
+}
+
 type BearerTokenResult =
   | {
       readonly status:
@@ -263,6 +268,40 @@ function parseRefreshSessionBody(
     unknown,
 ):
   | RefreshSessionBody
+  | null {
+  if (
+    !isObject(
+      value,
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    !hasExactKeys(
+      value,
+      [
+        "refreshToken",
+      ],
+    ) ||
+    !isValidRefreshToken(
+      value.refreshToken,
+    )
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    refreshToken:
+      value.refreshToken,
+  });
+}
+
+function parseLogoutBody(
+  value:
+    unknown,
+):
+  | LogoutBody
   | null {
   if (
     !isObject(
@@ -616,6 +655,51 @@ async function handleRefreshSession(
   );
 }
 
+async function handleLogout(
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  authService:
+    AuthService,
+): Promise<void> {
+  const body =
+    parseLogoutBody(
+      await readJsonBody(
+        request,
+      ),
+    );
+
+  if (
+    body ===
+      null
+  ) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_REQUEST",
+      },
+    );
+
+    return;
+  }
+
+  authService
+    .revokeSessionByRefreshToken(
+      body.refreshToken,
+    );
+
+  response.writeHead(
+    204,
+  );
+
+  response.end();
+}
+
 async function handleGoogleAuth(
   request:
     IncomingMessage,
@@ -944,6 +1028,30 @@ export async function handleAuthHttpRequest(
       }
 
       await handleRefreshSession(
+        request,
+        response,
+        authService,
+      );
+
+      return true;
+    }
+
+    if (
+      pathname ===
+        "/api/v1/auth/logout"
+    ) {
+      if (
+        request.method !==
+          "POST"
+      ) {
+        sendMethodNotAllowed(
+          response,
+        );
+
+        return true;
+      }
+
+      await handleLogout(
         request,
         response,
         authService,

@@ -372,6 +372,84 @@ export class AuthService {
     );
   }
 
+  public revokeSessionByRefreshToken(
+    refreshToken:
+      string,
+  ): boolean {
+    let refreshTokenHash:
+      string;
+
+    try {
+      refreshTokenHash =
+        hashAuthToken(
+          refreshToken,
+        );
+    } catch {
+      return false;
+    }
+
+    return this.#repository.transaction(
+      (
+        repository,
+      ) => {
+        const currentCredential =
+          repository
+            .findRefreshCredentialByTokenHash(
+              refreshTokenHash,
+            );
+
+        const consumedCredential =
+          currentCredential ===
+            undefined
+            ? repository
+                .findConsumedRefreshTokenByTokenHash(
+                  refreshTokenHash,
+                )
+            : undefined;
+
+        const sessionId =
+          currentCredential?.sessionId ??
+          consumedCredential?.sessionId;
+
+        if (
+          sessionId ===
+            undefined
+        ) {
+          return false;
+        }
+
+        const session =
+          repository.getSession(
+            sessionId,
+          );
+
+        if (
+          session ===
+            undefined
+        ) {
+          return false;
+        }
+
+        const revoked =
+          revokeAuthSession(
+            session,
+            this.#now(),
+          );
+
+        if (
+          revoked !==
+            session
+        ) {
+          repository.saveSession(
+            revoked,
+          );
+        }
+
+        return true;
+      },
+    );
+  }
+
   public isExternalIdentityProviderConfigured(
     provider:
       AuthIdentityProvider,
