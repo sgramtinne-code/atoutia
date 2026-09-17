@@ -207,7 +207,7 @@ async function stopServer(
         ) => {
           if (
             error !==
-            undefined
+              undefined
           ) {
             reject(
               error,
@@ -395,7 +395,7 @@ function waitForPresenceMatching(
 
             if (
               value.type !==
-              "PRESENCE"
+                "PRESENCE"
             ) {
               return;
             }
@@ -807,15 +807,6 @@ describe(
           target,
         );
 
-        const targetClosePromise =
-          waitForClose(
-            target,
-          );
-
-        target.close();
-
-        await targetClosePromise;
-
         const waitingPromise =
           waitForPresenceMatching(
             observer,
@@ -833,6 +824,15 @@ describe(
               )?.status ===
                 "WAITING",
           );
+
+        const targetClosePromise =
+          waitForClose(
+            target,
+          );
+
+        target.close();
+
+        await targetClosePromise;
 
         currentTime =
           2_000;
@@ -972,15 +972,6 @@ describe(
           target,
         );
 
-        const targetClosePromise =
-          waitForClose(
-            target,
-          );
-
-        target.close();
-
-        await targetClosePromise;
-
         const waitingPromise =
           waitForPresenceMatching(
             observer,
@@ -998,6 +989,15 @@ describe(
               )?.status ===
                 "WAITING",
           );
+
+        const targetClosePromise =
+          waitForClose(
+            target,
+          );
+
+        target.close();
+
+        await targetClosePromise;
 
         currentTime =
           2_000;
@@ -1133,15 +1133,6 @@ describe(
           target,
         );
 
-        const targetClosePromise =
-          waitForClose(
-            target,
-          );
-
-        target.close();
-
-        await targetClosePromise;
-
         const waitingPromise =
           waitForPresenceMatching(
             observer,
@@ -1159,6 +1150,15 @@ describe(
               )?.status ===
                 "WAITING",
           );
+
+        const targetClosePromise =
+          waitForClose(
+            target,
+          );
+
+        target.close();
+
+        await targetClosePromise;
 
         currentTime =
           2_000;
