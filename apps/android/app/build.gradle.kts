@@ -4,6 +4,33 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+fun String.asBuildConfigString():
+    String =
+    "\"${
+        replace(
+            "\\",
+            "\\\\",
+        ).replace(
+            "\"",
+            "\\\"",
+        )
+    }\""
+
+val atoutiaGoogleClientId =
+    providers
+        .gradleProperty(
+            "ATOUTIA_GOOGLE_CLIENT_ID",
+        )
+        .orElse(
+            providers.environmentVariable(
+                "ATOUTIA_GOOGLE_CLIENT_ID",
+            ),
+        )
+        .orElse(
+            "",
+        )
+        .get()
+
 android {
     namespace =
         "tech.devoo.atoutia"
@@ -38,6 +65,13 @@ android {
                 "ATOUTIA_API_BASE_URL",
                 "\"http://127.0.0.1:3000\"",
             )
+
+            buildConfigField(
+                "String",
+                "ATOUTIA_GOOGLE_CLIENT_ID",
+                atoutiaGoogleClientId
+                    .asBuildConfigString(),
+            )
         }
 
         release {
@@ -48,6 +82,13 @@ android {
                 "String",
                 "ATOUTIA_API_BASE_URL",
                 "\"\"",
+            )
+
+            buildConfigField(
+                "String",
+                "ATOUTIA_GOOGLE_CLIENT_ID",
+                atoutiaGoogleClientId
+                    .asBuildConfigString(),
             )
 
             proguardFiles(
@@ -95,6 +136,10 @@ dependencies {
     )
 
     implementation(
+        "androidx.lifecycle:lifecycle-runtime-ktx:2.11.0",
+    )
+
+    implementation(
         "androidx.compose.material3:material3",
     )
 
@@ -104,6 +149,18 @@ dependencies {
 
     implementation(
         "androidx.compose.ui:ui-tooling-preview",
+    )
+
+    implementation(
+        "androidx.credentials:credentials:1.6.0",
+    )
+
+    implementation(
+        "androidx.credentials:credentials-play-services-auth:1.6.0",
+    )
+
+    implementation(
+        "com.google.android.libraries.identity.googleid:googleid:1.2.1",
     )
 
     debugImplementation(

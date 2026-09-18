@@ -24,16 +24,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tech.devoo.atoutia.auth.AndroidSecureAuthTokenStore
 import tech.devoo.atoutia.auth.AuthSessionCoordinator
 import tech.devoo.atoutia.auth.AuthStartupCoordinator
 import tech.devoo.atoutia.auth.AuthStartupState
+import tech.devoo.atoutia.auth.CredentialManagerGoogleCredentialProvider
+import tech.devoo.atoutia.auth.GoogleAuthCoordinator
+import tech.devoo.atoutia.auth.GoogleAuthProtocolException
+import tech.devoo.atoutia.auth.GoogleAuthRejectedException
+import tech.devoo.atoutia.auth.GoogleAuthUnavailableException
+import tech.devoo.atoutia.auth.GoogleCredentialCancelledException
+import tech.devoo.atoutia.auth.GoogleCredentialProtocolException
+import tech.devoo.atoutia.auth.GoogleCredentialUnavailableException
 import tech.devoo.atoutia.auth.HttpAuthSessionApi
+import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
+import java.io.IOException
 
-class MainActivity : ComponentActivity() {
+class MainActivity :
+    ComponentActivity() {
     override fun onCreate(
         savedInstanceState:
             Bundle?,
@@ -52,6 +67,9 @@ class MainActivity : ComponentActivity() {
 
                     restoreAuth =
                         ::restoreAuth,
+
+                    signInWithGoogle =
+                        ::signInWithGoogle,
                 )
             }
         }
@@ -63,54 +81,233 @@ class MainActivity : ComponentActivity() {
                 AuthStartupState,
             ) -> Unit,
     ) {
-        Thread {
+        lifecycleScope.launch {
             val state =
-                if (
-                    BuildConfig
-                        .ATOUTIA_API_BASE_URL
-                        .isBlank()
+                withContext(
+                    Dispatchers.IO,
                 ) {
-                    AuthStartupState
-                        .TemporarilyUnavailable(
-                            message =
-                                "Le backend d’authentification Atoutia n’est pas configuré.",
-                        )
-                } else {
-                    val tokenStore =
-                        AndroidSecureAuthTokenStore(
+                    if (
+                        BuildConfig
+                            .ATOUTIA_API_BASE_URL
+                            .isBlank()
+                    ) {
+                        AuthStartupState
+                            .TemporarilyUnavailable(
+                                message =
+                                    "Le backend d’authentification Atoutia n’est pas configuré.",
+                            )
+                    } else {
+                        val tokenStore =
+                            AndroidSecureAuthTokenStore(
+                                applicationContext,
+                            )
+
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                BuildConfig
+                                    .ATOUTIA_API_BASE_URL,
+                            )
+
+                        val sessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val startupCoordinator =
+                            AuthStartupCoordinator(
+                                sessionCoordinator =
+                                    sessionCoordinator,
+                            )
+
+                        startupCoordinator
+                            .restore()
+                    }
+                }
+
+            onResult(
+                state,
+            )
+        }
+    }
+
+    private fun signInWithGoogle(
+        onResult:
+            (
+                GoogleSignInResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        val googleClientId =
+            BuildConfig
+                .ATOUTIA_GOOGLE_CLIENT_ID
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                GoogleSignInResult.Failed(
+                    message =
+                        "Le backend d’authentification Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        if (
+            googleClientId.isBlank()
+        ) {
+            onResult(
+                GoogleSignInResult.Failed(
+                    message =
+                        "Le Google Client ID Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                try {
+                    val credentialProvider =
+                        CredentialManagerGoogleCredentialProvider(
                             applicationContext,
                         )
 
-                    val sessionApi =
-                        HttpAuthSessionApi(
-                            BuildConfig
-                                .ATOUTIA_API_BASE_URL,
-                        )
+                    val idToken =
+                        credentialProvider
+                            .requestIdToken(
+                                activity =
+                                    this@MainActivity,
 
-                    val sessionCoordinator =
-                        AuthSessionCoordinator(
-                            tokenStore =
-                                tokenStore,
+                                serverClientId =
+                                    googleClientId,
+                            )
 
-                            sessionApi =
-                                sessionApi,
-                        )
+                    val googleResult =
+                        withContext(
+                            Dispatchers.IO,
+                        ) {
+                            val tokenStore =
+                                AndroidSecureAuthTokenStore(
+                                    applicationContext,
+                                )
 
-                    val startupCoordinator =
-                        AuthStartupCoordinator(
-                            sessionCoordinator =
-                                sessionCoordinator,
-                        )
+                            val googleAuthApi =
+                                HttpGoogleAuthApi(
+                                    apiBaseUrl,
+                                )
 
-                    startupCoordinator.restore()
+                            val coordinator =
+                                GoogleAuthCoordinator(
+                                    googleAuthApi =
+                                        googleAuthApi,
+
+                                    tokenStore =
+                                        tokenStore,
+                                )
+
+                            coordinator
+                                .authenticate(
+                                    idToken,
+                                )
+                        }
+
+                    GoogleSignInResult.Authenticated(
+                        accountId =
+                            googleResult
+                                .session
+                                .accountId,
+
+                        sessionId =
+                            googleResult
+                                .session
+                                .sessionId,
+
+                        accountCreated =
+                            googleResult
+                                .accountCreated,
+                    )
+                } catch (
+                    error:
+                        GoogleCredentialCancelledException,
+                ) {
+                    GoogleSignInResult.Cancelled
+                } catch (
+                    error:
+                        GoogleCredentialUnavailableException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            error.message
+                                ?: "La connexion Google est indisponible.",
+                    )
+                } catch (
+                    error:
+                        GoogleCredentialProtocolException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            error.message
+                                ?: "La réponse Google est invalide.",
+                    )
+                } catch (
+                    error:
+                        GoogleAuthRejectedException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            "Le compte Google n’a pas pu être validé par Atoutia.",
+                    )
+                } catch (
+                    error:
+                        GoogleAuthUnavailableException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            "L’authentification Google est temporairement indisponible côté Atoutia.",
+                    )
+                } catch (
+                    error:
+                        GoogleAuthProtocolException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            error.message
+                                ?: "La réponse d’authentification Atoutia est invalide.",
+                    )
+                } catch (
+                    error:
+                        IOException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            error.message
+                                ?: "Le backend Atoutia est inaccessible.",
+                    )
+                } catch (
+                    error:
+                        IllegalArgumentException,
+                ) {
+                    GoogleSignInResult.Failed(
+                        message =
+                            error.message
+                                ?: "La configuration Google Atoutia est invalide.",
+                    )
                 }
 
-            runOnUiThread {
-                onResult(
-                    state,
-                )
-            }
-        }.start()
+            onResult(
+                result,
+            )
+        }
     }
 
     private fun checkBackend(
@@ -119,39 +316,75 @@ class MainActivity : ComponentActivity() {
                 BackendCheckState,
             ) -> Unit,
     ) {
-        Thread {
+        lifecycleScope.launch {
             val state =
-                try {
-                    val client =
-                        AtoutiaBackendClient(
-                            BuildConfig
-                                .ATOUTIA_API_BASE_URL,
-                        )
-
-                    val health =
-                        client.checkHealth()
-
-                    BackendCheckState.Connected(
-                        health,
-                    )
-                } catch (
-                    error:
-                        Exception,
+                withContext(
+                    Dispatchers.IO,
                 ) {
-                    BackendCheckState.Failed(
-                        message =
-                            error.message
-                                ?: "Erreur réseau inconnue.",
-                    )
+                    try {
+                        val client =
+                            AtoutiaBackendClient(
+                                BuildConfig
+                                    .ATOUTIA_API_BASE_URL,
+                            )
+
+                        val health =
+                            client.checkHealth()
+
+                        BackendCheckState.Connected(
+                            health,
+                        )
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        BackendCheckState.Failed(
+                            message =
+                                error.message
+                                    ?: "Erreur réseau inconnue.",
+                        )
+                    }
                 }
 
-            runOnUiThread {
-                onResult(
-                    state,
-                )
-            }
-        }.start()
+            onResult(
+                state,
+            )
+        }
     }
+}
+
+sealed interface GoogleSignInResult {
+    data class Authenticated(
+        val accountId:
+            String,
+
+        val sessionId:
+            String,
+
+        val accountCreated:
+            Boolean,
+    ) : GoogleSignInResult
+
+    data object Cancelled :
+        GoogleSignInResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : GoogleSignInResult
+}
+
+sealed interface GoogleSignInUiState {
+    data object Idle :
+        GoogleSignInUiState
+
+    data object Loading :
+        GoogleSignInUiState
+
+    data class Failed(
+        val message:
+            String,
+    ) : GoogleSignInUiState
 }
 
 sealed interface BackendCheckState {
@@ -187,6 +420,13 @@ private fun AtoutiaApp(
                 AuthStartupState,
             ) -> Unit,
         ) -> Unit,
+
+    signInWithGoogle:
+        (
+            (
+                GoogleSignInResult,
+            ) -> Unit,
+        ) -> Unit,
 ) {
     var backendState by
         remember {
@@ -203,6 +443,15 @@ private fun AtoutiaApp(
                 AuthStartupState
             >(
                 AuthStartupState.Loading,
+            )
+        }
+
+    var googleSignInState by
+        remember {
+            mutableStateOf<
+                GoogleSignInUiState
+            >(
+                GoogleSignInUiState.Idle,
             )
         }
 
@@ -277,6 +526,61 @@ private fun AtoutiaApp(
                     authState,
             )
 
+            if (
+                authState is
+                    AuthStartupState.SignedOut
+            ) {
+                GoogleSignInControls(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                24.dp,
+                        ),
+
+                    state =
+                        googleSignInState,
+
+                    onSignIn = {
+                        googleSignInState =
+                            GoogleSignInUiState.Loading
+
+                        signInWithGoogle {
+                            result ->
+                            when (
+                                result
+                            ) {
+                                is GoogleSignInResult.Authenticated -> {
+                                    authState =
+                                        AuthStartupState.Authenticated(
+                                            accountId =
+                                                result.accountId,
+
+                                            sessionId =
+                                                result.sessionId,
+                                        )
+
+                                    googleSignInState =
+                                        GoogleSignInUiState.Idle
+                                }
+
+                                GoogleSignInResult.Cancelled -> {
+                                    googleSignInState =
+                                        GoogleSignInUiState.Idle
+                                }
+
+                                is GoogleSignInResult.Failed -> {
+                                    googleSignInState =
+                                        GoogleSignInUiState.Failed(
+                                            message =
+                                                result.message,
+                                        )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+
             BackendStatus(
                 modifier =
                     Modifier.padding(
@@ -314,6 +618,82 @@ private fun AtoutiaApp(
                         "Tester le backend",
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun GoogleSignInControls(
+    modifier:
+        Modifier =
+            Modifier,
+
+    state:
+        GoogleSignInUiState,
+
+    onSignIn:
+        () -> Unit,
+) {
+    Column(
+        modifier =
+            modifier,
+
+        horizontalAlignment =
+            Alignment.CenterHorizontally,
+    ) {
+        Button(
+            enabled =
+                state !is
+                    GoogleSignInUiState.Loading,
+
+            onClick =
+                onSignIn,
+        ) {
+            Text(
+                text =
+                    if (
+                        state is
+                            GoogleSignInUiState.Loading
+                    ) {
+                        "Connexion Google…"
+                    } else {
+                        "Continuer avec Google"
+                    },
+            )
+        }
+
+        if (
+            state is
+                GoogleSignInUiState.Loading
+        ) {
+            CircularProgressIndicator(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            12.dp,
+                    ),
+            )
+        }
+
+        if (
+            state is
+                GoogleSignInUiState.Failed
+        ) {
+            Text(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            12.dp,
+                    ),
+
+                text =
+                    state.message,
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+            )
         }
     }
 }
@@ -387,7 +767,7 @@ private fun AuthStatus(
                         ),
 
                     text =
-                        "Connexion utilisateur à venir.",
+                        "Connecte-toi avec ton compte Google.",
 
                     style =
                         MaterialTheme
@@ -627,6 +1007,8 @@ private fun AtoutiaAppPreview() {
                     AuthStartupState.SignedOut,
                 )
             },
+
+            signInWithGoogle = {},
         )
     }
 }
