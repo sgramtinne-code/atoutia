@@ -908,6 +908,11 @@ function handleAuthError(
     return;
   }
 
+  console.error(
+    "Unhandled authentication HTTP error.",
+    error,
+  );
+
   sendJson(
     response,
     500,
