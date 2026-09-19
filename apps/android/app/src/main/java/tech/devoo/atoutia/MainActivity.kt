@@ -44,6 +44,9 @@ import tech.devoo.atoutia.auth.HttpAuthSessionApi
 import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
+import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
+import tech.devoo.atoutia.ui.home.HomeAction
+import tech.devoo.atoutia.ui.home.SignOutUiState
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
 import java.io.IOException
 
@@ -513,19 +516,6 @@ sealed interface SignOutResult {
     ) : SignOutResult
 }
 
-sealed interface SignOutUiState {
-    data object Idle :
-        SignOutUiState
-
-    data object Loading :
-        SignOutUiState
-
-    data class Failed(
-        val message:
-            String,
-    ) : SignOutUiState
-}
-
 sealed interface BackendCheckState {
     data object Idle :
         BackendCheckState
@@ -610,7 +600,7 @@ private fun AtoutiaApp(
             )
         }
 
-    var signOutNotice by
+    var homeNotice by
         remember {
             mutableStateOf<
                 String?
@@ -628,6 +618,161 @@ private fun AtoutiaApp(
         }
     }
 
+    when (
+        val currentAuthState =
+            authState
+    ) {
+        is AuthStartupState.Authenticated -> {
+            AuthenticatedHomeScreen(
+                signOutState =
+                    signOutState,
+
+                notice =
+                    homeNotice,
+
+                onAction = {
+                    action ->
+                    homeNotice =
+                        when (
+                            action
+                        ) {
+                            HomeAction.Play ->
+                                "La création et la recherche de parties arrivent dans le prochain bloc."
+
+                            HomeAction.Profile ->
+                                "Le profil joueur arrive prochainement."
+
+                            HomeAction.Leaderboard ->
+                                "Le classement Atoutia arrive prochainement."
+
+                            HomeAction.History ->
+                                "L’historique des parties arrive prochainement."
+
+                            HomeAction.Settings ->
+                                "Les paramètres Atoutia arrivent prochainement."
+                        }
+                },
+
+                onSignOut = {
+                    signOutState =
+                        SignOutUiState.Loading
+
+                    signOut {
+                        result ->
+                        when (
+                            result
+                        ) {
+                            is SignOutResult.SignedOut -> {
+                                authState =
+                                    AuthStartupState.SignedOut
+
+                                signOutState =
+                                    SignOutUiState.Idle
+
+                                googleSignInState =
+                                    GoogleSignInUiState.Idle
+
+                                homeNotice =
+                                    result.warning
+                            }
+
+                            is SignOutResult.Failed -> {
+                                signOutState =
+                                    SignOutUiState.Failed(
+                                        message =
+                                            result.message,
+                                    )
+                            }
+                        }
+                    }
+                },
+            )
+        }
+
+        else -> {
+            SignedOutOrLoadingScreen(
+                authState =
+                    currentAuthState,
+
+                googleSignInState =
+                    googleSignInState,
+
+                backendState =
+                    backendState,
+
+                onGoogleSignIn = {
+                    homeNotice =
+                        null
+
+                    googleSignInState =
+                        GoogleSignInUiState.Loading
+
+                    signInWithGoogle {
+                        result ->
+                        when (
+                            result
+                        ) {
+                            is GoogleSignInResult.Authenticated -> {
+                                authState =
+                                    AuthStartupState.Authenticated(
+                                        accountId =
+                                            result.accountId,
+
+                                        sessionId =
+                                            result.sessionId,
+                                    )
+
+                                googleSignInState =
+                                    GoogleSignInUiState.Idle
+                            }
+
+                            GoogleSignInResult.Cancelled -> {
+                                googleSignInState =
+                                    GoogleSignInUiState.Idle
+                            }
+
+                            is GoogleSignInResult.Failed -> {
+                                googleSignInState =
+                                    GoogleSignInUiState.Failed(
+                                        message =
+                                            result.message,
+                                    )
+                            }
+                        }
+                    }
+                },
+
+                onCheckBackend = {
+                    backendState =
+                        BackendCheckState.Loading
+
+                    checkBackend {
+                        backendState =
+                            it
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SignedOutOrLoadingScreen(
+    authState:
+        AuthStartupState,
+
+    googleSignInState:
+        GoogleSignInUiState,
+
+    backendState:
+        BackendCheckState,
+
+    onGoogleSignIn:
+        () -> Unit,
+
+    onCheckBackend:
+        () -> Unit,
+) {
     Scaffold(
         modifier =
             Modifier.fillMaxSize(),
@@ -704,103 +849,8 @@ private fun AtoutiaApp(
                     state =
                         googleSignInState,
 
-                    notice =
-                        signOutNotice,
-
-                    onSignIn = {
-                        signOutNotice =
-                            null
-
-                        googleSignInState =
-                            GoogleSignInUiState.Loading
-
-                        signInWithGoogle {
-                            result ->
-                            when (
-                                result
-                            ) {
-                                is GoogleSignInResult.Authenticated -> {
-                                    authState =
-                                        AuthStartupState.Authenticated(
-                                            accountId =
-                                                result.accountId,
-
-                                            sessionId =
-                                                result.sessionId,
-                                        )
-
-                                    googleSignInState =
-                                        GoogleSignInUiState.Idle
-
-                                    signOutNotice =
-                                        null
-                                }
-
-                                GoogleSignInResult.Cancelled -> {
-                                    googleSignInState =
-                                        GoogleSignInUiState.Idle
-                                }
-
-                                is GoogleSignInResult.Failed -> {
-                                    googleSignInState =
-                                        GoogleSignInUiState.Failed(
-                                            message =
-                                                result.message,
-                                        )
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-
-            if (
-                authState is
-                    AuthStartupState.Authenticated
-            ) {
-                SignOutControls(
-                    modifier =
-                        Modifier.padding(
-                            top =
-                                24.dp,
-                        ),
-
-                    state =
-                        signOutState,
-
-                    onSignOut = {
-                        signOutState =
-                            SignOutUiState.Loading
-
-                        signOut {
-                            result ->
-                            when (
-                                result
-                            ) {
-                                is SignOutResult.SignedOut -> {
-                                    authState =
-                                        AuthStartupState.SignedOut
-
-                                    signOutState =
-                                        SignOutUiState.Idle
-
-                                    googleSignInState =
-                                        GoogleSignInUiState.Idle
-
-                                    signOutNotice =
-                                        result.warning
-                                }
-
-                                is SignOutResult.Failed -> {
-                                    signOutState =
-                                        SignOutUiState.Failed(
-                                            message =
-                                                result.message,
-                                        )
-                                }
-                            }
-                        }
-                    },
+                    onSignIn =
+                        onGoogleSignIn,
                 )
             }
 
@@ -826,15 +876,8 @@ private fun AtoutiaApp(
                     backendState !is
                         BackendCheckState.Loading,
 
-                onClick = {
-                    backendState =
-                        BackendCheckState.Loading
-
-                    checkBackend {
-                        backendState =
-                            it
-                    }
-                },
+                onClick =
+                    onCheckBackend,
             ) {
                 Text(
                     text =
@@ -853,9 +896,6 @@ private fun GoogleSignInControls(
 
     state:
         GoogleSignInUiState,
-
-    notice:
-        String?,
 
     onSignIn:
         () -> Unit,
@@ -904,103 +944,6 @@ private fun GoogleSignInControls(
         if (
             state is
                 GoogleSignInUiState.Failed
-        ) {
-            Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            12.dp,
-                    ),
-
-                text =
-                    state.message,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-            )
-        }
-
-        if (
-            notice !=
-                null
-        ) {
-            Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            12.dp,
-                    ),
-
-                text =
-                    notice,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SignOutControls(
-    modifier:
-        Modifier =
-            Modifier,
-
-    state:
-        SignOutUiState,
-
-    onSignOut:
-        () -> Unit,
-) {
-    Column(
-        modifier =
-            modifier,
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-    ) {
-        Button(
-            enabled =
-                state !is
-                    SignOutUiState.Loading,
-
-            onClick =
-                onSignOut,
-        ) {
-            Text(
-                text =
-                    if (
-                        state is
-                            SignOutUiState.Loading
-                    ) {
-                        "Déconnexion…"
-                    } else {
-                        "Se déconnecter"
-                    },
-            )
-        }
-
-        if (
-            state is
-                SignOutUiState.Loading
-        ) {
-            CircularProgressIndicator(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            12.dp,
-                    ),
-            )
-        }
-
-        if (
-            state is
-                SignOutUiState.Failed
         ) {
             Text(
                 modifier =
@@ -1101,42 +1044,7 @@ private fun AuthStatus(
         }
 
         is AuthStartupState.Authenticated -> {
-            Column(
-                modifier =
-                    modifier,
-
-                horizontalAlignment =
-                    Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text =
-                        "Session Atoutia restaurée",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.Bold,
-                )
-
-                Text(
-                    modifier =
-                        Modifier.padding(
-                            top =
-                                8.dp,
-                        ),
-
-                    text =
-                        "Session sécurisée active.",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-                )
-            }
+            Unit
         }
 
         is AuthStartupState.TemporarilyUnavailable -> {
@@ -1322,18 +1230,19 @@ private fun BackendStatus(
 @Composable
 private fun AtoutiaAppPreview() {
     AtoutiaTheme {
-        AtoutiaApp(
-            checkBackend = {},
+        SignedOutOrLoadingScreen(
+            authState =
+                AuthStartupState.SignedOut,
 
-            restoreAuth = {
-                it(
-                    AuthStartupState.SignedOut,
-                )
-            },
+            googleSignInState =
+                GoogleSignInUiState.Idle,
 
-            signInWithGoogle = {},
+            backendState =
+                BackendCheckState.Idle,
 
-            signOut = {},
+            onGoogleSignIn = {},
+
+            onCheckBackend = {},
         )
     }
 }
