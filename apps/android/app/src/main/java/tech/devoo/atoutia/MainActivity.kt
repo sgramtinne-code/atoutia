@@ -44,15 +44,17 @@ import tech.devoo.atoutia.auth.HttpAuthSessionApi
 import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
+import tech.devoo.atoutia.network.room.AtoutiaRoomApiException
 import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
-import tech.devoo.atoutia.network.room.LiveRoomSummary
 import tech.devoo.atoutia.network.room.RoomSessionCoordinator
+import tech.devoo.atoutia.network.room.RoomSessionFullException
+import tech.devoo.atoutia.network.room.RoomSessionMembership
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
 import tech.devoo.atoutia.ui.home.SignOutUiState
 import tech.devoo.atoutia.ui.lobby.RoomLobbyScreen
-import tech.devoo.atoutia.ui.play.CreateRoomUiState
 import tech.devoo.atoutia.ui.play.PlayScreen
+import tech.devoo.atoutia.ui.play.RoomActionUiState
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
 import java.io.IOException
 
@@ -85,6 +87,9 @@ class MainActivity :
 
                     createPrivateRoom =
                         ::createPrivateRoom,
+
+                    joinRoom =
+                        ::joinRoom,
                 )
             }
         }
@@ -499,7 +504,7 @@ class MainActivity :
                             )
 
                         CreatePrivateRoomResult.Created(
-                            room =
+                            membership =
                                 roomSessionCoordinator
                                     .createPrivateRoomAndClaimHostSeat(),
                         )
@@ -530,6 +535,186 @@ class MainActivity :
                                 message =
                                     error.message
                                         ?: "Impossible de créer le salon Atoutia.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
+    private fun joinRoom(
+        sessionId:
+            String,
+
+        onResult:
+            (
+                JoinRoomResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        val normalizedSessionId =
+            sessionId.trim()
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                JoinRoomResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        if (
+            normalizedSessionId.isBlank()
+        ) {
+            onResult(
+                JoinRoomResult.Failed(
+                    message =
+                        "Saisis l’identifiant de la partie.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val roomApi =
+                            HttpAtoutiaRoomApi(
+                                apiBaseUrl,
+                            )
+
+                        val roomSessionCoordinator =
+                            RoomSessionCoordinator(
+                                roomApi =
+                                    roomApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        JoinRoomResult.Joined(
+                            membership =
+                                roomSessionCoordinator
+                                    .joinRoomAndClaimFirstAvailableSeat(
+                                        normalizedSessionId,
+                                    ),
+                        )
+                    } catch (
+                        error:
+                            RoomSessionFullException,
+                    ) {
+                        JoinRoomResult.Failed(
+                            message =
+                                error.message
+                                    ?: "Cette partie Atoutia est complète.",
+                        )
+                    } catch (
+                        error:
+                            AtoutiaRoomApiException,
+                    ) {
+                        val sessionStillAvailable =
+                            try {
+                                tokenStore.load() !=
+                                    null
+                            } catch (
+                                ignored:
+                                    Exception,
+                            ) {
+                                false
+                            }
+
+                        if (
+                            !sessionStillAvailable
+                        ) {
+                            JoinRoomResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else if (
+                            error.message ==
+                                "Atoutia room API returned HTTP 404."
+                        ) {
+                            JoinRoomResult.Failed(
+                                message =
+                                    "Cette partie Atoutia est introuvable.",
+                            )
+                        } else {
+                            JoinRoomResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de rejoindre la partie Atoutia.",
+                            )
+                        }
+                    } catch (
+                        error:
+                            IllegalArgumentException,
+                    ) {
+                        JoinRoomResult.Failed(
+                            message =
+                                "L’identifiant de la partie est invalide.",
+                        )
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        val sessionStillAvailable =
+                            try {
+                                tokenStore.load() !=
+                                    null
+                            } catch (
+                                ignored:
+                                    Exception,
+                            ) {
+                                false
+                            }
+
+                        if (
+                            !sessionStillAvailable
+                        ) {
+                            JoinRoomResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            JoinRoomResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de rejoindre la partie Atoutia.",
                             )
                         }
                     }
@@ -632,8 +817,8 @@ sealed interface SignOutResult {
 
 sealed interface CreatePrivateRoomResult {
     data class Created(
-        val room:
-            LiveRoomSummary,
+        val membership:
+            RoomSessionMembership,
     ) : CreatePrivateRoomResult
 
     data class SessionExpired(
@@ -647,6 +832,23 @@ sealed interface CreatePrivateRoomResult {
     ) : CreatePrivateRoomResult
 }
 
+sealed interface JoinRoomResult {
+    data class Joined(
+        val membership:
+            RoomSessionMembership,
+    ) : JoinRoomResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : JoinRoomResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : JoinRoomResult
+}
+
 sealed interface AuthenticatedDestination {
     data object Home :
         AuthenticatedDestination
@@ -655,8 +857,8 @@ sealed interface AuthenticatedDestination {
         AuthenticatedDestination
 
     data class Lobby(
-        val room:
-            LiveRoomSummary,
+        val membership:
+            RoomSessionMembership,
     ) : AuthenticatedDestination
 }
 
@@ -714,6 +916,14 @@ private fun AtoutiaApp(
                 CreatePrivateRoomResult,
             ) -> Unit,
         ) -> Unit,
+
+    joinRoom:
+        (
+            String,
+            (
+                JoinRoomResult,
+            ) -> Unit,
+        ) -> Unit,
 ) {
     var backendState by
         remember {
@@ -760,12 +970,19 @@ private fun AtoutiaApp(
             )
         }
 
-    var createRoomState by
+    var roomActionState by
         remember {
             mutableStateOf<
-                CreateRoomUiState
+                RoomActionUiState
             >(
-                CreateRoomUiState.Idle,
+                RoomActionUiState.Idle,
+            )
+        }
+
+    var joinSessionId by
+        remember {
+            mutableStateOf(
+                "",
             )
         }
 
@@ -813,8 +1030,11 @@ private fun AtoutiaApp(
                                     notice =
                                         null
 
-                                    createRoomState =
-                                        CreateRoomUiState.Idle
+                                    roomActionState =
+                                        RoomActionUiState.Idle
+
+                                    joinSessionId =
+                                        ""
 
                                     destination =
                                         AuthenticatedDestination.Play
@@ -864,8 +1084,11 @@ private fun AtoutiaApp(
                                         googleSignInState =
                                             GoogleSignInUiState.Idle
 
-                                        createRoomState =
-                                            CreateRoomUiState.Idle
+                                        roomActionState =
+                                            RoomActionUiState.Idle
+
+                                        joinSessionId =
+                                            ""
 
                                         notice =
                                             result.warning
@@ -886,12 +1109,29 @@ private fun AtoutiaApp(
 
                 AuthenticatedDestination.Play -> {
                     PlayScreen(
-                        createRoomState =
-                            createRoomState,
+                        roomActionState =
+                            roomActionState,
+
+                        joinSessionId =
+                            joinSessionId,
+
+                        onJoinSessionIdChange = {
+                            value ->
+                            joinSessionId =
+                                value
+
+                            if (
+                                roomActionState is
+                                    RoomActionUiState.Failed
+                            ) {
+                                roomActionState =
+                                    RoomActionUiState.Idle
+                            }
+                        },
 
                         onCreateRoom = {
-                            createRoomState =
-                                CreateRoomUiState.Loading
+                            roomActionState =
+                                RoomActionUiState.Creating
 
                             createPrivateRoom {
                                 result ->
@@ -899,13 +1139,13 @@ private fun AtoutiaApp(
                                     result
                                 ) {
                                     is CreatePrivateRoomResult.Created -> {
-                                        createRoomState =
-                                            CreateRoomUiState.Idle
+                                        roomActionState =
+                                            RoomActionUiState.Idle
 
                                         destination =
                                             AuthenticatedDestination.Lobby(
-                                                room =
-                                                    result.room,
+                                                membership =
+                                                    result.membership,
                                             )
                                     }
 
@@ -916,8 +1156,11 @@ private fun AtoutiaApp(
                                         destination =
                                             AuthenticatedDestination.Home
 
-                                        createRoomState =
-                                            CreateRoomUiState.Idle
+                                        roomActionState =
+                                            RoomActionUiState.Idle
+
+                                        joinSessionId =
+                                            ""
 
                                         googleSignInState =
                                             GoogleSignInUiState.Idle
@@ -927,8 +1170,8 @@ private fun AtoutiaApp(
                                     }
 
                                     is CreatePrivateRoomResult.Failed -> {
-                                        createRoomState =
-                                            CreateRoomUiState.Failed(
+                                        roomActionState =
+                                            RoomActionUiState.Failed(
                                                 message =
                                                     result.message,
                                             )
@@ -937,9 +1180,81 @@ private fun AtoutiaApp(
                             }
                         },
 
+                        onJoinRoom = {
+                            val normalizedSessionId =
+                                joinSessionId.trim()
+
+                            if (
+                                normalizedSessionId.isBlank()
+                            ) {
+                                roomActionState =
+                                    RoomActionUiState.Failed(
+                                        message =
+                                            "Saisis l’identifiant de la partie.",
+                                    )
+                            } else {
+                                roomActionState =
+                                    RoomActionUiState.Joining
+
+                                joinRoom(
+                                    normalizedSessionId,
+                                ) {
+                                    result ->
+                                    when (
+                                        result
+                                    ) {
+                                        is JoinRoomResult.Joined -> {
+                                            roomActionState =
+                                                RoomActionUiState.Idle
+
+                                            joinSessionId =
+                                                normalizedSessionId
+
+                                            destination =
+                                                AuthenticatedDestination.Lobby(
+                                                    membership =
+                                                        result.membership,
+                                                )
+                                        }
+
+                                        is JoinRoomResult.SessionExpired -> {
+                                            authState =
+                                                AuthStartupState.SignedOut
+
+                                            destination =
+                                                AuthenticatedDestination.Home
+
+                                            roomActionState =
+                                                RoomActionUiState.Idle
+
+                                            joinSessionId =
+                                                ""
+
+                                            googleSignInState =
+                                                GoogleSignInUiState.Idle
+
+                                            notice =
+                                                result.message
+                                        }
+
+                                        is JoinRoomResult.Failed -> {
+                                            roomActionState =
+                                                RoomActionUiState.Failed(
+                                                    message =
+                                                        result.message,
+                                                )
+                                        }
+                                    }
+                                }
+                            }
+                        },
+
                         onBack = {
-                            createRoomState =
-                                CreateRoomUiState.Idle
+                            roomActionState =
+                                RoomActionUiState.Idle
+
+                            joinSessionId =
+                                ""
 
                             destination =
                                 AuthenticatedDestination.Home
@@ -950,7 +1265,14 @@ private fun AtoutiaApp(
                 is AuthenticatedDestination.Lobby -> {
                     RoomLobbyScreen(
                         room =
-                            currentDestination.room,
+                            currentDestination
+                                .membership
+                                .room,
+
+                        player =
+                            currentDestination
+                                .membership
+                                .player,
                     )
                 }
             }
@@ -994,6 +1316,12 @@ private fun AtoutiaApp(
 
                                 destination =
                                     AuthenticatedDestination.Home
+
+                                roomActionState =
+                                    RoomActionUiState.Idle
+
+                                joinSessionId =
+                                    ""
 
                                 googleSignInState =
                                     GoogleSignInUiState.Idle

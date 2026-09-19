@@ -5,8 +5,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 
 class HttpAtoutiaRoomApi(
-    baseUrl:
-        String,
+    baseUrl: String,
 ) : AtoutiaRoomApi {
     private val normalizedBaseUrl =
         normalizeBaseUrl(
@@ -14,14 +13,12 @@ class HttpAtoutiaRoomApi(
         )
 
     override fun createRoom(
-        mode:
-            MatchMode?,
+        mode: MatchMode?,
     ): LiveRoomSummary {
         val body =
             JSONObject().apply {
                 if (
-                    mode !=
-                    null
+                    mode != null
                 ) {
                     put(
                         "mode",
@@ -31,26 +28,16 @@ class HttpAtoutiaRoomApi(
             }
 
         return executeRoomRequest(
-            method =
-                "POST",
-
-            path =
-                "/api/v1/rooms",
-
-            expectedStatus =
-                HttpURLConnection.HTTP_CREATED,
-
-            requestBody =
-                body,
-
-            accessToken =
-                null,
+            method = "POST",
+            path = "/api/v1/rooms",
+            expectedStatus = HttpURLConnection.HTTP_CREATED,
+            requestBody = body,
+            accessToken = null,
         )
     }
 
     override fun getRoom(
-        sessionId:
-            String,
+        sessionId: String,
     ): LiveRoomSummary {
         val normalizedSessionId =
             validateSessionId(
@@ -58,35 +45,19 @@ class HttpAtoutiaRoomApi(
             )
 
         return executeRoomRequest(
-            method =
-                "GET",
-
-            path =
-                "/api/v1/rooms/$normalizedSessionId",
-
-            expectedStatus =
-                HttpURLConnection.HTTP_OK,
-
-            requestBody =
-                null,
-
-            accessToken =
-                null,
+            method = "GET",
+            path = "/api/v1/rooms/$normalizedSessionId",
+            expectedStatus = HttpURLConnection.HTTP_OK,
+            requestBody = null,
+            accessToken = null,
         )
     }
 
     override fun claimSeat(
-        sessionId:
-            String,
-
-        player:
-            PlayerPosition,
-
-        expectedRevision:
-            Int,
-
-        accessToken:
-            String,
+        sessionId: String,
+        player: PlayerPosition,
+        expectedRevision: Int,
+        accessToken: String,
     ): LiveRoomSummary {
         val normalizedSessionId =
             validateSessionId(
@@ -94,8 +65,7 @@ class HttpAtoutiaRoomApi(
             )
 
         require(
-            expectedRevision >=
-                0,
+            expectedRevision >= 0,
         ) {
             "Expected room revision must be non-negative."
         }
@@ -117,46 +87,27 @@ class HttpAtoutiaRoomApi(
                 )
 
         return executeRoomRequest(
-            method =
-                "POST",
-
-            path =
-                "/api/v1/rooms/$normalizedSessionId/seats",
-
-            expectedStatus =
-                HttpURLConnection.HTTP_OK,
-
-            requestBody =
-                body,
-
-            accessToken =
-                normalizedAccessToken,
+            method = "POST",
+            path = "/api/v1/rooms/$normalizedSessionId/seats",
+            expectedStatus = HttpURLConnection.HTTP_OK,
+            requestBody = body,
+            accessToken = normalizedAccessToken,
         )
     }
 
     private fun executeRoomRequest(
-        method:
-            String,
-
-        path:
-            String,
-
-        expectedStatus:
-            Int,
-
-        requestBody:
-            JSONObject?,
-
-        accessToken:
-            String?,
+        method: String,
+        path: String,
+        expectedStatus: Int,
+        requestBody: JSONObject?,
+        accessToken: String?,
     ): LiveRoomSummary {
         val connection =
             URI(
                 "$normalizedBaseUrl$path",
             )
                 .toURL()
-                .openConnection() as
-                HttpURLConnection
+                .openConnection() as HttpURLConnection
 
         try {
             connection.requestMethod =
@@ -177,8 +128,7 @@ class HttpAtoutiaRoomApi(
             )
 
             if (
-                accessToken !=
-                null
+                accessToken != null
             ) {
                 connection.setRequestProperty(
                     "Authorization",
@@ -187,8 +137,7 @@ class HttpAtoutiaRoomApi(
             }
 
             if (
-                requestBody !=
-                null
+                requestBody != null
             ) {
                 val bytes =
                     requestBody
@@ -221,8 +170,7 @@ class HttpAtoutiaRoomApi(
                 connection.responseCode
 
             if (
-                responseCode !=
-                    expectedStatus
+                responseCode != expectedStatus
             ) {
                 throw AtoutiaRoomApiException(
                     "Atoutia room API returned HTTP $responseCode.",
@@ -234,8 +182,7 @@ class HttpAtoutiaRoomApi(
                     ?.lowercase()
 
             if (
-                contentType ==
-                    null ||
+                contentType == null ||
                 !contentType.startsWith(
                     "application/json",
                 )
@@ -259,13 +206,11 @@ class HttpAtoutiaRoomApi(
                 responseBody,
             )
         } catch (
-            error:
-                AtoutiaRoomApiException,
+            error: AtoutiaRoomApiException,
         ) {
             throw error
         } catch (
-            error:
-                Exception,
+            error: Exception,
         ) {
             throw AtoutiaRoomApiException(
                 "Unable to contact Atoutia room API.",
@@ -277,8 +222,7 @@ class HttpAtoutiaRoomApi(
     }
 
     private fun parseRoomSummary(
-        body:
-            String,
+        body: String,
     ): LiveRoomSummary {
         try {
             val json =
@@ -287,12 +231,8 @@ class HttpAtoutiaRoomApi(
                 )
 
             requireExactKeys(
-                json =
-                    json,
-
-                expectedKeys =
-                    EXPECTED_ROOM_KEYS,
-
+                json = json,
+                expectedKeys = EXPECTED_ROOM_KEYS,
                 errorMessage =
                     "Atoutia room API returned an unexpected room document.",
             )
@@ -303,12 +243,8 @@ class HttpAtoutiaRoomApi(
                 )
 
             requireExactKeys(
-                json =
-                    seatsJson,
-
-                expectedKeys =
-                    EXPECTED_SEAT_KEYS,
-
+                json = seatsJson,
+                expectedKeys = EXPECTED_SEAT_KEYS,
                 errorMessage =
                     "Atoutia room API returned an unexpected seat document.",
             )
@@ -326,8 +262,7 @@ class HttpAtoutiaRoomApi(
                         ),
                     )
                 } catch (
-                    error:
-                        IllegalArgumentException,
+                    error: IllegalArgumentException,
                 ) {
                     throw AtoutiaRoomApiException(
                         "Atoutia room API returned an unsupported match mode.",
@@ -340,59 +275,48 @@ class HttpAtoutiaRoomApi(
                     json.getString(
                         "sessionId",
                     ),
-
                 mode =
                     mode,
-
                 revision =
                     json.getInt(
                         "revision",
                     ),
-
                 phase =
                     json.getString(
                         "phase",
                     ),
-
                 occupiedSeats =
                     json.getInt(
                         "occupiedSeats",
                     ),
-
                 seats =
                     LiveRoomSeats(
                         player0 =
                             seatsJson.getBoolean(
                                 "PLAYER_0",
                             ),
-
                         player1 =
                             seatsJson.getBoolean(
                                 "PLAYER_1",
                             ),
-
                         player2 =
                             seatsJson.getBoolean(
                                 "PLAYER_2",
                             ),
-
                         player3 =
                             seatsJson.getBoolean(
                                 "PLAYER_3",
                             ),
                     ),
-
                 adjudicationJson =
                     adjudication.toString(),
             )
         } catch (
-            error:
-                AtoutiaRoomApiException,
+            error: AtoutiaRoomApiException,
         ) {
             throw error
         } catch (
-            error:
-                Exception,
+            error: Exception,
         ) {
             throw AtoutiaRoomApiException(
                 "Atoutia room API returned an invalid room document.",
@@ -402,14 +326,9 @@ class HttpAtoutiaRoomApi(
     }
 
     private fun requireExactKeys(
-        json:
-            JSONObject,
-
-        expectedKeys:
-            Set<String>,
-
-        errorMessage:
-            String,
+        json: JSONObject,
+        expectedKeys: Set<String>,
+        errorMessage: String,
     ) {
         val actualKeys =
             buildSet {
@@ -426,8 +345,7 @@ class HttpAtoutiaRoomApi(
             }
 
         if (
-            actualKeys !=
-                expectedKeys
+            actualKeys != expectedKeys
         ) {
             throw AtoutiaRoomApiException(
                 errorMessage,
@@ -462,8 +380,7 @@ class HttpAtoutiaRoomApi(
             )
 
         fun normalizeBaseUrl(
-            value:
-                String,
+            value: String,
         ): String {
             val trimmed =
                 value.trim()
@@ -475,8 +392,7 @@ class HttpAtoutiaRoomApi(
             }
 
             require(
-                trimmed ==
-                    value,
+                trimmed == value,
             ) {
                 "Atoutia room API base URL must not contain surrounding whitespace."
             }
@@ -498,8 +414,7 @@ class HttpAtoutiaRoomApi(
         }
 
         fun validateSessionId(
-            value:
-                String,
+            value: String,
         ): String {
             require(
                 value.isNotBlank(),
@@ -508,10 +423,17 @@ class HttpAtoutiaRoomApi(
             }
 
             require(
-                value ==
-                    value.trim(),
+                value == value.trim(),
             ) {
                 "Atoutia room session ID must not contain surrounding whitespace."
+            }
+
+            require(
+                value.startsWith(
+                    "ms1_",
+                ),
+            ) {
+                "Invalid Atoutia room session ID."
             }
 
             require(
@@ -532,8 +454,7 @@ class HttpAtoutiaRoomApi(
         }
 
         fun validateAccessToken(
-            value:
-                String,
+            value: String,
         ): String {
             require(
                 value.isNotBlank(),
@@ -542,8 +463,7 @@ class HttpAtoutiaRoomApi(
             }
 
             require(
-                value ==
-                    value.trim(),
+                value == value.trim(),
             ) {
                 "Atoutia access token must not contain surrounding whitespace."
             }

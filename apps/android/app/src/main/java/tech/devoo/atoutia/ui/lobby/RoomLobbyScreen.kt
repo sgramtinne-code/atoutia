@@ -17,11 +17,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.room.LiveRoomSummary
 import tech.devoo.atoutia.network.room.MatchMode
+import tech.devoo.atoutia.network.room.PlayerPosition
 
 @Composable
 fun RoomLobbyScreen(
     room:
         LiveRoomSummary,
+
+    player:
+        PlayerPosition,
 
     modifier:
         Modifier =
@@ -54,7 +58,7 @@ fun RoomLobbyScreen(
         ) {
             Text(
                 text =
-                    "Salon créé",
+                    "Salon rejoint",
 
                 style =
                     MaterialTheme
@@ -216,7 +220,7 @@ fun RoomLobbyScreen(
                             ),
 
                         text =
-                            "Joueur 1",
+                            player.toDisplayName(),
 
                         style =
                             MaterialTheme
@@ -237,7 +241,7 @@ fun RoomLobbyScreen(
                     ),
 
                 text =
-                    "Le salon est créé sur le serveur Atoutia et votre siège PLAYER_0 est réservé.",
+                    "Votre siège ${player.name} est réservé sur le serveur Atoutia.",
 
                 style =
                     MaterialTheme
@@ -264,4 +268,22 @@ private fun MatchMode.toDisplayName():
 
         MatchMode.RANKED ->
             "Classée"
+    }
+
+private fun PlayerPosition.toDisplayName():
+    String =
+    when (
+        this
+    ) {
+        PlayerPosition.PLAYER_0 ->
+            "Joueur 1"
+
+        PlayerPosition.PLAYER_1 ->
+            "Joueur 2"
+
+        PlayerPosition.PLAYER_2 ->
+            "Joueur 3"
+
+        PlayerPosition.PLAYER_3 ->
+            "Joueur 4"
     }

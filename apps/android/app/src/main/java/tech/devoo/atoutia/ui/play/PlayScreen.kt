@@ -5,37 +5,56 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
-sealed interface CreateRoomUiState {
+sealed interface RoomActionUiState {
     data object Idle :
-        CreateRoomUiState
+        RoomActionUiState
 
-    data object Loading :
-        CreateRoomUiState
+    data object Creating :
+        RoomActionUiState
+
+    data object Joining :
+        RoomActionUiState
 
     data class Failed(
         val message:
             String,
-    ) : CreateRoomUiState
+    ) : RoomActionUiState
 }
 
 @Composable
 fun PlayScreen(
-    createRoomState:
-        CreateRoomUiState,
+    roomActionState:
+        RoomActionUiState,
+
+    joinSessionId:
+        String,
+
+    onJoinSessionIdChange:
+        (
+            String,
+        ) -> Unit,
 
     onCreateRoom:
+        () -> Unit,
+
+    onJoinRoom:
         () -> Unit,
 
     onBack:
@@ -45,6 +64,19 @@ fun PlayScreen(
         Modifier =
             Modifier,
 ) {
+    val focusManager =
+        LocalFocusManager.current
+
+    val busy =
+        roomActionState is
+            RoomActionUiState.Creating ||
+            roomActionState is
+            RoomActionUiState.Joining
+
+    val canJoin =
+        !busy &&
+            joinSessionId.isNotBlank()
+
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
@@ -91,7 +123,7 @@ fun PlayScreen(
                     ),
 
                 text =
-                    "Choisis comment tu veux lancer ta partie.",
+                    "Crée une partie privée ou rejoins un salon existant.",
 
                 style =
                     MaterialTheme
@@ -109,8 +141,7 @@ fun PlayScreen(
                         ),
 
                 enabled =
-                    createRoomState !is
-                        CreateRoomUiState.Loading,
+                    !busy,
 
                 onClick =
                     onCreateRoom,
@@ -118,8 +149,8 @@ fun PlayScreen(
                 Text(
                     text =
                         if (
-                            createRoomState is
-                                CreateRoomUiState.Loading
+                            roomActionState is
+                                RoomActionUiState.Creating
                         ) {
                             "Création du salon…"
                         } else {
@@ -127,6 +158,81 @@ fun PlayScreen(
                         },
                 )
             }
+
+            Text(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            28.dp,
+                    ),
+
+                text =
+                    "Rejoindre une partie",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+
+                fontWeight =
+                    FontWeight.Bold,
+            )
+
+            OutlinedTextField(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top =
+                                12.dp,
+                        ),
+
+                value =
+                    joinSessionId,
+
+                onValueChange =
+                    onJoinSessionIdChange,
+
+                enabled =
+                    !busy,
+
+                singleLine =
+                    true,
+
+                label = {
+                    Text(
+                        text =
+                            "Identifiant de la partie",
+                    )
+                },
+
+                placeholder = {
+                    Text(
+                        text =
+                            "ms1_…",
+                    )
+                },
+
+                keyboardOptions =
+                    KeyboardOptions(
+                        imeAction =
+                            ImeAction.Done,
+                    ),
+
+                keyboardActions =
+                    KeyboardActions(
+                        onDone = {
+                            focusManager
+                                .clearFocus()
+
+                            if (
+                                canJoin
+                            ) {
+                                onJoinRoom()
+                            }
+                        },
+                    ),
+            )
 
             OutlinedButton(
                 modifier =
@@ -138,35 +244,30 @@ fun PlayScreen(
                         ),
 
                 enabled =
-                    false,
+                    canJoin,
 
-                onClick = {},
+                onClick = {
+                    focusManager
+                        .clearFocus()
+
+                    onJoinRoom()
+                },
             ) {
                 Text(
                     text =
-                        "Rejoindre une partie",
+                        if (
+                            roomActionState is
+                                RoomActionUiState.Joining
+                        ) {
+                            "Connexion au salon…"
+                        } else {
+                            "Rejoindre la partie"
+                        },
                 )
             }
 
-            Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            8.dp,
-                    ),
-
-                text =
-                    "Rejoindre une partie sera activé dans le prochain bloc.",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-            )
-
             if (
-                createRoomState is
-                    CreateRoomUiState.Loading
+                busy
             ) {
                 CircularProgressIndicator(
                     modifier =
@@ -178,8 +279,8 @@ fun PlayScreen(
             }
 
             if (
-                createRoomState is
-                    CreateRoomUiState.Failed
+                roomActionState is
+                    RoomActionUiState.Failed
             ) {
                 Text(
                     modifier =
@@ -189,7 +290,7 @@ fun PlayScreen(
                         ),
 
                     text =
-                        createRoomState.message,
+                        roomActionState.message,
 
                     style =
                         MaterialTheme
@@ -208,8 +309,7 @@ fun PlayScreen(
                         ),
 
                 enabled =
-                    createRoomState !is
-                        CreateRoomUiState.Loading,
+                    !busy,
 
                 onClick =
                     onBack,

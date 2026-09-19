@@ -1,5 +1,13 @@
 package tech.devoo.atoutia.network.room
 
+data class RoomSessionMembership(
+    val room:
+        LiveRoomSummary,
+
+    val player:
+        PlayerPosition,
+)
+
 class RoomSessionCoordinator(
     private val roomApi:
         AtoutiaRoomApi,
@@ -8,12 +16,9 @@ class RoomSessionCoordinator(
         () -> String?,
 ) {
     fun createPrivateRoomAndClaimHostSeat():
-        LiveRoomSummary {
+        RoomSessionMembership {
         val accessToken =
-            accessTokenProvider()
-                ?: throw RoomSessionUnavailableException(
-                    "Aucune session Atoutia active.",
-                )
+            requireAccessToken()
 
         val createdRoom =
             roomApi.createRoom(
@@ -21,13 +26,16 @@ class RoomSessionCoordinator(
                     MatchMode.PRIVATE,
             )
 
+        val player =
+            PlayerPosition.PLAYER_0
+
         val claimedRoom =
             roomApi.claimSeat(
                 sessionId =
                     createdRoom.sessionId,
 
                 player =
-                    PlayerPosition.PLAYER_0,
+                    player,
 
                 expectedRevision =
                     createdRoom.revision,
@@ -36,27 +44,114 @@ class RoomSessionCoordinator(
                     accessToken,
             )
 
-        validateClaimedHostRoom(
-            createdRoom =
+        validateClaimedRoom(
+            previousRoom =
                 createdRoom,
 
             claimedRoom =
                 claimedRoom,
+
+            player =
+                player,
         )
 
-        return claimedRoom
+        return RoomSessionMembership(
+            room =
+                claimedRoom,
+
+            player =
+                player,
+        )
     }
 
-    private fun validateClaimedHostRoom(
-        createdRoom:
+    fun joinRoomAndClaimFirstAvailableSeat(
+        sessionId:
+            String,
+    ): RoomSessionMembership {
+        val accessToken =
+            requireAccessToken()
+
+        val room =
+            roomApi.getRoom(
+                sessionId,
+            )
+
+        val player =
+            findFirstAvailableSeat(
+                room,
+            ) ?: throw RoomSessionFullException(
+                "Cette partie Atoutia est complète.",
+            )
+
+        val claimedRoom =
+            roomApi.claimSeat(
+                sessionId =
+                    room.sessionId,
+
+                player =
+                    player,
+
+                expectedRevision =
+                    room.revision,
+
+                accessToken =
+                    accessToken,
+            )
+
+        validateClaimedRoom(
+            previousRoom =
+                room,
+
+            claimedRoom =
+                claimedRoom,
+
+            player =
+                player,
+        )
+
+        return RoomSessionMembership(
+            room =
+                claimedRoom,
+
+            player =
+                player,
+        )
+    }
+
+    private fun requireAccessToken():
+        String =
+        accessTokenProvider()
+            ?: throw RoomSessionUnavailableException(
+                "Aucune session Atoutia active.",
+            )
+
+    private fun findFirstAvailableSeat(
+        room:
+            LiveRoomSummary,
+    ): PlayerPosition? =
+        PlayerPosition.entries
+            .firstOrNull {
+                player ->
+                !room
+                    .seats
+                    .isOccupied(
+                        player,
+                    )
+            }
+
+    private fun validateClaimedRoom(
+        previousRoom:
             LiveRoomSummary,
 
         claimedRoom:
             LiveRoomSummary,
+
+        player:
+            PlayerPosition,
     ) {
         if (
             claimedRoom.sessionId !=
-                createdRoom.sessionId
+                previousRoom.sessionId
         ) {
             throw RoomSessionProtocolException(
                 "La réponse Atoutia a changé l’identifiant du salon.",
@@ -65,10 +160,10 @@ class RoomSessionCoordinator(
 
         if (
             claimedRoom.mode !=
-                MatchMode.PRIVATE
+                previousRoom.mode
         ) {
             throw RoomSessionProtocolException(
-                "Le salon Atoutia créé n’est plus en mode privé.",
+                "La réponse Atoutia a changé le mode du salon.",
             )
         }
 
@@ -76,17 +171,24 @@ class RoomSessionCoordinator(
             !claimedRoom
                 .seats
                 .isOccupied(
-                    PlayerPosition.PLAYER_0,
+                    player,
                 )
         ) {
             throw RoomSessionProtocolException(
-                "Le siège hôte Atoutia n’a pas été réservé.",
+                "Le siège Atoutia demandé n’a pas été réservé.",
             )
         }
     }
 }
 
 class RoomSessionUnavailableException(
+    message:
+        String,
+) : Exception(
+    message,
+)
+
+class RoomSessionFullException(
     message:
         String,
 ) : Exception(

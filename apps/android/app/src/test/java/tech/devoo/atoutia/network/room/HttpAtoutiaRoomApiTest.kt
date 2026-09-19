@@ -57,20 +57,12 @@ class HttpAtoutiaRoomApiTest {
                 )
 
                 respondWithRoom(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        201,
-
-                    revision =
-                        0,
-
-                    occupiedSeats =
-                        0,
+                    exchange = exchange,
+                    statusCode = 201,
+                    revision = 0,
+                    occupiedSeats = 0,
                 )
             },
-
             block = {
                 baseUrl ->
                 val room =
@@ -131,20 +123,12 @@ class HttpAtoutiaRoomApiTest {
                 )
 
                 respondWithRoom(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        201,
-
-                    revision =
-                        0,
-
-                    occupiedSeats =
-                        0,
+                    exchange = exchange,
+                    statusCode = 201,
+                    revision = 0,
+                    occupiedSeats = 0,
                 )
             },
-
             block = {
                 baseUrl ->
                 HttpAtoutiaRoomApi(
@@ -170,23 +154,13 @@ class HttpAtoutiaRoomApiTest {
                 )
 
                 respondWithRoom(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        200,
-
-                    revision =
-                        3,
-
-                    occupiedSeats =
-                        1,
-
-                    player0 =
-                        true,
+                    exchange = exchange,
+                    statusCode = 200,
+                    revision = 3,
+                    occupiedSeats = 1,
+                    player0 = true,
                 )
             },
-
             block = {
                 baseUrl ->
                 val room =
@@ -275,23 +249,13 @@ class HttpAtoutiaRoomApiTest {
                 )
 
                 respondWithRoom(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        200,
-
-                    revision =
-                        5,
-
-                    occupiedSeats =
-                        1,
-
-                    player2 =
-                        true,
+                    exchange = exchange,
+                    statusCode = 200,
+                    revision = 5,
+                    occupiedSeats = 1,
+                    player2 = true,
                 )
             },
-
             block = {
                 baseUrl ->
                 val room =
@@ -300,13 +264,10 @@ class HttpAtoutiaRoomApiTest {
                     ).claimSeat(
                         sessionId =
                             "ms1_testroom",
-
                         player =
                             PlayerPosition.PLAYER_2,
-
                         expectedRevision =
                             4,
-
                         accessToken =
                             "atk1_test_access_token",
                     )
@@ -329,12 +290,8 @@ class HttpAtoutiaRoomApiTest {
             handler = {
                 exchange ->
                 respond(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        404,
-
+                    exchange = exchange,
+                    statusCode = 404,
                     body =
                         """
                         {
@@ -343,7 +300,6 @@ class HttpAtoutiaRoomApiTest {
                         """.trimIndent(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -371,12 +327,8 @@ class HttpAtoutiaRoomApiTest {
             handler = {
                 exchange ->
                 respond(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        200,
-
+                    exchange = exchange,
+                    statusCode = 200,
                     body =
                         """
                         {
@@ -397,7 +349,6 @@ class HttpAtoutiaRoomApiTest {
                         """.trimIndent(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -425,12 +376,8 @@ class HttpAtoutiaRoomApiTest {
             handler = {
                 exchange ->
                 respond(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        200,
-
+                    exchange = exchange,
+                    statusCode = 200,
                     body =
                         """
                         {
@@ -449,7 +396,6 @@ class HttpAtoutiaRoomApiTest {
                         """.trimIndent(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -477,12 +423,8 @@ class HttpAtoutiaRoomApiTest {
             handler = {
                 exchange ->
                 respond(
-                    exchange =
-                        exchange,
-
-                    statusCode =
-                        200,
-
+                    exchange = exchange,
+                    statusCode = 200,
                     body =
                         """
                         {
@@ -502,7 +444,6 @@ class HttpAtoutiaRoomApiTest {
                         """.trimIndent(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -525,6 +466,25 @@ class HttpAtoutiaRoomApiTest {
     }
 
     @Test
+    fun rejectsInvalidSessionIdBeforeNetworkCall() {
+        val error =
+            assertThrows(
+                IllegalArgumentException::class.java,
+            ) {
+                HttpAtoutiaRoomApi(
+                    "http://127.0.0.1:1",
+                ).getRoom(
+                    "drupy",
+                )
+            }
+
+        assertEquals(
+            "Invalid Atoutia room session ID.",
+            error.message,
+        )
+    }
+
+    @Test
     fun rejectsInvalidAccessTokenBeforeNetworkCall() {
         val error =
             assertThrows(
@@ -535,13 +495,10 @@ class HttpAtoutiaRoomApiTest {
                 ).claimSeat(
                     sessionId =
                         "ms1_testroom",
-
                     player =
                         PlayerPosition.PLAYER_0,
-
                     expectedRevision =
                         0,
-
                     accessToken =
                         "invalid",
                 )
@@ -558,7 +515,6 @@ class HttpAtoutiaRoomApiTest {
             (
                 HttpExchange,
             ) -> Unit,
-
         block:
             (
                 String,
@@ -599,8 +555,7 @@ class HttpAtoutiaRoomApiTest {
     }
 
     private fun readRequestBody(
-        exchange:
-            HttpExchange,
+        exchange: HttpExchange,
     ): String =
         exchange
             .requestBody
@@ -612,41 +567,18 @@ class HttpAtoutiaRoomApiTest {
             }
 
     private fun respondWithRoom(
-        exchange:
-            HttpExchange,
-
-        statusCode:
-            Int,
-
-        revision:
-            Int,
-
-        occupiedSeats:
-            Int,
-
-        player0:
-            Boolean =
-            false,
-
-        player1:
-            Boolean =
-            false,
-
-        player2:
-            Boolean =
-            false,
-
-        player3:
-            Boolean =
-            false,
+        exchange: HttpExchange,
+        statusCode: Int,
+        revision: Int,
+        occupiedSeats: Int,
+        player0: Boolean = false,
+        player1: Boolean = false,
+        player2: Boolean = false,
+        player3: Boolean = false,
     ) {
         respond(
-            exchange =
-                exchange,
-
-            statusCode =
-                statusCode,
-
+            exchange = exchange,
+            statusCode = statusCode,
             body =
                 """
                 {
@@ -668,14 +600,9 @@ class HttpAtoutiaRoomApiTest {
     }
 
     private fun respond(
-        exchange:
-            HttpExchange,
-
-        statusCode:
-            Int,
-
-        body:
-            String,
+        exchange: HttpExchange,
+        statusCode: Int,
+        body: String,
     ) {
         val bytes =
             body.toByteArray(
@@ -700,8 +627,7 @@ class HttpAtoutiaRoomApiTest {
     }
 
     private fun jsonKeys(
-        json:
-            JSONObject,
+        json: JSONObject,
     ): Set<String> =
         buildSet {
             val iterator =
