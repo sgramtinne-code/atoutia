@@ -70,6 +70,9 @@ class MainActivity :
 
                     signInWithGoogle =
                         ::signInWithGoogle,
+
+                    signOut =
+                        ::signOut,
                 )
             }
         }
@@ -310,6 +313,117 @@ class MainActivity :
         }
     }
 
+    private fun signOut(
+        onResult:
+            (
+                SignOutResult,
+            ) -> Unit,
+    ) {
+        lifecycleScope.launch {
+            val result =
+                try {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    val apiBaseUrl =
+                        BuildConfig
+                            .ATOUTIA_API_BASE_URL
+
+                    var backendWarning:
+                        String? =
+                            null
+
+                    withContext(
+                        Dispatchers.IO,
+                    ) {
+                        if (
+                            apiBaseUrl.isBlank()
+                        ) {
+                            tokenStore.clear()
+
+                            backendWarning =
+                                "La session locale est supprimée, mais la session serveur n’a pas pu être révoquée car le backend Atoutia n’est pas configuré."
+                        } else {
+                            val sessionApi =
+                                HttpAuthSessionApi(
+                                    apiBaseUrl,
+                                )
+
+                            val sessionCoordinator =
+                                AuthSessionCoordinator(
+                                    tokenStore =
+                                        tokenStore,
+
+                                    sessionApi =
+                                        sessionApi,
+                                )
+
+                            try {
+                                sessionCoordinator
+                                    .logout()
+                            } catch (
+                                error:
+                                    IOException,
+                            ) {
+                                backendWarning =
+                                    "La session locale est supprimée, mais Atoutia n’a pas pu confirmer la révocation côté serveur."
+                            }
+                        }
+                    }
+
+                    val credentialProvider =
+                        CredentialManagerGoogleCredentialProvider(
+                            applicationContext,
+                        )
+
+                    var credentialWarning:
+                        String? =
+                            null
+
+                    try {
+                        credentialProvider
+                            .clearCredentialState()
+                    } catch (
+                        error:
+                            GoogleCredentialUnavailableException,
+                    ) {
+                        credentialWarning =
+                            "La session Atoutia est supprimée, mais l’état Google local n’a pas pu être entièrement réinitialisé."
+                    }
+
+                    SignOutResult.SignedOut(
+                        warning =
+                            listOfNotNull(
+                                backendWarning,
+                                credentialWarning,
+                            )
+                                .joinToString(
+                                    separator =
+                                        " ",
+                                )
+                                .takeIf {
+                                    it.isNotBlank()
+                                },
+                    )
+                } catch (
+                    error:
+                        Exception,
+                ) {
+                    SignOutResult.Failed(
+                        message =
+                            error.message
+                                ?: "Impossible de supprimer la session locale Atoutia.",
+                    )
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
     private fun checkBackend(
         onResult:
             (
@@ -387,6 +501,31 @@ sealed interface GoogleSignInUiState {
     ) : GoogleSignInUiState
 }
 
+sealed interface SignOutResult {
+    data class SignedOut(
+        val warning:
+            String?,
+    ) : SignOutResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : SignOutResult
+}
+
+sealed interface SignOutUiState {
+    data object Idle :
+        SignOutUiState
+
+    data object Loading :
+        SignOutUiState
+
+    data class Failed(
+        val message:
+            String,
+    ) : SignOutUiState
+}
+
 sealed interface BackendCheckState {
     data object Idle :
         BackendCheckState
@@ -427,6 +566,13 @@ private fun AtoutiaApp(
                 GoogleSignInResult,
             ) -> Unit,
         ) -> Unit,
+
+    signOut:
+        (
+            (
+                SignOutResult,
+            ) -> Unit,
+        ) -> Unit,
 ) {
     var backendState by
         remember {
@@ -452,6 +598,24 @@ private fun AtoutiaApp(
                 GoogleSignInUiState
             >(
                 GoogleSignInUiState.Idle,
+            )
+        }
+
+    var signOutState by
+        remember {
+            mutableStateOf<
+                SignOutUiState
+            >(
+                SignOutUiState.Idle,
+            )
+        }
+
+    var signOutNotice by
+        remember {
+            mutableStateOf<
+                String?
+            >(
+                null,
             )
         }
 
@@ -540,7 +704,13 @@ private fun AtoutiaApp(
                     state =
                         googleSignInState,
 
+                    notice =
+                        signOutNotice,
+
                     onSignIn = {
+                        signOutNotice =
+                            null
+
                         googleSignInState =
                             GoogleSignInUiState.Loading
 
@@ -561,6 +731,9 @@ private fun AtoutiaApp(
 
                                     googleSignInState =
                                         GoogleSignInUiState.Idle
+
+                                    signOutNotice =
+                                        null
                                 }
 
                                 GoogleSignInResult.Cancelled -> {
@@ -571,6 +744,56 @@ private fun AtoutiaApp(
                                 is GoogleSignInResult.Failed -> {
                                     googleSignInState =
                                         GoogleSignInUiState.Failed(
+                                            message =
+                                                result.message,
+                                        )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+
+            if (
+                authState is
+                    AuthStartupState.Authenticated
+            ) {
+                SignOutControls(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                24.dp,
+                        ),
+
+                    state =
+                        signOutState,
+
+                    onSignOut = {
+                        signOutState =
+                            SignOutUiState.Loading
+
+                        signOut {
+                            result ->
+                            when (
+                                result
+                            ) {
+                                is SignOutResult.SignedOut -> {
+                                    authState =
+                                        AuthStartupState.SignedOut
+
+                                    signOutState =
+                                        SignOutUiState.Idle
+
+                                    googleSignInState =
+                                        GoogleSignInUiState.Idle
+
+                                    signOutNotice =
+                                        result.warning
+                                }
+
+                                is SignOutResult.Failed -> {
+                                    signOutState =
+                                        SignOutUiState.Failed(
                                             message =
                                                 result.message,
                                         )
@@ -631,6 +854,9 @@ private fun GoogleSignInControls(
     state:
         GoogleSignInUiState,
 
+    notice:
+        String?,
+
     onSignIn:
         () -> Unit,
 ) {
@@ -678,6 +904,103 @@ private fun GoogleSignInControls(
         if (
             state is
                 GoogleSignInUiState.Failed
+        ) {
+            Text(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            12.dp,
+                    ),
+
+                text =
+                    state.message,
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+            )
+        }
+
+        if (
+            notice !=
+                null
+        ) {
+            Text(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            12.dp,
+                    ),
+
+                text =
+                    notice,
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SignOutControls(
+    modifier:
+        Modifier =
+            Modifier,
+
+    state:
+        SignOutUiState,
+
+    onSignOut:
+        () -> Unit,
+) {
+    Column(
+        modifier =
+            modifier,
+
+        horizontalAlignment =
+            Alignment.CenterHorizontally,
+    ) {
+        Button(
+            enabled =
+                state !is
+                    SignOutUiState.Loading,
+
+            onClick =
+                onSignOut,
+        ) {
+            Text(
+                text =
+                    if (
+                        state is
+                            SignOutUiState.Loading
+                    ) {
+                        "Déconnexion…"
+                    } else {
+                        "Se déconnecter"
+                    },
+            )
+        }
+
+        if (
+            state is
+                SignOutUiState.Loading
+        ) {
+            CircularProgressIndicator(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            12.dp,
+                    ),
+            )
+        }
+
+        if (
+            state is
+                SignOutUiState.Failed
         ) {
             Text(
                 modifier =
@@ -1009,6 +1332,8 @@ private fun AtoutiaAppPreview() {
             },
 
             signInWithGoogle = {},
+
+            signOut = {},
         )
     }
 }
