@@ -44,9 +44,15 @@ import tech.devoo.atoutia.auth.HttpAuthSessionApi
 import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
+import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
+import tech.devoo.atoutia.network.room.LiveRoomSummary
+import tech.devoo.atoutia.network.room.RoomSessionCoordinator
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
 import tech.devoo.atoutia.ui.home.SignOutUiState
+import tech.devoo.atoutia.ui.lobby.RoomLobbyScreen
+import tech.devoo.atoutia.ui.play.CreateRoomUiState
+import tech.devoo.atoutia.ui.play.PlayScreen
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
 import java.io.IOException
 
@@ -76,6 +82,9 @@ class MainActivity :
 
                     signOut =
                         ::signOut,
+
+                    createPrivateRoom =
+                        ::createPrivateRoom,
                 )
             }
         }
@@ -336,7 +345,7 @@ class MainActivity :
 
                     var backendWarning:
                         String? =
-                            null
+                        null
 
                     withContext(
                         Dispatchers.IO,
@@ -383,7 +392,7 @@ class MainActivity :
 
                     var credentialWarning:
                         String? =
-                            null
+                        null
 
                     try {
                         credentialProvider
@@ -419,6 +428,111 @@ class MainActivity :
                             error.message
                                 ?: "Impossible de supprimer la session locale Atoutia.",
                     )
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
+    private fun createPrivateRoom(
+        onResult:
+            (
+                CreatePrivateRoomResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                CreatePrivateRoomResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val roomApi =
+                            HttpAtoutiaRoomApi(
+                                apiBaseUrl,
+                            )
+
+                        val roomSessionCoordinator =
+                            RoomSessionCoordinator(
+                                roomApi =
+                                    roomApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        CreatePrivateRoomResult.Created(
+                            room =
+                                roomSessionCoordinator
+                                    .createPrivateRoomAndClaimHostSeat(),
+                        )
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        val sessionStillAvailable =
+                            try {
+                                tokenStore.load() !=
+                                    null
+                            } catch (
+                                ignored:
+                                    Exception,
+                            ) {
+                                false
+                            }
+
+                        if (
+                            !sessionStillAvailable
+                        ) {
+                            CreatePrivateRoomResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            CreatePrivateRoomResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de créer le salon Atoutia.",
+                            )
+                        }
+                    }
                 }
 
             onResult(
@@ -516,6 +630,36 @@ sealed interface SignOutResult {
     ) : SignOutResult
 }
 
+sealed interface CreatePrivateRoomResult {
+    data class Created(
+        val room:
+            LiveRoomSummary,
+    ) : CreatePrivateRoomResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : CreatePrivateRoomResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : CreatePrivateRoomResult
+}
+
+sealed interface AuthenticatedDestination {
+    data object Home :
+        AuthenticatedDestination
+
+    data object Play :
+        AuthenticatedDestination
+
+    data class Lobby(
+        val room:
+            LiveRoomSummary,
+    ) : AuthenticatedDestination
+}
+
 sealed interface BackendCheckState {
     data object Idle :
         BackendCheckState
@@ -563,6 +707,13 @@ private fun AtoutiaApp(
                 SignOutResult,
             ) -> Unit,
         ) -> Unit,
+
+    createPrivateRoom:
+        (
+            (
+                CreatePrivateRoomResult,
+            ) -> Unit,
+        ) -> Unit,
 ) {
     var backendState by
         remember {
@@ -600,7 +751,25 @@ private fun AtoutiaApp(
             )
         }
 
-    var homeNotice by
+    var destination by
+        remember {
+            mutableStateOf<
+                AuthenticatedDestination
+            >(
+                AuthenticatedDestination.Home,
+            )
+        }
+
+    var createRoomState by
+        remember {
+            mutableStateOf<
+                CreateRoomUiState
+            >(
+                CreateRoomUiState.Idle,
+            )
+        }
+
+    var notice by
         remember {
             mutableStateOf<
                 String?
@@ -623,70 +792,168 @@ private fun AtoutiaApp(
             authState
     ) {
         is AuthStartupState.Authenticated -> {
-            AuthenticatedHomeScreen(
-                signOutState =
-                    signOutState,
+            when (
+                val currentDestination =
+                    destination
+            ) {
+                AuthenticatedDestination.Home -> {
+                    AuthenticatedHomeScreen(
+                        signOutState =
+                            signOutState,
 
-                notice =
-                    homeNotice,
+                        notice =
+                            notice,
 
-                onAction = {
-                    action ->
-                    homeNotice =
-                        when (
-                            action
-                        ) {
-                            HomeAction.Play ->
-                                "La création et la recherche de parties arrivent dans le prochain bloc."
+                        onAction = {
+                            action ->
+                            when (
+                                action
+                            ) {
+                                HomeAction.Play -> {
+                                    notice =
+                                        null
 
-                            HomeAction.Profile ->
-                                "Le profil joueur arrive prochainement."
+                                    createRoomState =
+                                        CreateRoomUiState.Idle
 
-                            HomeAction.Leaderboard ->
-                                "Le classement Atoutia arrive prochainement."
+                                    destination =
+                                        AuthenticatedDestination.Play
+                                }
 
-                            HomeAction.History ->
-                                "L’historique des parties arrive prochainement."
+                                HomeAction.Profile -> {
+                                    notice =
+                                        "Le profil joueur arrive prochainement."
+                                }
 
-                            HomeAction.Settings ->
-                                "Les paramètres Atoutia arrivent prochainement."
-                        }
-                },
+                                HomeAction.Leaderboard -> {
+                                    notice =
+                                        "Le classement Atoutia arrive prochainement."
+                                }
 
-                onSignOut = {
-                    signOutState =
-                        SignOutUiState.Loading
+                                HomeAction.History -> {
+                                    notice =
+                                        "L’historique des parties arrive prochainement."
+                                }
 
-                    signOut {
-                        result ->
-                        when (
-                            result
-                        ) {
-                            is SignOutResult.SignedOut -> {
-                                authState =
-                                    AuthStartupState.SignedOut
-
-                                signOutState =
-                                    SignOutUiState.Idle
-
-                                googleSignInState =
-                                    GoogleSignInUiState.Idle
-
-                                homeNotice =
-                                    result.warning
+                                HomeAction.Settings -> {
+                                    notice =
+                                        "Les paramètres Atoutia arrivent prochainement."
+                                }
                             }
+                        },
 
-                            is SignOutResult.Failed -> {
-                                signOutState =
-                                    SignOutUiState.Failed(
-                                        message =
-                                            result.message,
-                                    )
+                        onSignOut = {
+                            signOutState =
+                                SignOutUiState.Loading
+
+                            signOut {
+                                result ->
+                                when (
+                                    result
+                                ) {
+                                    is SignOutResult.SignedOut -> {
+                                        authState =
+                                            AuthStartupState.SignedOut
+
+                                        destination =
+                                            AuthenticatedDestination.Home
+
+                                        signOutState =
+                                            SignOutUiState.Idle
+
+                                        googleSignInState =
+                                            GoogleSignInUiState.Idle
+
+                                        createRoomState =
+                                            CreateRoomUiState.Idle
+
+                                        notice =
+                                            result.warning
+                                    }
+
+                                    is SignOutResult.Failed -> {
+                                        signOutState =
+                                            SignOutUiState.Failed(
+                                                message =
+                                                    result.message,
+                                            )
+                                    }
+                                }
                             }
-                        }
-                    }
-                },
-            )
+                        },
+                    )
+                }
+
+                AuthenticatedDestination.Play -> {
+                    PlayScreen(
+                        createRoomState =
+                            createRoomState,
+
+                        onCreateRoom = {
+                            createRoomState =
+                                CreateRoomUiState.Loading
+
+                            createPrivateRoom {
+                                result ->
+                                when (
+                                    result
+                                ) {
+                                    is CreatePrivateRoomResult.Created -> {
+                                        createRoomState =
+                                            CreateRoomUiState.Idle
+
+                                        destination =
+                                            AuthenticatedDestination.Lobby(
+                                                room =
+                                                    result.room,
+                                            )
+                                    }
+
+                                    is CreatePrivateRoomResult.SessionExpired -> {
+                                        authState =
+                                            AuthStartupState.SignedOut
+
+                                        destination =
+                                            AuthenticatedDestination.Home
+
+                                        createRoomState =
+                                            CreateRoomUiState.Idle
+
+                                        googleSignInState =
+                                            GoogleSignInUiState.Idle
+
+                                        notice =
+                                            result.message
+                                    }
+
+                                    is CreatePrivateRoomResult.Failed -> {
+                                        createRoomState =
+                                            CreateRoomUiState.Failed(
+                                                message =
+                                                    result.message,
+                                            )
+                                    }
+                                }
+                            }
+                        },
+
+                        onBack = {
+                            createRoomState =
+                                CreateRoomUiState.Idle
+
+                            destination =
+                                AuthenticatedDestination.Home
+                        },
+                    )
+                }
+
+                is AuthenticatedDestination.Lobby -> {
+                    RoomLobbyScreen(
+                        room =
+                            currentDestination.room,
+                    )
+                }
+            }
         }
 
         else -> {
@@ -700,8 +967,11 @@ private fun AtoutiaApp(
                 backendState =
                     backendState,
 
+                notice =
+                    notice,
+
                 onGoogleSignIn = {
-                    homeNotice =
+                    notice =
                         null
 
                     googleSignInState =
@@ -722,8 +992,14 @@ private fun AtoutiaApp(
                                             result.sessionId,
                                     )
 
+                                destination =
+                                    AuthenticatedDestination.Home
+
                                 googleSignInState =
                                     GoogleSignInUiState.Idle
+
+                                notice =
+                                    null
                             }
 
                             GoogleSignInResult.Cancelled -> {
@@ -766,6 +1042,9 @@ private fun SignedOutOrLoadingScreen(
 
     backendState:
         BackendCheckState,
+
+    notice:
+        String?,
 
     onGoogleSignIn:
         () -> Unit,
@@ -851,6 +1130,27 @@ private fun SignedOutOrLoadingScreen(
 
                     onSignIn =
                         onGoogleSignIn,
+                )
+            }
+
+            if (
+                notice !=
+                    null
+            ) {
+                Text(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                16.dp,
+                        ),
+
+                    text =
+                        notice,
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyMedium,
                 )
             }
 
@@ -1239,6 +1539,9 @@ private fun AtoutiaAppPreview() {
 
             backendState =
                 BackendCheckState.Idle,
+
+            notice =
+                null,
 
             onGoogleSignIn = {},
 
