@@ -163,6 +163,10 @@ dependencies {
         "com.google.android.libraries.identity.googleid:googleid:1.2.1",
     )
 
+    implementation(
+        "com.squareup.okhttp3:okhttp:5.1.0",
+    )
+
     debugImplementation(
         "androidx.compose.ui:ui-tooling",
     )
