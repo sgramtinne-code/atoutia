@@ -52,6 +52,7 @@ import tech.devoo.atoutia.network.room.RoomSessionMembership
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
 import tech.devoo.atoutia.ui.home.SignOutUiState
+import tech.devoo.atoutia.ui.lobby.RoomLobbyLeaveUiState
 import tech.devoo.atoutia.ui.lobby.RoomLobbyScreen
 import tech.devoo.atoutia.ui.play.PlayScreen
 import tech.devoo.atoutia.ui.play.RoomActionUiState
@@ -90,6 +91,9 @@ class MainActivity :
 
                     joinRoom =
                         ::joinRoom,
+
+                    leaveRoom =
+                        ::leaveRoom,
                 )
             }
         }
@@ -512,19 +516,10 @@ class MainActivity :
                         error:
                             Exception,
                     ) {
-                        val sessionStillAvailable =
-                            try {
-                                tokenStore.load() !=
-                                    null
-                            } catch (
-                                ignored:
-                                    Exception,
-                            ) {
-                                false
-                            }
-
                         if (
-                            !sessionStillAvailable
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
                         ) {
                             CreatePrivateRoomResult.SessionExpired(
                                 message =
@@ -647,19 +642,10 @@ class MainActivity :
                         error:
                             AtoutiaRoomApiException,
                     ) {
-                        val sessionStillAvailable =
-                            try {
-                                tokenStore.load() !=
-                                    null
-                            } catch (
-                                ignored:
-                                    Exception,
-                            ) {
-                                false
-                            }
-
                         if (
-                            !sessionStillAvailable
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
                         ) {
                             JoinRoomResult.SessionExpired(
                                 message =
@@ -692,19 +678,10 @@ class MainActivity :
                         error:
                             Exception,
                     ) {
-                        val sessionStillAvailable =
-                            try {
-                                tokenStore.load() !=
-                                    null
-                            } catch (
-                                ignored:
-                                    Exception,
-                            ) {
-                                false
-                            }
-
                         if (
-                            !sessionStillAvailable
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
                         ) {
                             JoinRoomResult.SessionExpired(
                                 message =
@@ -725,6 +702,120 @@ class MainActivity :
             )
         }
     }
+
+    private fun leaveRoom(
+        membership:
+            RoomSessionMembership,
+
+        onResult:
+            (
+                LeaveRoomResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                LeaveRoomResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val roomApi =
+                            HttpAtoutiaRoomApi(
+                                apiBaseUrl,
+                            )
+
+                        val roomSessionCoordinator =
+                            RoomSessionCoordinator(
+                                roomApi =
+                                    roomApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        roomSessionCoordinator
+                            .leaveRoom(
+                                membership,
+                            )
+
+                        LeaveRoomResult.Left
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        if (
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            LeaveRoomResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            LeaveRoomResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de quitter le salon Atoutia.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
+    private fun sessionStillAvailable(
+        tokenStore:
+            AndroidSecureAuthTokenStore,
+    ): Boolean =
+        try {
+            tokenStore.load() !=
+                null
+        } catch (
+            ignored:
+                Exception,
+        ) {
+            false
+        }
 
     private fun checkBackend(
         onResult:
@@ -849,6 +940,21 @@ sealed interface JoinRoomResult {
     ) : JoinRoomResult
 }
 
+sealed interface LeaveRoomResult {
+    data object Left :
+        LeaveRoomResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : LeaveRoomResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : LeaveRoomResult
+}
+
 sealed interface AuthenticatedDestination {
     data object Home :
         AuthenticatedDestination
@@ -924,6 +1030,14 @@ private fun AtoutiaApp(
                 JoinRoomResult,
             ) -> Unit,
         ) -> Unit,
+
+    leaveRoom:
+        (
+            RoomSessionMembership,
+            (
+                LeaveRoomResult,
+            ) -> Unit,
+        ) -> Unit,
 ) {
     var backendState by
         remember {
@@ -976,6 +1090,15 @@ private fun AtoutiaApp(
                 RoomActionUiState
             >(
                 RoomActionUiState.Idle,
+            )
+        }
+
+    var leaveState by
+        remember {
+            mutableStateOf<
+                RoomLobbyLeaveUiState
+            >(
+                RoomLobbyLeaveUiState.Idle,
             )
         }
 
@@ -1033,6 +1156,9 @@ private fun AtoutiaApp(
                                     roomActionState =
                                         RoomActionUiState.Idle
 
+                                    leaveState =
+                                        RoomLobbyLeaveUiState.Idle
+
                                     joinSessionId =
                                         ""
 
@@ -1086,6 +1212,9 @@ private fun AtoutiaApp(
 
                                         roomActionState =
                                             RoomActionUiState.Idle
+
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
 
                                         joinSessionId =
                                             ""
@@ -1142,6 +1271,9 @@ private fun AtoutiaApp(
                                         roomActionState =
                                             RoomActionUiState.Idle
 
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
+
                                         destination =
                                             AuthenticatedDestination.Lobby(
                                                 membership =
@@ -1158,6 +1290,9 @@ private fun AtoutiaApp(
 
                                         roomActionState =
                                             RoomActionUiState.Idle
+
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
 
                                         joinSessionId =
                                             ""
@@ -1207,6 +1342,9 @@ private fun AtoutiaApp(
                                             roomActionState =
                                                 RoomActionUiState.Idle
 
+                                            leaveState =
+                                                RoomLobbyLeaveUiState.Idle
+
                                             joinSessionId =
                                                 normalizedSessionId
 
@@ -1226,6 +1364,9 @@ private fun AtoutiaApp(
 
                                             roomActionState =
                                                 RoomActionUiState.Idle
+
+                                            leaveState =
+                                                RoomLobbyLeaveUiState.Idle
 
                                             joinSessionId =
                                                 ""
@@ -1273,6 +1414,69 @@ private fun AtoutiaApp(
                             currentDestination
                                 .membership
                                 .player,
+
+                        leaveState =
+                            leaveState,
+
+                        onLeaveRoom = {
+                            membership ->
+                            leaveState =
+                                RoomLobbyLeaveUiState.Leaving
+
+                            leaveRoom(
+                                membership,
+                            ) {
+                                result ->
+                                when (
+                                    result
+                                ) {
+                                    LeaveRoomResult.Left -> {
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
+
+                                        roomActionState =
+                                            RoomActionUiState.Idle
+
+                                        joinSessionId =
+                                            ""
+
+                                        destination =
+                                            AuthenticatedDestination.Play
+                                    }
+
+                                    is LeaveRoomResult.SessionExpired -> {
+                                        authState =
+                                            AuthStartupState.SignedOut
+
+                                        destination =
+                                            AuthenticatedDestination.Home
+
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
+
+                                        roomActionState =
+                                            RoomActionUiState.Idle
+
+                                        joinSessionId =
+                                            ""
+
+                                        googleSignInState =
+                                            GoogleSignInUiState.Idle
+
+                                        notice =
+                                            result.message
+                                    }
+
+                                    is LeaveRoomResult.Failed -> {
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Failed(
+                                                message =
+                                                    result.message,
+                                            )
+                                    }
+                                }
+                            }
+                        },
                     )
                 }
             }
@@ -1319,6 +1523,9 @@ private fun AtoutiaApp(
 
                                 roomActionState =
                                     RoomActionUiState.Idle
+
+                                leaveState =
+                                    RoomLobbyLeaveUiState.Idle
 
                                 joinSessionId =
                                     ""
@@ -1383,7 +1590,8 @@ private fun SignedOutOrLoadingScreen(
     Scaffold(
         modifier =
             Modifier.fillMaxSize(),
-    ) { innerPadding ->
+    ) {
+        innerPadding ->
         Column(
             modifier =
                 Modifier
@@ -1520,7 +1728,7 @@ private fun SignedOutOrLoadingScreen(
 private fun GoogleSignInControls(
     modifier:
         Modifier =
-            Modifier,
+        Modifier,
 
     state:
         GoogleSignInUiState,
@@ -1596,7 +1804,7 @@ private fun GoogleSignInControls(
 private fun AuthStatus(
     modifier:
         Modifier =
-            Modifier,
+        Modifier,
 
     state:
         AuthStartupState,
@@ -1720,7 +1928,7 @@ private fun AuthStatus(
 private fun BackendStatus(
     modifier:
         Modifier =
-            Modifier,
+        Modifier,
 
     state:
         BackendCheckState,

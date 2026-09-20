@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -57,6 +58,18 @@ sealed interface RoomLobbyRealtimeUiState {
     ) : RoomLobbyRealtimeUiState
 }
 
+sealed interface RoomLobbyLeaveUiState {
+    data object Idle :
+        RoomLobbyLeaveUiState
+
+    data object Leaving :
+        RoomLobbyLeaveUiState
+
+    data class Failed(
+        val message: String,
+    ) : RoomLobbyLeaveUiState
+}
+
 @Composable
 fun RoomLobbyScreen(
     room:
@@ -64,6 +77,18 @@ fun RoomLobbyScreen(
 
     player:
         PlayerPosition,
+
+    leaveState:
+        RoomLobbyLeaveUiState =
+            RoomLobbyLeaveUiState.Idle,
+
+    onLeaveRoom:
+        (
+            (
+                RoomSessionMembership,
+            ) -> Unit
+        )? =
+            null,
 
     modifier:
         Modifier =
@@ -75,6 +100,18 @@ fun RoomLobbyScreen(
 
     val coroutineScope =
         rememberCoroutineScope()
+
+    var realtimeConnection by
+        remember(
+            room.sessionId,
+            player,
+        ) {
+            mutableStateOf<
+                AutoCloseable?
+            >(
+                null,
+            )
+        }
 
     var currentMembership by
         remember(
@@ -105,9 +142,14 @@ fun RoomLobbyScreen(
             )
         }
 
+    val isLeaving =
+        leaveState is
+            RoomLobbyLeaveUiState.Leaving
+
     LaunchedEffect(
         room.sessionId,
         player,
+        isLeaving,
     ) {
         currentMembership =
             RoomSessionMembership(
@@ -121,6 +163,12 @@ fun RoomLobbyScreen(
         realtimeState =
             RoomLobbyRealtimeUiState
                 .Connecting
+
+        if (
+            isLeaving
+        ) {
+            return@LaunchedEffect
+        }
 
         val apiBaseUrl =
             BuildConfig
@@ -270,6 +318,9 @@ fun RoomLobbyScreen(
                     )
                 }
 
+            realtimeConnection =
+                connection
+
             awaitCancellation()
         } catch (
             error:
@@ -302,6 +353,14 @@ fun RoomLobbyScreen(
                     Unit
                 }
             }
+
+            if (
+                realtimeConnection ===
+                    connection
+            ) {
+                realtimeConnection =
+                    null
+            }
         }
     }
 
@@ -311,6 +370,41 @@ fun RoomLobbyScreen(
 
         realtimeState =
             realtimeState,
+
+        leaveState =
+            leaveState,
+
+        onLeaveRoom =
+            onLeaveRoom?.let {
+                leaveRoom ->
+                {
+                    coroutineScope.launch {
+                        val connection =
+                            realtimeConnection
+
+                        realtimeConnection =
+                            null
+
+                        withContext(
+                            Dispatchers.IO,
+                        ) {
+                            try {
+                                connection
+                                    ?.close()
+                            } catch (
+                                ignored:
+                                    Exception,
+                            ) {
+                                Unit
+                            }
+                        }
+
+                        leaveRoom(
+                            currentMembership,
+                        )
+                    }
+                }
+            },
 
         modifier =
             modifier,
@@ -324,6 +418,12 @@ private fun RoomLobbyContent(
 
     realtimeState:
         RoomLobbyRealtimeUiState,
+
+    leaveState:
+        RoomLobbyLeaveUiState,
+
+    onLeaveRoom:
+        (() -> Unit)?,
 
     modifier:
         Modifier =
@@ -619,6 +719,62 @@ private fun RoomLobbyContent(
                 textAlign =
                     TextAlign.Center,
             )
+
+            if (
+                onLeaveRoom !=
+                    null
+            ) {
+                Button(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                24.dp,
+                        ),
+
+                    enabled =
+                        leaveState !is
+                            RoomLobbyLeaveUiState.Leaving,
+
+                    onClick =
+                        onLeaveRoom,
+                ) {
+                    Text(
+                        text =
+                            if (
+                                leaveState is
+                                    RoomLobbyLeaveUiState.Leaving
+                            ) {
+                                "Sortie en cours…"
+                            } else {
+                                "Quitter le salon"
+                            },
+                    )
+                }
+
+                if (
+                    leaveState is
+                        RoomLobbyLeaveUiState.Failed
+                ) {
+                    Text(
+                        modifier =
+                            Modifier.padding(
+                                top =
+                                    12.dp,
+                            ),
+
+                        text =
+                            leaveState.message,
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodyMedium,
+
+                        textAlign =
+                            TextAlign.Center,
+                    )
+                }
+            }
         }
     }
 }

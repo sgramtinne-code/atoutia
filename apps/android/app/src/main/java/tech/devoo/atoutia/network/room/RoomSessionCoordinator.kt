@@ -118,6 +118,44 @@ class RoomSessionCoordinator(
         )
     }
 
+    fun leaveRoom(
+        membership:
+            RoomSessionMembership,
+    ): LiveRoomSummary {
+        val accessToken =
+            requireAccessToken()
+
+        val releasedRoom =
+            roomApi.releaseSeat(
+                sessionId =
+                    membership
+                        .room
+                        .sessionId,
+
+                player =
+                    membership
+                        .player,
+
+                expectedRevision =
+                    membership
+                        .room
+                        .revision,
+
+                accessToken =
+                    accessToken,
+            )
+
+        validateReleasedRoom(
+            previousMembership =
+                membership,
+
+            releasedRoom =
+                releasedRoom,
+        )
+
+        return releasedRoom
+    }
+
     private fun requireAccessToken():
         String =
         accessTokenProvider()
@@ -176,6 +214,60 @@ class RoomSessionCoordinator(
         ) {
             throw RoomSessionProtocolException(
                 "Le siège Atoutia demandé n’a pas été réservé.",
+            )
+        }
+    }
+
+    private fun validateReleasedRoom(
+        previousMembership:
+            RoomSessionMembership,
+
+        releasedRoom:
+            LiveRoomSummary,
+    ) {
+        if (
+            releasedRoom.sessionId !=
+                previousMembership
+                    .room
+                    .sessionId
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a changé l’identifiant du salon pendant la sortie.",
+            )
+        }
+
+        if (
+            releasedRoom.mode !=
+                previousMembership
+                    .room
+                    .mode
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a changé le mode du salon pendant la sortie.",
+            )
+        }
+
+        if (
+            releasedRoom.revision <=
+                previousMembership
+                    .room
+                    .revision
+        ) {
+            throw RoomSessionProtocolException(
+                "La libération du siège Atoutia n’a pas avancé la révision du salon.",
+            )
+        }
+
+        if (
+            releasedRoom
+                .seats
+                .isOccupied(
+                    previousMembership
+                        .player,
+                )
+        ) {
+            throw RoomSessionProtocolException(
+                "Le siège Atoutia du joueur est toujours réservé après la sortie.",
             )
         }
     }

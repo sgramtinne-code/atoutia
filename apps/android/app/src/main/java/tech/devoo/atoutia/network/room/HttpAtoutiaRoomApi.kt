@@ -76,15 +76,10 @@ class HttpAtoutiaRoomApi(
             )
 
         val body =
-            JSONObject()
-                .put(
-                    "player",
-                    player.name,
-                )
-                .put(
-                    "expectedRevision",
-                    expectedRevision,
-                )
+            createSeatMutationBody(
+                player = player,
+                expectedRevision = expectedRevision,
+            )
 
         return executeRoomRequest(
             method = "POST",
@@ -94,6 +89,57 @@ class HttpAtoutiaRoomApi(
             accessToken = normalizedAccessToken,
         )
     }
+
+    override fun releaseSeat(
+        sessionId: String,
+        player: PlayerPosition,
+        expectedRevision: Int,
+        accessToken: String,
+    ): LiveRoomSummary {
+        val normalizedSessionId =
+            validateSessionId(
+                sessionId,
+            )
+
+        require(
+            expectedRevision >= 0,
+        ) {
+            "Expected room revision must be non-negative."
+        }
+
+        val normalizedAccessToken =
+            validateAccessToken(
+                accessToken,
+            )
+
+        val body =
+            createSeatMutationBody(
+                player = player,
+                expectedRevision = expectedRevision,
+            )
+
+        return executeRoomRequest(
+            method = "DELETE",
+            path = "/api/v1/rooms/$normalizedSessionId/seats",
+            expectedStatus = HttpURLConnection.HTTP_OK,
+            requestBody = body,
+            accessToken = normalizedAccessToken,
+        )
+    }
+
+    private fun createSeatMutationBody(
+        player: PlayerPosition,
+        expectedRevision: Int,
+    ): JSONObject =
+        JSONObject()
+            .put(
+                "player",
+                player.name,
+            )
+            .put(
+                "expectedRevision",
+                expectedRevision,
+            )
 
     private fun executeRoomRequest(
         method: String,
@@ -275,39 +321,48 @@ class HttpAtoutiaRoomApi(
                     json.getString(
                         "sessionId",
                     ),
+
                 mode =
                     mode,
+
                 revision =
                     json.getInt(
                         "revision",
                     ),
+
                 phase =
                     json.getString(
                         "phase",
                     ),
+
                 occupiedSeats =
                     json.getInt(
                         "occupiedSeats",
                     ),
+
                 seats =
                     LiveRoomSeats(
                         player0 =
                             seatsJson.getBoolean(
                                 "PLAYER_0",
                             ),
+
                         player1 =
                             seatsJson.getBoolean(
                                 "PLAYER_1",
                             ),
+
                         player2 =
                             seatsJson.getBoolean(
                                 "PLAYER_2",
                             ),
+
                         player3 =
                             seatsJson.getBoolean(
                                 "PLAYER_3",
                             ),
                     ),
+
                 adjudicationJson =
                     adjudication.toString(),
             )

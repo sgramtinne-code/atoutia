@@ -776,6 +776,20 @@ class RoomSessionCoordinatorTest {
                 _ ->
                 throw UnsupportedOperationException()
             },
+
+        private val onReleaseSeat:
+            (
+                String,
+                PlayerPosition,
+                Int,
+                String,
+            ) -> LiveRoomSummary = {
+                _,
+                _,
+                _,
+                _ ->
+                throw UnsupportedOperationException()
+            },
     ) : AtoutiaRoomApi {
         override fun createRoom(
             mode:
@@ -807,6 +821,26 @@ class RoomSessionCoordinatorTest {
                 String,
         ): LiveRoomSummary =
             onClaimSeat(
+                sessionId,
+                player,
+                expectedRevision,
+                accessToken,
+            )
+
+        override fun releaseSeat(
+            sessionId:
+                String,
+
+            player:
+                PlayerPosition,
+
+            expectedRevision:
+                Int,
+
+            accessToken:
+                String,
+        ): LiveRoomSummary =
+            onReleaseSeat(
                 sessionId,
                 player,
                 expectedRevision,

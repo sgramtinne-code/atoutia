@@ -25,4 +25,18 @@ interface AtoutiaRoomApi {
         accessToken:
             String,
     ): LiveRoomSummary
+
+    fun releaseSeat(
+        sessionId:
+            String,
+
+        player:
+            PlayerPosition,
+
+        expectedRevision:
+            Int,
+
+        accessToken:
+            String,
+    ): LiveRoomSummary
 }
