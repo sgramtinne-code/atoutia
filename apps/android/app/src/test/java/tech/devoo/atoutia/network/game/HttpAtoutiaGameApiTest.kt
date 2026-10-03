@@ -2,6 +2,7 @@ package tech.devoo.atoutia.network.game
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -62,10 +63,9 @@ class HttpAtoutiaGameApiTest {
                         validSnapshotBody(),
                 )
             },
-
             block = {
                 baseUrl ->
-                val document =
+                val result =
                     HttpAtoutiaGameApi(
                         baseUrl,
                     ).getPlayerSnapshot(
@@ -75,6 +75,19 @@ class HttpAtoutiaGameApiTest {
                         accessToken =
                             "atk1_snapshot_access_token",
                     )
+
+                assertEquals(
+                    5,
+                    result.revision,
+                )
+
+                assertEquals(
+                    "IN_PROGRESS",
+                    result.phase,
+                )
+
+                val document =
+                    result.document
 
                 assertEquals(
                     1,
@@ -92,7 +105,7 @@ class HttpAtoutiaGameApiTest {
                 )
 
                 assertEquals(
-                    2,
+                    5,
                     document.snapshot.match.hand.size,
                 )
 
@@ -117,7 +130,10 @@ class HttpAtoutiaGameApiTest {
                 )
 
                 val publicMatch =
-                    document.snapshot.match.publicMatch
+                    document
+                        .snapshot
+                        .match
+                        .publicMatch
 
                 assertEquals(
                     1,
@@ -234,6 +250,341 @@ class HttpAtoutiaGameApiTest {
     }
 
     @Test
+    fun submitsAuthenticatedPassCommand() {
+        withServer(
+            handler = {
+                exchange ->
+                assertEquals(
+                    "POST",
+                    exchange.requestMethod,
+                )
+
+                assertEquals(
+                    "/api/v1/rooms/ms1_testroom/commands",
+                    exchange.requestURI.path,
+                )
+
+                assertEquals(
+                    "Bearer atk1_command_access_token",
+                    exchange.requestHeaders.getFirst(
+                        "Authorization",
+                    ),
+                )
+
+                assertTrue(
+                    exchange
+                        .requestHeaders
+                        .getFirst(
+                            "Content-Type",
+                        )
+                        .startsWith(
+                            "application/json",
+                        ),
+                )
+
+                val requestBody =
+                    readRequestBody(
+                        exchange,
+                    )
+
+                val root =
+                    JSONObject(
+                        requestBody,
+                    )
+
+                assertEquals(
+                    setOf(
+                        "document",
+                    ),
+                    keysOf(
+                        root,
+                    ),
+                )
+
+                assertFalse(
+                    root.has(
+                        "participantId",
+                    ),
+                )
+
+                val document =
+                    root.getJSONObject(
+                        "document",
+                    )
+
+                assertEquals(
+                    setOf(
+                        "formatVersion",
+                        "engineVersion",
+                        "sessionId",
+                        "expectedRevision",
+                        "command",
+                    ),
+                    keysOf(
+                        document,
+                    ),
+                )
+
+                assertEquals(
+                    1,
+                    document.getInt(
+                        "formatVersion",
+                    ),
+                )
+
+                assertEquals(
+                    "0.1.0",
+                    document.getString(
+                        "engineVersion",
+                    ),
+                )
+
+                assertEquals(
+                    "ms1_testroom",
+                    document.getString(
+                        "sessionId",
+                    ),
+                )
+
+                assertEquals(
+                    5,
+                    document.getInt(
+                        "expectedRevision",
+                    ),
+                )
+
+                assertFalse(
+                    document.has(
+                        "player",
+                    ),
+                )
+
+                assertFalse(
+                    document.has(
+                        "participantId",
+                    ),
+                )
+
+                val command =
+                    document.getJSONObject(
+                        "command",
+                    )
+
+                assertEquals(
+                    setOf(
+                        "type",
+                    ),
+                    keysOf(
+                        command,
+                    ),
+                )
+
+                assertEquals(
+                    "PASS",
+                    command.getString(
+                        "type",
+                    ),
+                )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_OK,
+
+                    body =
+                        waitingSnapshotBody(
+                            revision =
+                                6,
+
+                            biddingPlayer =
+                                "PLAYER_1",
+                        ),
+                )
+            },
+            block = {
+                baseUrl ->
+                val result =
+                    HttpAtoutiaGameApi(
+                        baseUrl,
+                    ).submitCommand(
+                        sessionId =
+                            "ms1_testroom",
+
+                        expectedRevision =
+                            5,
+
+                        engineVersion =
+                            "0.1.0",
+
+                        command =
+                            PlayerGameCommand.Pass,
+
+                        accessToken =
+                            "atk1_command_access_token",
+                    )
+
+                assertEquals(
+                    6,
+                    result.revision,
+                )
+
+                assertEquals(
+                    "IN_PROGRESS",
+                    result.phase,
+                )
+
+                assertEquals(
+                    PlayerActionMode.WAIT,
+                    result
+                        .document
+                        .snapshot
+                        .actions
+                        .mode,
+                )
+
+                assertEquals(
+                    PlayerPosition.PLAYER_1,
+                    result
+                        .document
+                        .snapshot
+                        .match
+                        .publicMatch
+                        .biddingPlayer,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun submitsAuthenticatedTakeCommand() {
+        withServer(
+            handler = {
+                exchange ->
+                assertEquals(
+                    "POST",
+                    exchange.requestMethod,
+                )
+
+                assertEquals(
+                    "/api/v1/rooms/ms1_testroom/commands",
+                    exchange.requestURI.path,
+                )
+
+                val root =
+                    JSONObject(
+                        readRequestBody(
+                            exchange,
+                        ),
+                    )
+
+                assertFalse(
+                    root.has(
+                        "participantId",
+                    ),
+                )
+
+                val document =
+                    root.getJSONObject(
+                        "document",
+                    )
+
+                assertFalse(
+                    document.has(
+                        "player",
+                    ),
+                )
+
+                assertFalse(
+                    document.has(
+                        "participantId",
+                    ),
+                )
+
+                val command =
+                    document.getJSONObject(
+                        "command",
+                    )
+
+                assertEquals(
+                    setOf(
+                        "type",
+                        "suit",
+                    ),
+                    keysOf(
+                        command,
+                    ),
+                )
+
+                assertEquals(
+                    "TAKE",
+                    command.getString(
+                        "type",
+                    ),
+                )
+
+                assertEquals(
+                    "HEARTS",
+                    command.getString(
+                        "suit",
+                    ),
+                )
+
+                assertFalse(
+                    command.has(
+                        "player",
+                    ),
+                )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_OK,
+
+                    body =
+                        validSnapshotBody(
+                            revision =
+                                6,
+                        ),
+                )
+            },
+            block = {
+                baseUrl ->
+                val result =
+                    HttpAtoutiaGameApi(
+                        baseUrl,
+                    ).submitCommand(
+                        sessionId =
+                            "ms1_testroom",
+
+                        expectedRevision =
+                            5,
+
+                        engineVersion =
+                            "0.1.0",
+
+                        command =
+                            PlayerGameCommand.Take(
+                                suit =
+                                    CardSuit.HEARTS,
+                            ),
+
+                        accessToken =
+                            "atk1_command_access_token",
+                    )
+
+                assertEquals(
+                    6,
+                    result.revision,
+                )
+            },
+        )
+    }
+
+    @Test
     fun exposesStructuredAuthInvalidError() {
         withServer(
             handler = {
@@ -270,7 +621,6 @@ class HttpAtoutiaGameApiTest {
                         """.trimIndent(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -307,6 +657,75 @@ class HttpAtoutiaGameApiTest {
     }
 
     @Test
+    fun exposesStructuredRevisionMismatchFromCommand() {
+        withServer(
+            handler = {
+                exchange ->
+                assertEquals(
+                    "/api/v1/rooms/ms1_testroom/commands",
+                    exchange.requestURI.path,
+                )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_CONFLICT,
+
+                    body =
+                        """
+                        {
+                          "error": "REVISION_MISMATCH"
+                        }
+                        """.trimIndent(),
+                )
+            },
+            block = {
+                baseUrl ->
+                val error =
+                    assertThrows(
+                        AtoutiaGameApiException::class.java,
+                    ) {
+                        HttpAtoutiaGameApi(
+                            baseUrl,
+                        ).submitCommand(
+                            sessionId =
+                                "ms1_testroom",
+
+                            expectedRevision =
+                                5,
+
+                            engineVersion =
+                                "0.1.0",
+
+                            command =
+                                PlayerGameCommand.Pass,
+
+                            accessToken =
+                                "atk1_command_access_token",
+                        )
+                    }
+
+                assertEquals(
+                    "Atoutia game API returned HTTP 409.",
+                    error.message,
+                )
+
+                assertEquals(
+                    HttpURLConnection.HTTP_CONFLICT,
+                    error.statusCode,
+                )
+
+                assertEquals(
+                    "REVISION_MISMATCH",
+                    error.errorCode,
+                )
+            },
+        )
+    }
+
+    @Test
     fun rejectsUnexpectedRootKeys() {
         withServer(
             handler = {
@@ -332,7 +751,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -384,7 +802,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -436,7 +853,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -501,7 +917,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -560,7 +975,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -612,7 +1026,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -673,7 +1086,6 @@ class HttpAtoutiaGameApiTest {
                         json.toString(),
                 )
             },
-
             block = {
                 baseUrl ->
                 val error =
@@ -741,6 +1153,70 @@ class HttpAtoutiaGameApiTest {
 
         assertEquals(
             "Invalid Atoutia access token.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun rejectsNegativeExpectedRevisionBeforeNetworkCall() {
+        val error =
+            assertThrows(
+                IllegalArgumentException::class.java,
+            ) {
+                HttpAtoutiaGameApi(
+                    "http://127.0.0.1:1",
+                ).submitCommand(
+                    sessionId =
+                        "ms1_testroom",
+
+                    expectedRevision =
+                        -1,
+
+                    engineVersion =
+                        "0.1.0",
+
+                    command =
+                        PlayerGameCommand.Pass,
+
+                    accessToken =
+                        "atk1_test",
+                )
+            }
+
+        assertEquals(
+            "Expected room revision must be non-negative.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun rejectsBlankEngineVersionBeforeNetworkCall() {
+        val error =
+            assertThrows(
+                IllegalArgumentException::class.java,
+            ) {
+                HttpAtoutiaGameApi(
+                    "http://127.0.0.1:1",
+                ).submitCommand(
+                    sessionId =
+                        "ms1_testroom",
+
+                    expectedRevision =
+                        5,
+
+                    engineVersion =
+                        " ",
+
+                    command =
+                        PlayerGameCommand.Pass,
+
+                    accessToken =
+                        "atk1_test",
+                )
+            }
+
+        assertEquals(
+            "Atoutia engine version must not be blank.",
             error.message,
         )
     }
@@ -829,20 +1305,40 @@ class HttpAtoutiaGameApiTest {
         )
 
         exchange.responseBody.use {
-            it.write(
+            output ->
+            output.write(
                 bytes,
             )
         }
     }
 
-    private fun validSnapshotBody():
-        String =
+    private fun keysOf(
+        json:
+            JSONObject,
+    ): Set<String> =
+        buildSet {
+            val iterator =
+                json.keys()
+
+            while (
+                iterator.hasNext()
+            ) {
+                add(
+                    iterator.next(),
+                )
+            }
+        }
+
+    private fun validSnapshotBody(
+        revision:
+            Int = 5,
+    ): String =
         """
         {
           "formatVersion": 1,
           "engineVersion": "0.1.0",
           "sessionId": "ms1_testroom",
-          "revision": 5,
+          "revision": $revision,
           "phase": "IN_PROGRESS",
           "player": "PLAYER_0",
           "seats": [
@@ -896,6 +1392,18 @@ class HttpAtoutiaGameApiTest {
                 {
                   "suit": "CLUBS",
                   "rank": "SEVEN"
+                },
+                {
+                  "suit": "DIAMONDS",
+                  "rank": "KING"
+                },
+                {
+                  "suit": "SPADES",
+                  "rank": "NINE"
+                },
+                {
+                  "suit": "HEARTS",
+                  "rank": "EIGHT"
                 }
               ],
               "legalCards": []
@@ -919,4 +1427,56 @@ class HttpAtoutiaGameApiTest {
           }
         }
         """.trimIndent()
+
+    private fun waitingSnapshotBody(
+        revision:
+            Int,
+
+        biddingPlayer:
+            String,
+    ): String {
+        val json =
+            JSONObject(
+                validSnapshotBody(
+                    revision =
+                        revision,
+                ),
+            )
+
+        val game =
+            json.getJSONObject(
+                "game",
+            )
+
+        game
+            .getJSONObject(
+                "match",
+            )
+            .getJSONObject(
+                "public",
+            )
+            .put(
+                "biddingPlayer",
+                biddingPlayer,
+            )
+
+        game
+            .getJSONObject(
+                "actions",
+            )
+            .put(
+                "mode",
+                "WAIT",
+            )
+            .put(
+                "biddingActions",
+                JSONArray(),
+            )
+            .put(
+                "legalCards",
+                JSONArray(),
+            )
+
+        return json.toString()
+    }
 }

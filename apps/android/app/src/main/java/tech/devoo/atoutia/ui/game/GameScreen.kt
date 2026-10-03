@@ -2,10 +2,16 @@ package tech.devoo.atoutia.ui.game
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -15,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import tech.devoo.atoutia.network.game.BiddingActionSnapshot
 import tech.devoo.atoutia.network.game.CardRank
 import tech.devoo.atoutia.network.game.CardSuit
 import tech.devoo.atoutia.network.game.DealPhase
@@ -22,14 +29,43 @@ import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerGameSession
 import tech.devoo.atoutia.network.room.PlayerPosition
 
+sealed interface GameBiddingUiState {
+    data object Idle :
+        GameBiddingUiState
+
+    data object Submitting :
+        GameBiddingUiState
+
+    data class Failed(
+        val message:
+            String,
+    ) : GameBiddingUiState
+}
+
 @Composable
 fun GameScreen(
     session:
         PlayerGameSession,
 
+    biddingState:
+        GameBiddingUiState =
+        GameBiddingUiState.Idle,
+
+    onBiddingAction:
+        (
+            (
+                BiddingActionSnapshot,
+            ) -> Unit
+        )? =
+        null,
+
+    onRefresh:
+        (() -> Unit)? =
+        null,
+
     modifier:
         Modifier =
-            Modifier,
+        Modifier,
 ) {
     val document =
         session.document
@@ -46,6 +82,13 @@ fun GameScreen(
     val actions =
         snapshot.actions
 
+    val score =
+        publicMatch.score
+
+    val isSubmitting =
+        biddingState is
+            GameBiddingUiState.Submitting
+
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
@@ -58,16 +101,17 @@ fun GameScreen(
                     .padding(
                         innerPadding,
                     )
+                    .verticalScroll(
+                        rememberScrollState(),
+                    )
                     .padding(
-                        horizontal =
-                            24.dp,
-
-                        vertical =
-                            32.dp,
+                        24.dp,
                     ),
 
             verticalArrangement =
-                Arrangement.Top,
+                Arrangement.spacedBy(
+                    20.dp,
+                ),
 
             horizontalAlignment =
                 Alignment.CenterHorizontally,
@@ -79,26 +123,23 @@ fun GameScreen(
                 style =
                     MaterialTheme
                         .typography
-                        .displaySmall,
+                        .headlineMedium,
 
                 fontWeight =
                     FontWeight.Bold,
+
+                textAlign =
+                    TextAlign.Center,
             )
 
             Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            8.dp,
-                    ),
-
                 text =
                     "La partie est en cours.",
 
                 style =
                     MaterialTheme
                         .typography
-                        .titleMedium,
+                        .bodyLarge,
 
                 textAlign =
                     TextAlign.Center,
@@ -106,17 +147,17 @@ fun GameScreen(
 
             OutlinedCard(
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top =
-                                28.dp,
-                        ),
+                    Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier =
                         Modifier.padding(
                             20.dp,
+                        ),
+
+                    verticalArrangement =
+                        Arrangement.spacedBy(
+                            16.dp,
                         ),
                 ) {
                     GameInformationRow(
@@ -129,12 +170,6 @@ fun GameScreen(
                     )
 
                     GameInformationRow(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
                         label =
                             "Phase",
 
@@ -144,41 +179,29 @@ fun GameScreen(
                     )
 
                     GameInformationRow(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
                         label =
                             "Carte retournée",
 
                         value =
-                            "${publicMatch.turnUpCard.rank.toDisplayName()} de ${publicMatch.turnUpCard.suit.toDisplayName()}",
+                            publicMatch
+                                .turnUpCard
+                                .let {
+                                    card ->
+                                    "${card.rank.toDisplayName()} de ${card.suit.toDisplayName()}"
+                                },
                     )
 
                     GameInformationRow(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
                         label =
                             "Cartes en main",
 
                         value =
-                            match.hand.size
+                            match.hand
+                                .size
                                 .toString(),
                     )
 
                     GameInformationRow(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
                         label =
                             "Action disponible",
 
@@ -188,28 +211,160 @@ fun GameScreen(
                     )
 
                     GameInformationRow(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
                         label =
                             "Score",
 
                         value =
-                            "${publicMatch.score.scores.team0} - ${publicMatch.score.scores.team1}",
+                            "${score.scores.team0} - ${score.scores.team1}",
+                    )
+
+                    GameInformationRow(
+                        label =
+                            "Révision serveur",
+
+                        value =
+                            session.revision
+                                .toString(),
                     )
                 }
             }
 
-            Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            24.dp,
-                    ),
+            if (
+                actions.mode ==
+                    PlayerActionMode.BID
+            ) {
+                OutlinedCard(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier.padding(
+                                20.dp,
+                            ),
 
+                        verticalArrangement =
+                            Arrangement.spacedBy(
+                                12.dp,
+                            ),
+                    ) {
+                        Text(
+                            text =
+                                "Votre enchère",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
+
+                            fontWeight =
+                                FontWeight.SemiBold,
+                        )
+
+                        Text(
+                            text =
+                                "Choisis uniquement parmi les actions autorisées par le serveur.",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodyMedium,
+                        )
+
+                        actions
+                            .biddingActions
+                            .forEach {
+                                action ->
+                                BiddingActionButton(
+                                    action =
+                                        action,
+
+                                    enabled =
+                                        !isSubmitting &&
+                                            onBiddingAction !=
+                                            null,
+
+                                    onClick = {
+                                        onBiddingAction
+                                            ?.invoke(
+                                                action,
+                                            )
+                                    },
+                                )
+                            }
+
+                        when (
+                            val state =
+                                biddingState
+                        ) {
+                            GameBiddingUiState.Idle -> {
+                                // Rien à afficher.
+                            }
+
+                            GameBiddingUiState.Submitting -> {
+                                Row(
+                                    modifier =
+                                        Modifier.fillMaxWidth(),
+
+                                    horizontalArrangement =
+                                        Arrangement.spacedBy(
+                                            12.dp,
+                                        ),
+
+                                    verticalAlignment =
+                                        Alignment.CenterVertically,
+                                ) {
+                                    CircularProgressIndicator()
+
+                                    Text(
+                                        text =
+                                            "Envoi de l’enchère...",
+                                    )
+                                }
+                            }
+
+                            is GameBiddingUiState.Failed -> {
+                                Text(
+                                    text =
+                                        state.message,
+
+                                    color =
+                                        MaterialTheme
+                                            .colorScheme
+                                            .error,
+
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodyMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = {
+                    onRefresh
+                        ?.invoke()
+                },
+
+                enabled =
+                    onRefresh !=
+                        null &&
+                        !isSubmitting,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text =
+                        "Actualiser la partie",
+                )
+            }
+
+            Text(
                 text =
                     "Snapshot privé chargé depuis le serveur Atoutia.",
 
@@ -223,12 +378,6 @@ fun GameScreen(
             )
 
             Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            8.dp,
-                    ),
-
                 text =
                     "Moteur ${document.engineVersion} • format ${document.formatVersion}",
 
@@ -245,48 +394,98 @@ fun GameScreen(
 }
 
 @Composable
+private fun BiddingActionButton(
+    action:
+        BiddingActionSnapshot,
+
+    enabled:
+        Boolean,
+
+    onClick:
+        () -> Unit,
+) {
+    val label =
+        when (
+            action
+        ) {
+            is BiddingActionSnapshot.Pass ->
+                "Passer"
+
+            is BiddingActionSnapshot.Take ->
+                "Prendre à ${action.suit.toDisplayName()}"
+        }
+
+    Button(
+        onClick =
+            onClick,
+
+        enabled =
+            enabled,
+
+        modifier =
+            Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text =
+                label,
+        )
+    }
+}
+
+@Composable
 private fun GameInformationRow(
     label:
         String,
 
     value:
         String,
-
-    modifier:
-        Modifier =
-            Modifier,
 ) {
-    Column(
+    Row(
         modifier =
-            modifier,
+            Modifier.fillMaxWidth(),
+
+        horizontalArrangement =
+            Arrangement.spacedBy(
+                16.dp,
+            ),
+
+        verticalAlignment =
+            Alignment.CenterVertically,
     ) {
         Text(
             text =
                 label,
 
+            modifier =
+                Modifier.weight(
+                    1f,
+                ),
+
             style =
                 MaterialTheme
                     .typography
-                    .labelLarge,
+                    .bodyMedium,
+
+            fontWeight =
+                FontWeight.SemiBold,
         )
 
         Text(
-            modifier =
-                Modifier.padding(
-                    top =
-                        6.dp,
-                ),
-
             text =
                 value,
+
+            modifier =
+                Modifier.weight(
+                    1f,
+                ),
 
             style =
                 MaterialTheme
                     .typography
-                    .bodyLarge,
+                    .bodyMedium,
 
-            fontWeight =
-                FontWeight.Bold,
+            textAlign =
+                TextAlign.End,
         )
     }
 }

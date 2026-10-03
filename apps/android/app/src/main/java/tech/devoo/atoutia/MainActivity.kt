@@ -45,6 +45,7 @@ import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
 import tech.devoo.atoutia.network.game.AtoutiaGameApiException
+import tech.devoo.atoutia.network.game.BiddingActionSnapshot
 import tech.devoo.atoutia.network.game.HttpAtoutiaGameApi
 import tech.devoo.atoutia.network.game.PlayerGameSession
 import tech.devoo.atoutia.network.game.PlayerGameSessionCoordinator
@@ -53,6 +54,7 @@ import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
 import tech.devoo.atoutia.network.room.RoomSessionCoordinator
 import tech.devoo.atoutia.network.room.RoomSessionFullException
 import tech.devoo.atoutia.network.room.RoomSessionMembership
+import tech.devoo.atoutia.ui.game.GameBiddingUiState
 import tech.devoo.atoutia.ui.game.GameScreen
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
@@ -103,6 +105,12 @@ class MainActivity :
 
                     loadGameSession =
                         ::loadGameSession,
+
+                    refreshGameSession =
+                        ::refreshGameSession,
+
+                    submitBiddingAction =
+                        ::submitBiddingAction,
 
                     leaveRoom =
                         ::leaveRoom,
@@ -990,6 +998,342 @@ class MainActivity :
         }
     }
 
+    private fun refreshGameSession(
+        session:
+            PlayerGameSession,
+
+        onResult:
+            (
+                RefreshGameSessionResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                RefreshGameSessionResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val gameApi =
+                            HttpAtoutiaGameApi(
+                                apiBaseUrl,
+                            )
+
+                        val gameSessionCoordinator =
+                            PlayerGameSessionCoordinator(
+                                gameApi =
+                                    gameApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        RefreshGameSessionResult.Refreshed(
+                            session =
+                                gameSessionCoordinator
+                                    .load(
+                                        sessionId =
+                                            session.sessionId,
+
+                                        expectedPlayer =
+                                            session.player,
+                                    ),
+                        )
+                    } catch (
+                        error:
+                            AtoutiaGameApiException,
+                    ) {
+                        if (
+                            error.statusCode ==
+                                401 ||
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            RefreshGameSessionResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            RefreshGameSessionResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible d’actualiser la partie Atoutia.",
+                            )
+                        }
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        if (
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            RefreshGameSessionResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            RefreshGameSessionResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible d’actualiser la partie Atoutia.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
+    private fun submitBiddingAction(
+        session:
+            PlayerGameSession,
+
+        action:
+            BiddingActionSnapshot,
+
+        onResult:
+            (
+                SubmitBiddingActionResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                SubmitBiddingActionResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    val sessionApi =
+                        HttpAuthSessionApi(
+                            apiBaseUrl,
+                        )
+
+                    val authSessionCoordinator =
+                        AuthSessionCoordinator(
+                            tokenStore =
+                                tokenStore,
+
+                            sessionApi =
+                                sessionApi,
+                        )
+
+                    val gameApi =
+                        HttpAtoutiaGameApi(
+                            apiBaseUrl,
+                        )
+
+                    val gameSessionCoordinator =
+                        PlayerGameSessionCoordinator(
+                            gameApi =
+                                gameApi,
+
+                            accessTokenProvider =
+                                authSessionCoordinator::accessTokenOrRefresh,
+                        )
+
+                    try {
+                        SubmitBiddingActionResult.Submitted(
+                            session =
+                                gameSessionCoordinator
+                                    .submitBiddingAction(
+                                        session =
+                                            session,
+
+                                        action =
+                                            action,
+                                    ),
+                        )
+                    } catch (
+                        error:
+                            AtoutiaGameApiException,
+                    ) {
+                        if (
+                            error.statusCode ==
+                                401 ||
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            SubmitBiddingActionResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else if (
+                            error.errorCode ==
+                                "REVISION_MISMATCH"
+                        ) {
+                            try {
+                                SubmitBiddingActionResult.Stale(
+                                    session =
+                                        gameSessionCoordinator
+                                            .load(
+                                                sessionId =
+                                                    session.sessionId,
+
+                                                expectedPlayer =
+                                                    session.player,
+                                            ),
+
+                                    message =
+                                        "La partie a changé avant ton enchère. L’état a été actualisé.",
+                                )
+                            } catch (
+                                refreshError:
+                                    AtoutiaGameApiException,
+                            ) {
+                                if (
+                                    refreshError.statusCode ==
+                                        401 ||
+                                    !sessionStillAvailable(
+                                        tokenStore,
+                                    )
+                                ) {
+                                    SubmitBiddingActionResult.SessionExpired(
+                                        message =
+                                            "Ta session Atoutia a expiré. Reconnecte-toi.",
+                                    )
+                                } else {
+                                    SubmitBiddingActionResult.Failed(
+                                        message =
+                                            refreshError.message
+                                                ?: "Impossible d’actualiser la partie Atoutia.",
+                                    )
+                                }
+                            } catch (
+                                refreshError:
+                                    Exception,
+                            ) {
+                                if (
+                                    !sessionStillAvailable(
+                                        tokenStore,
+                                    )
+                                ) {
+                                    SubmitBiddingActionResult.SessionExpired(
+                                        message =
+                                            "Ta session Atoutia a expiré. Reconnecte-toi.",
+                                    )
+                                } else {
+                                    SubmitBiddingActionResult.Failed(
+                                        message =
+                                            refreshError.message
+                                                ?: "Impossible d’actualiser la partie Atoutia.",
+                                    )
+                                }
+                            }
+                        } else {
+                            val message =
+                                when (
+                                    error.errorCode
+                                ) {
+                                    "PARTICIPANT_FORBIDDEN" ->
+                                        "Tu n’es plus autorisé à agir dans cette partie."
+
+                                    "COMMAND_REJECTED" ->
+                                        "Cette enchère n’est plus autorisée par le serveur."
+
+                                    "SESSION_MISMATCH" ->
+                                        "La commande Atoutia ne correspond pas à cette partie."
+
+                                    else ->
+                                        error.message
+                                            ?: "Impossible d’envoyer l’enchère Atoutia."
+                                }
+
+                            SubmitBiddingActionResult.Failed(
+                                message =
+                                    message,
+                            )
+                        }
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        if (
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            SubmitBiddingActionResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            SubmitBiddingActionResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible d’envoyer l’enchère Atoutia.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
     private fun leaveRoom(
         membership:
             RoomSessionMembership,
@@ -1261,6 +1605,48 @@ sealed interface LoadGameSessionResult {
     ) : LoadGameSessionResult
 }
 
+sealed interface RefreshGameSessionResult {
+    data class Refreshed(
+        val session:
+            PlayerGameSession,
+    ) : RefreshGameSessionResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : RefreshGameSessionResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : RefreshGameSessionResult
+}
+
+sealed interface SubmitBiddingActionResult {
+    data class Submitted(
+        val session:
+            PlayerGameSession,
+    ) : SubmitBiddingActionResult
+
+    data class Stale(
+        val session:
+            PlayerGameSession,
+
+        val message:
+            String,
+    ) : SubmitBiddingActionResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : SubmitBiddingActionResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : SubmitBiddingActionResult
+}
+
 sealed interface LeaveRoomResult {
     data object Left :
         LeaveRoomResult
@@ -1386,6 +1772,23 @@ private fun AtoutiaApp(
             ) -> Unit,
         ) -> Unit,
 
+    refreshGameSession:
+        (
+            PlayerGameSession,
+            (
+                RefreshGameSessionResult,
+            ) -> Unit,
+        ) -> Unit,
+
+    submitBiddingAction:
+        (
+            PlayerGameSession,
+            BiddingActionSnapshot,
+            (
+                SubmitBiddingActionResult,
+            ) -> Unit,
+        ) -> Unit,
+
     leaveRoom:
         (
             RoomSessionMembership,
@@ -1463,6 +1866,15 @@ private fun AtoutiaApp(
                 RoomLobbyStartUiState
             >(
                 RoomLobbyStartUiState.Idle,
+            )
+        }
+
+    var gameBiddingState by
+        remember {
+            mutableStateOf<
+                GameBiddingUiState
+            >(
+                GameBiddingUiState.Idle,
             )
         }
 
@@ -1974,6 +2386,9 @@ private fun AtoutiaApp(
                                 result
                             ) {
                                 is LoadGameSessionResult.Loaded -> {
+                                    gameBiddingState =
+                                        GameBiddingUiState.Idle
+
                                     destination =
                                         AuthenticatedDestination.Game(
                                             session =
@@ -2043,6 +2458,146 @@ private fun AtoutiaApp(
                     GameScreen(
                         session =
                             currentDestination.session,
+
+                        biddingState =
+                            gameBiddingState,
+
+                        onBiddingAction = {
+                            action ->
+                            gameBiddingState =
+                                GameBiddingUiState.Submitting
+
+                            submitBiddingAction(
+                                currentDestination.session,
+                                action,
+                            ) {
+                                result ->
+                                when (
+                                    result
+                                ) {
+                                    is SubmitBiddingActionResult.Submitted -> {
+                                        gameBiddingState =
+                                            GameBiddingUiState.Idle
+
+                                        destination =
+                                            AuthenticatedDestination.Game(
+                                                session =
+                                                    result.session,
+                                            )
+                                    }
+
+                                    is SubmitBiddingActionResult.Stale -> {
+                                        gameBiddingState =
+                                            GameBiddingUiState.Failed(
+                                                message =
+                                                    result.message,
+                                            )
+
+                                        destination =
+                                            AuthenticatedDestination.Game(
+                                                session =
+                                                    result.session,
+                                            )
+                                    }
+
+                                    is SubmitBiddingActionResult.SessionExpired -> {
+                                        authState =
+                                            AuthStartupState.SignedOut
+
+                                        destination =
+                                            AuthenticatedDestination.Home
+
+                                        roomActionState =
+                                            RoomActionUiState.Idle
+
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
+
+                                        startState =
+                                            RoomLobbyStartUiState.Idle
+
+                                        gameBiddingState =
+                                            GameBiddingUiState.Idle
+
+                                        joinSessionId =
+                                            ""
+
+                                        googleSignInState =
+                                            GoogleSignInUiState.Idle
+
+                                        notice =
+                                            result.message
+                                    }
+
+                                    is SubmitBiddingActionResult.Failed -> {
+                                        gameBiddingState =
+                                            GameBiddingUiState.Failed(
+                                                message =
+                                                    result.message,
+                                            )
+                                    }
+                                }
+                            }
+                        },
+
+                        onRefresh = {
+                            refreshGameSession(
+                                currentDestination.session,
+                            ) {
+                                result ->
+                                when (
+                                    result
+                                ) {
+                                    is RefreshGameSessionResult.Refreshed -> {
+                                        gameBiddingState =
+                                            GameBiddingUiState.Idle
+
+                                        destination =
+                                            AuthenticatedDestination.Game(
+                                                session =
+                                                    result.session,
+                                            )
+                                    }
+
+                                    is RefreshGameSessionResult.SessionExpired -> {
+                                        authState =
+                                            AuthStartupState.SignedOut
+
+                                        destination =
+                                            AuthenticatedDestination.Home
+
+                                        roomActionState =
+                                            RoomActionUiState.Idle
+
+                                        leaveState =
+                                            RoomLobbyLeaveUiState.Idle
+
+                                        startState =
+                                            RoomLobbyStartUiState.Idle
+
+                                        gameBiddingState =
+                                            GameBiddingUiState.Idle
+
+                                        joinSessionId =
+                                            ""
+
+                                        googleSignInState =
+                                            GoogleSignInUiState.Idle
+
+                                        notice =
+                                            result.message
+                                    }
+
+                                    is RefreshGameSessionResult.Failed -> {
+                                        gameBiddingState =
+                                            GameBiddingUiState.Failed(
+                                                message =
+                                                    result.message,
+                                            )
+                                    }
+                                }
+                            }
+                        },
                     )
                 }
             }
@@ -2668,7 +3223,7 @@ private fun BackendStatus(
                         Modifier.padding(
                             top =
                                 12.dp,
-                        ),
+                    ),
 
                     text =
                         "Connexion au backend…",
@@ -2707,7 +3262,7 @@ private fun BackendStatus(
                         Modifier.padding(
                             top =
                                 8.dp,
-                        ),
+                    ),
 
                     text =
                         "Moteur ${state.health.engineVersion} • ${state.health.liveRooms} partie(s) active(s)",
@@ -2746,7 +3301,7 @@ private fun BackendStatus(
                         Modifier.padding(
                             top =
                                 8.dp,
-                        ),
+                    ),
 
                     text =
                         state.message,

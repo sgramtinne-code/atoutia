@@ -21,7 +21,7 @@ class HttpAtoutiaGameApi(
 
         accessToken:
             String,
-    ): PlayerClientSnapshotDocument {
+    ): PlayerGameSnapshot {
         val normalizedSessionId =
             validateSessionId(
                 sessionId,
@@ -41,6 +41,115 @@ class HttpAtoutiaGameApi(
 
             accessToken =
                 normalizedAccessToken,
+
+            requestBody =
+                null,
+        )
+    }
+
+    override fun submitCommand(
+        sessionId:
+            String,
+
+        expectedRevision:
+            Int,
+
+        engineVersion:
+            String,
+
+        command:
+            PlayerGameCommand,
+
+        accessToken:
+            String,
+    ): PlayerGameSnapshot {
+        val normalizedSessionId =
+            validateSessionId(
+                sessionId,
+            )
+
+        require(
+            expectedRevision >=
+                0,
+        ) {
+            "Expected room revision must be non-negative."
+        }
+
+        val normalizedEngineVersion =
+            validateEngineVersion(
+                engineVersion,
+            )
+
+        val normalizedAccessToken =
+            validateAccessToken(
+                accessToken,
+            )
+
+        val commandJson =
+            when (
+                command
+            ) {
+                PlayerGameCommand.Pass ->
+                    JSONObject()
+                        .put(
+                            "type",
+                            "PASS",
+                        )
+
+                is PlayerGameCommand.Take ->
+                    JSONObject()
+                        .put(
+                            "type",
+                            "TAKE",
+                        )
+                        .put(
+                            "suit",
+                            command.suit.name,
+                        )
+            }
+
+        val documentJson =
+            JSONObject()
+                .put(
+                    "formatVersion",
+                    SUPPORTED_LIVE_MATCH_ROOM_COMMAND_FORMAT_VERSION,
+                )
+                .put(
+                    "engineVersion",
+                    normalizedEngineVersion,
+                )
+                .put(
+                    "sessionId",
+                    normalizedSessionId,
+                )
+                .put(
+                    "expectedRevision",
+                    expectedRevision,
+                )
+                .put(
+                    "command",
+                    commandJson,
+                )
+
+        val requestBody =
+            JSONObject()
+                .put(
+                    "document",
+                    documentJson,
+                )
+
+        return executePlayerSnapshotRequest(
+            path =
+                "/api/v1/rooms/$normalizedSessionId/commands",
+
+            expectedSessionId =
+                normalizedSessionId,
+
+            accessToken =
+                normalizedAccessToken,
+
+            requestBody =
+                requestBody,
         )
     }
 
@@ -53,7 +162,10 @@ class HttpAtoutiaGameApi(
 
         accessToken:
             String,
-    ): PlayerClientSnapshotDocument {
+
+        requestBody:
+            JSONObject?,
+    ): PlayerGameSnapshot {
         val connection =
             URI(
                 "$normalizedBaseUrl$path",
@@ -83,6 +195,37 @@ class HttpAtoutiaGameApi(
                 "Authorization",
                 "Bearer $accessToken",
             )
+
+            if (
+                requestBody !=
+                    null
+            ) {
+                val bytes =
+                    requestBody
+                        .toString()
+                        .toByteArray(
+                            Charsets.UTF_8,
+                        )
+
+                connection.doOutput =
+                    true
+
+                connection.setRequestProperty(
+                    "Content-Type",
+                    "application/json; charset=utf-8",
+                )
+
+                connection.setFixedLengthStreamingMode(
+                    bytes.size,
+                )
+
+                connection.outputStream.use {
+                    output ->
+                    output.write(
+                        bytes,
+                    )
+                }
+            }
 
             val responseCode =
                 connection.responseCode
@@ -180,11 +323,11 @@ class HttpAtoutiaGameApi(
                         it.readText()
                     }
             } catch (
-            error:
-                Exception,
-        ) {
-            return null
-        }
+                error:
+                    Exception,
+            ) {
+                return null
+            }
 
         if (
             responseBody.isBlank()
@@ -225,7 +368,7 @@ class HttpAtoutiaGameApi(
 
         expectedSessionId:
             String,
-    ): PlayerClientSnapshotDocument {
+    ): PlayerGameSnapshot {
         try {
             val json =
                 JSONObject(
@@ -379,15 +522,24 @@ class HttpAtoutiaGameApi(
                 )
             }
 
-            return PlayerClientSnapshotDocument(
-                formatVersion =
-                    SUPPORTED_PLAYER_CLIENT_SNAPSHOT_FORMAT_VERSION,
+            return PlayerGameSnapshot(
+                revision =
+                    revision,
 
-                engineVersion =
-                    engineVersion,
+                phase =
+                    phase,
 
-                snapshot =
-                    snapshot,
+                document =
+                    PlayerClientSnapshotDocument(
+                        formatVersion =
+                            SUPPORTED_PLAYER_CLIENT_SNAPSHOT_FORMAT_VERSION,
+
+                        engineVersion =
+                            engineVersion,
+
+                        snapshot =
+                            snapshot,
+                    ),
             )
         } catch (
             error:
@@ -429,7 +581,7 @@ class HttpAtoutiaGameApi(
 
         for (
             index in
-            0 until array.length()
+                0 until array.length()
         ) {
             val json =
                 array.getJSONObject(
@@ -470,7 +622,7 @@ class HttpAtoutiaGameApi(
                     player,
                     occupied,
                 ) !=
-                null
+                    null
             ) {
                 throw AtoutiaGameApiException(
                     "Atoutia game API returned duplicate player seat snapshots.",
@@ -803,7 +955,7 @@ class HttpAtoutiaGameApi(
         buildList {
             for (
                 index in
-                0 until array.length()
+                    0 until array.length()
             ) {
                 add(
                     parsePlayedCard(
@@ -906,7 +1058,7 @@ class HttpAtoutiaGameApi(
         buildList {
             for (
                 index in
-                0 until array.length()
+                    0 until array.length()
             ) {
                 add(
                     parseBiddingAction(
@@ -1005,7 +1157,7 @@ class HttpAtoutiaGameApi(
         buildList {
             for (
                 index in
-                0 until array.length()
+                    0 until array.length()
             ) {
                 add(
                     parseCard(
@@ -1502,6 +1654,9 @@ class HttpAtoutiaGameApi(
         const val SUPPORTED_LIVE_MATCH_ROOM_SNAPSHOT_FORMAT_VERSION =
             1
 
+        const val SUPPORTED_LIVE_MATCH_ROOM_COMMAND_FORMAT_VERSION =
+            1
+
         val SUPPORTED_LIVE_MATCH_ROOM_PHASES =
             setOf(
                 "WAITING_FOR_PLAYERS",
@@ -1681,6 +1836,34 @@ class HttpAtoutiaGameApi(
                     ),
             ) {
                 "Atoutia room session ID contains invalid URL characters."
+            }
+
+            return value
+        }
+
+        fun validateEngineVersion(
+            value:
+                String,
+        ): String {
+            require(
+                value.isNotBlank(),
+            ) {
+                "Atoutia engine version must not be blank."
+            }
+
+            require(
+                value ==
+                    value.trim(),
+            ) {
+                "Atoutia engine version must not contain surrounding whitespace."
+            }
+
+            require(
+                value.none {
+                    it.isWhitespace()
+                },
+            ) {
+                "Invalid Atoutia engine version."
             }
 
             return value

@@ -14,6 +14,28 @@ const FILLABLE_ROOM_PHASES =
     "READY",
   ]);
 
+const ADVANCE_BIDDING_FLAG =
+  "--advance-bidding-to-player-0";
+
+const COMMAND_FORMAT_VERSION =
+  1;
+
+const MATCH_START_TIMEOUT_MS =
+  120_000;
+
+const POLL_INTERVAL_MS =
+  500;
+
+function usage() {
+  return [
+    "Usage:",
+    "node apps/backend/scripts/dev-fill-room.mjs ms1_<session-id>",
+    "node apps/backend/scripts/dev-fill-room.mjs ms1_<session-id> --advance-bidding-to-player-0",
+  ].join(
+    "\n",
+  );
+}
+
 function requireSessionId(
   value,
 ) {
@@ -24,11 +46,55 @@ function requireSessionId(
     )
   ) {
     throw new Error(
-      "Usage: node apps/backend/scripts/dev-fill-room.mjs ms1_<session-id>",
+      usage(),
     );
   }
 
   return value;
+}
+
+function parseAdvanceBiddingOption(
+  args,
+) {
+  const options =
+    args.slice(
+      3,
+    );
+
+  if (
+    options.length ===
+      0
+  ) {
+    return false;
+  }
+
+  if (
+    options.length ===
+      1 &&
+    options[0] ===
+      ADVANCE_BIDDING_FLAG
+  ) {
+    return true;
+  }
+
+  throw new Error(
+    usage(),
+  );
+}
+
+function sleep(
+  milliseconds,
+) {
+  return new Promise(
+    (
+      resolve,
+    ) => {
+      setTimeout(
+        resolve,
+        milliseconds,
+      );
+    },
+  );
 }
 
 async function readResponseBody(
@@ -237,7 +303,7 @@ async function claimSeat(
       `${player}: already occupied, skipping.`,
     );
 
-    return;
+    return false;
   }
 
   if (
@@ -290,6 +356,8 @@ async function claimSeat(
   console.log(
     `${player}: joined — ${after.occupiedSeats}/4 — revision ${after.revision}`,
   );
+
+  return true;
 }
 
 async function createAndJoinTestPlayer(
@@ -313,7 +381,7 @@ async function createAndJoinTestPlayer(
       `${player}: already occupied, skipping.`,
     );
 
-    return;
+    return null;
   }
 
   const accountId =
@@ -327,11 +395,442 @@ async function createAndJoinTestPlayer(
       accountId,
     );
 
-  await claimSeat(
-    baseUrl,
-    sessionId,
+  const joined =
+    await claimSeat(
+      baseUrl,
+      sessionId,
+      player,
+      accessToken,
+    );
+
+  if (
+    !joined
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
     player,
+    accountId,
     accessToken,
+  });
+}
+
+async function getPlayerSnapshot(
+  baseUrl,
+  sessionId,
+  accessToken,
+) {
+  return requestJson(
+    `${baseUrl}/api/v1/rooms/${sessionId}/snapshot`,
+    {
+      method:
+        "POST",
+
+      headers: {
+        accept:
+          "application/json",
+
+        authorization:
+          `Bearer ${accessToken}`,
+      },
+    },
+    200,
+  );
+}
+
+function requireBiddingPlayer(
+  snapshot,
+) {
+  const biddingPlayer =
+    snapshot
+      ?.game
+      ?.match
+      ?.public
+      ?.biddingPlayer;
+
+  if (
+    biddingPlayer !==
+      null &&
+    typeof biddingPlayer !==
+      "string"
+  ) {
+    throw new Error(
+      "Player snapshot returned an invalid bidding player.",
+    );
+  }
+
+  return biddingPlayer;
+}
+
+function requirePassAction(
+  snapshot,
+  player,
+) {
+  const actions =
+    snapshot
+      ?.game
+      ?.actions;
+
+  if (
+    actions ===
+      null ||
+    typeof actions !==
+      "object"
+  ) {
+    throw new Error(
+      `${player}: player snapshot returned invalid actions.`,
+    );
+  }
+
+  if (
+    actions.mode !==
+      "BID"
+  ) {
+    throw new Error(
+      `${player}: expected BID mode, received ${String(actions.mode)}.`,
+    );
+  }
+
+  if (
+    !Array.isArray(
+      actions.biddingActions,
+    )
+  ) {
+    throw new Error(
+      `${player}: player snapshot returned invalid bidding actions.`,
+    );
+  }
+
+  const pass =
+    actions.biddingActions.find(
+      (
+        action,
+      ) =>
+        action !==
+          null &&
+        typeof action ===
+          "object" &&
+        action.type ===
+          "PASS" &&
+        action.player ===
+          player,
+    );
+
+  if (
+    pass ===
+      undefined
+  ) {
+    throw new Error(
+      `${player}: PASS is not currently authorized by the server.`,
+    );
+  }
+}
+
+async function submitPass(
+  baseUrl,
+  sessionId,
+  player,
+  accessToken,
+  snapshot,
+) {
+  if (
+    typeof snapshot.revision !==
+      "number" ||
+    !Number.isInteger(
+      snapshot.revision,
+    ) ||
+    snapshot.revision <
+      0
+  ) {
+    throw new Error(
+      `${player}: player snapshot returned an invalid revision.`,
+    );
+  }
+
+  if (
+    typeof snapshot.engineVersion !==
+      "string" ||
+    snapshot.engineVersion.length ===
+      0
+  ) {
+    throw new Error(
+      `${player}: player snapshot returned an invalid engine version.`,
+    );
+  }
+
+  if (
+    snapshot.sessionId !==
+      sessionId
+  ) {
+    throw new Error(
+      `${player}: player snapshot belongs to another room.`,
+    );
+  }
+
+  if (
+    snapshot.player !==
+      player
+  ) {
+    throw new Error(
+      `${player}: authenticated snapshot belongs to ${String(snapshot.player)}.`,
+    );
+  }
+
+  requirePassAction(
+    snapshot,
+    player,
+  );
+
+  const after =
+    await requestJson(
+      `${baseUrl}/api/v1/rooms/${sessionId}/commands`,
+      {
+        method:
+          "POST",
+
+        headers: {
+          accept:
+            "application/json",
+
+          authorization:
+            `Bearer ${accessToken}`,
+
+          "content-type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({
+            document: {
+              formatVersion:
+                COMMAND_FORMAT_VERSION,
+
+              engineVersion:
+                snapshot.engineVersion,
+
+              sessionId,
+
+              expectedRevision:
+                snapshot.revision,
+
+              command: {
+                type:
+                  "PASS",
+              },
+            },
+          }),
+      },
+      200,
+    );
+
+  if (
+    typeof after.revision !==
+      "number" ||
+    after.revision <=
+      snapshot.revision
+  ) {
+    throw new Error(
+      `${player}: PASS did not advance the room revision.`,
+    );
+  }
+
+  console.log(
+    `${player}: PASS — revision ${after.revision}`,
+  );
+
+  return after;
+}
+
+async function waitForMatchStart(
+  baseUrl,
+  sessionId,
+) {
+  console.log(
+    "",
+  );
+
+  console.log(
+    "Waiting for PLAYER_0 Android to start the match...",
+  );
+
+  const deadline =
+    Date.now() +
+    MATCH_START_TIMEOUT_MS;
+
+  while (
+    Date.now() <
+      deadline
+  ) {
+    const room =
+      await getRoom(
+        baseUrl,
+        sessionId,
+      );
+
+    if (
+      room.phase ===
+        "IN_PROGRESS"
+    ) {
+      console.log(
+        `Match started — revision ${room.revision}.`,
+      );
+
+      return;
+    }
+
+    if (
+      room.phase !==
+        "READY"
+    ) {
+      throw new Error(
+        `Expected room phase READY or IN_PROGRESS while waiting, received ${room.phase}.`,
+      );
+    }
+
+    await sleep(
+      POLL_INTERVAL_MS,
+    );
+  }
+
+  throw new Error(
+    "Timed out while waiting for PLAYER_0 Android to start the match.",
+  );
+}
+
+async function advanceBiddingToPlayer0(
+  baseUrl,
+  sessionId,
+  simulatedPlayers,
+) {
+  if (
+    simulatedPlayers.length !==
+      TEST_PLAYERS.length
+  ) {
+    throw new Error(
+      "Bidding advancement requires all three simulated players to have been created by this process.",
+    );
+  }
+
+  const playersByPosition =
+    new Map(
+      simulatedPlayers.map(
+        (
+          player,
+        ) => [
+          player.player,
+          player,
+        ],
+      ),
+    );
+
+  const probePlayer =
+    simulatedPlayers[0];
+
+  if (
+    probePlayer ===
+      undefined
+  ) {
+    throw new Error(
+      "Missing simulated player used to inspect bidding state.",
+    );
+  }
+
+  console.log(
+    "",
+  );
+
+  console.log(
+    "Advancing simulated bidding to PLAYER_0...",
+  );
+
+  for (
+    let step =
+      0;
+    step <
+      8;
+    step +=
+      1
+  ) {
+    const overview =
+      await getPlayerSnapshot(
+        baseUrl,
+        sessionId,
+        probePlayer.accessToken,
+      );
+
+    const biddingPlayer =
+      requireBiddingPlayer(
+        overview,
+      );
+
+    if (
+      biddingPlayer ===
+        "PLAYER_0"
+    ) {
+      console.log(
+        "",
+      );
+
+      console.log(
+        "PLAYER_0 is now the active bidder.",
+      );
+
+      console.log(
+        `Current revision: ${overview.revision}`,
+      );
+
+      console.log(
+        "Simulation is ready for the Android bidding test.",
+      );
+
+      return;
+    }
+
+    if (
+      biddingPlayer ===
+        null
+    ) {
+      throw new Error(
+        "Bidding ended before PLAYER_0 became the active bidder.",
+      );
+    }
+
+    const simulatedPlayer =
+      playersByPosition.get(
+        biddingPlayer,
+      );
+
+    if (
+      simulatedPlayer ===
+        undefined
+    ) {
+      throw new Error(
+        `Cannot advance bidding for ${biddingPlayer}.`,
+      );
+    }
+
+    const activeSnapshot =
+      biddingPlayer ===
+        probePlayer.player
+        ? overview
+        : await getPlayerSnapshot(
+            baseUrl,
+            sessionId,
+            simulatedPlayer.accessToken,
+          );
+
+    await submitPass(
+      baseUrl,
+      sessionId,
+      biddingPlayer,
+      simulatedPlayer.accessToken,
+      activeSnapshot,
+    );
+  }
+
+  throw new Error(
+    "Unable to advance bidding to PLAYER_0 within the expected number of commands.",
   );
 }
 
@@ -339,6 +838,11 @@ async function main() {
   const sessionId =
     requireSessionId(
       process.argv[2],
+    );
+
+  const advanceBidding =
+    parseAdvanceBiddingOption(
+      process.argv,
     );
 
   const baseUrl =
@@ -357,6 +861,10 @@ async function main() {
 
   console.log(
     `Room: ${sessionId}`,
+  );
+
+  console.log(
+    `Advance bidding: ${advanceBidding ? "yes" : "no"}`,
   );
 
   console.log(
@@ -406,15 +914,34 @@ async function main() {
     "",
   );
 
+  const simulatedPlayers =
+    [];
+
   for (
     const player of
     TEST_PLAYERS
   ) {
-    await createAndJoinTestPlayer(
-      baseUrl,
-      sessionId,
-      player,
-    );
+    const simulatedPlayer =
+      await createAndJoinTestPlayer(
+        baseUrl,
+        sessionId,
+        player,
+      );
+
+    if (
+      simulatedPlayer !==
+        null
+    ) {
+      simulatedPlayers.push(
+        simulatedPlayer,
+      );
+    } else if (
+      advanceBidding
+    ) {
+      throw new Error(
+        `${player} was already occupied before this simulator started, so its authentication token is unavailable. Create a fresh room for the bidding test.`,
+      );
+    }
   }
 
   const finalRoom =
@@ -469,8 +996,33 @@ async function main() {
     "Room is READY.",
   );
 
+  if (
+    !advanceBidding
+  ) {
+    console.log(
+      "You can now press \"Démarrer la partie\" on PLAYER_0 Android.",
+    );
+
+    return;
+  }
+
   console.log(
-    "You can now press \"Démarrer la partie\" on PLAYER_0 Android.",
+    "Press \"Démarrer la partie\" on PLAYER_0 Android.",
+  );
+
+  console.log(
+    "Keep this simulator running.",
+  );
+
+  await waitForMatchStart(
+    baseUrl,
+    sessionId,
+  );
+
+  await advanceBiddingToPlayer0(
+    baseUrl,
+    sessionId,
+    simulatedPlayers,
   );
 }
 

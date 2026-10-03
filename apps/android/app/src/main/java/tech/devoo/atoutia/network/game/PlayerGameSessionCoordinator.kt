@@ -9,6 +9,12 @@ data class PlayerGameSession(
     val player:
         PlayerPosition,
 
+    val revision:
+        Int,
+
+    val phase:
+        String,
+
     val document:
         PlayerClientSnapshotDocument,
 )
@@ -28,12 +34,9 @@ class PlayerGameSessionCoordinator(
             PlayerPosition,
     ): PlayerGameSession {
         val accessToken =
-            accessTokenProvider()
-                ?: throw PlayerGameSessionUnavailableException(
-                    "Aucune session Atoutia active.",
-                )
+            requireAccessToken()
 
-        val document =
+        val snapshot =
             gameApi.getPlayerSnapshot(
                 sessionId =
                     sessionId,
@@ -42,13 +45,165 @@ class PlayerGameSessionCoordinator(
                     accessToken,
             )
 
-        validatePlayerIdentity(
-            document =
-                document,
+        return createSession(
+            sessionId =
+                sessionId,
 
             expectedPlayer =
                 expectedPlayer,
+
+            snapshot =
+                snapshot,
         )
+    }
+
+    fun submitBiddingAction(
+        session:
+            PlayerGameSession,
+
+        action:
+            BiddingActionSnapshot,
+    ): PlayerGameSession {
+        validateBiddingAction(
+            session =
+                session,
+
+            action =
+                action,
+        )
+
+        val accessToken =
+            requireAccessToken()
+
+        val command =
+            when (
+                action
+            ) {
+                is BiddingActionSnapshot.Pass ->
+                    PlayerGameCommand.Pass
+
+                is BiddingActionSnapshot.Take ->
+                    PlayerGameCommand.Take(
+                        suit =
+                            action.suit,
+                    )
+            }
+
+        val snapshot =
+            gameApi.submitCommand(
+                sessionId =
+                    session.sessionId,
+
+                expectedRevision =
+                    session.revision,
+
+                engineVersion =
+                    session.document
+                        .engineVersion,
+
+                command =
+                    command,
+
+                accessToken =
+                    accessToken,
+            )
+
+        val updatedSession =
+            createSession(
+                sessionId =
+                    session.sessionId,
+
+                expectedPlayer =
+                    session.player,
+
+                snapshot =
+                    snapshot,
+            )
+
+        if (
+            updatedSession.revision <=
+                session.revision
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "La commande Atoutia n’a pas avancé la révision de la partie.",
+            )
+        }
+
+        return updatedSession
+    }
+
+    private fun requireAccessToken():
+        String =
+        accessTokenProvider()
+            ?: throw PlayerGameSessionUnavailableException(
+                "Aucune session Atoutia active.",
+            )
+
+    private fun validateBiddingAction(
+        session:
+            PlayerGameSession,
+
+        action:
+            BiddingActionSnapshot,
+    ) {
+        val availableActions =
+            session
+                .document
+                .snapshot
+                .actions
+
+        if (
+            availableActions.mode !=
+                PlayerActionMode.BID
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Aucune enchère Atoutia n’est disponible pour ce joueur.",
+            )
+        }
+
+        if (
+            action.player !=
+                session.player
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "L’enchère Atoutia ne correspond pas au joueur de la partie.",
+            )
+        }
+
+        if (
+            action !in
+                availableActions
+                    .biddingActions
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Cette enchère Atoutia n’est pas proposée par le serveur.",
+            )
+        }
+    }
+
+    private fun createSession(
+        sessionId:
+            String,
+
+        expectedPlayer:
+            PlayerPosition,
+
+        snapshot:
+            PlayerGameSnapshot,
+    ): PlayerGameSession {
+        val document =
+            snapshot.document
+
+        if (
+            document.snapshot.match.player !=
+                expectedPlayer ||
+            document.snapshot.actions.player !=
+                expectedPlayer
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Le snapshot Atoutia ne correspond pas au joueur du salon.",
+            )
+        }
 
         return PlayerGameSession(
             sessionId =
@@ -57,40 +212,15 @@ class PlayerGameSessionCoordinator(
             player =
                 expectedPlayer,
 
+            revision =
+                snapshot.revision,
+
+            phase =
+                snapshot.phase,
+
             document =
                 document,
         )
-    }
-
-    private fun validatePlayerIdentity(
-        document:
-            PlayerClientSnapshotDocument,
-
-        expectedPlayer:
-            PlayerPosition,
-    ) {
-        val matchPlayer =
-            document
-                .snapshot
-                .match
-                .player
-
-        val actionsPlayer =
-            document
-                .snapshot
-                .actions
-                .player
-
-        if (
-            matchPlayer !=
-                expectedPlayer ||
-            actionsPlayer !=
-                expectedPlayer
-        ) {
-            throw PlayerGameSessionProtocolException(
-                "Le snapshot Atoutia ne correspond pas au joueur du salon.",
-            )
-        }
     }
 }
 
