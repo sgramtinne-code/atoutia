@@ -334,7 +334,25 @@ async function startMatch(
 
   expectedRevision:
     number,
+
+  accessToken?:
+    string,
 ): Promise<number> {
+  const headers =
+    accessToken ===
+      undefined
+      ? {
+          "content-type":
+            "application/json",
+        }
+      : {
+          "content-type":
+            "application/json",
+
+          authorization:
+            `Bearer ${accessToken}`,
+        };
+
   const response =
     await fetch(
       `${baseUrl}/api/v1/rooms/${sessionId}/start`,
@@ -342,10 +360,7 @@ async function startMatch(
         method:
           "POST",
 
-        headers: {
-          "content-type":
-            "application/json",
-        },
+        headers,
 
         body:
           JSON.stringify({
@@ -654,6 +669,7 @@ describe(
             baseUrl,
             room.sessionId,
             revision,
+            players[0]!.token,
           );
 
         const response =
@@ -800,6 +816,7 @@ describe(
             baseUrl,
             room.sessionId,
             revision,
+            players[0]!.token,
           );
 
         const response =
