@@ -16,7 +16,8 @@ import {
 } from "./publicMatchSnapshot.js";
 
 export interface PlayerMatchSnapshot {
-  readonly public: PublicMatchSnapshot;
+  readonly public:
+    PublicMatchSnapshot;
 
   readonly player:
     PlayerPosition;
@@ -29,35 +30,62 @@ export interface PlayerMatchSnapshot {
 }
 
 function cloneCard(
-  card: Card,
+  card:
+    Card,
 ): Card {
   return Object.freeze({
-    suit: card.suit,
-    rank: card.rank,
+    suit:
+      card.suit,
+
+    rank:
+      card.rank,
   });
 }
 
 function createPlayerHand(
-  state: MatchMachineState,
-  player: PlayerPosition,
+  state:
+    MatchMachineState,
+
+  player:
+    PlayerPosition,
 ): readonly Card[] {
+  if (
+    state.currentDeal.phase ===
+      "BIDDING"
+  ) {
+    return Object.freeze(
+      state.currentDeal.initialDeal
+        .hands[player]
+        .map(
+          cloneCard,
+        ),
+    );
+  }
+
   const completedDeal =
     state.currentDeal.completedDeal;
 
-  if (completedDeal === null) {
+  if (
+    completedDeal ===
+      null
+  ) {
     return Object.freeze([]);
   }
 
   return Object.freeze(
-    completedDeal.hands[player].map(
-      cloneCard,
-    ),
+    completedDeal.hands[player]
+      .map(
+        cloneCard,
+      ),
   );
 }
 
 function createLegalCards(
-  state: MatchMachineState,
-  player: PlayerPosition,
+  state:
+    MatchMachineState,
+
+  player:
+    PlayerPosition,
 ): readonly Card[] {
   if (
     state.currentDeal.phase !==
@@ -74,7 +102,8 @@ function createLegalCards(
     state.currentDeal.trickSequence;
 
   if (
-    sequence.currentTrick.currentPlayer !==
+    sequence.currentTrick
+      .currentPlayer !==
     player
   ) {
     return Object.freeze([]);
@@ -93,8 +122,11 @@ function createLegalCards(
 }
 
 export function createPlayerMatchSnapshot(
-  state: MatchMachineState,
-  player: PlayerPosition,
+  state:
+    MatchMachineState,
+
+  player:
+    PlayerPosition,
 ): PlayerMatchSnapshot {
   return Object.freeze({
     public:

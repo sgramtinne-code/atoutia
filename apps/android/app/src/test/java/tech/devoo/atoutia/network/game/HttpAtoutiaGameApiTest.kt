@@ -311,6 +311,16 @@ class HttpAtoutiaGameApiTest {
         withServer(
             handler = {
                 exchange ->
+                val json =
+                    JSONObject(
+                        validSnapshotBody(),
+                    )
+
+                json.put(
+                    "extra",
+                    true,
+                )
+
                 respond(
                     exchange =
                         exchange,
@@ -319,48 +329,7 @@ class HttpAtoutiaGameApiTest {
                         HttpURLConnection.HTTP_OK,
 
                     body =
-                        """
-                        {
-                          "formatVersion": 1,
-                          "engineVersion": "0.1.0",
-                          "snapshot": {
-                            "match": {
-                              "public": {
-                                "dealNumber": 1,
-                                "dealer": "PLAYER_3",
-                                "phase": "BIDDING",
-                                "score": {
-                                  "targetScore": 1000,
-                                  "scores": {
-                                    "TEAM_0": 0,
-                                    "TEAM_1": 0
-                                  },
-                                  "completed": false,
-                                  "winner": null
-                                },
-                                "biddingPlayer": "PLAYER_0",
-                                "taker": null,
-                                "trumpSuit": null,
-                                "turnUpCard": {
-                                  "suit": "HEARTS",
-                                  "rank": "JACK"
-                                },
-                                "currentTrick": null
-                              },
-                              "player": "PLAYER_0",
-                              "hand": [],
-                              "legalCards": []
-                            },
-                            "actions": {
-                              "player": "PLAYER_0",
-                              "mode": "WAIT",
-                              "biddingActions": [],
-                              "legalCards": []
-                            }
-                          },
-                          "extra": true
-                        }
-                        """.trimIndent(),
+                        json.toString(),
                 )
             },
 
@@ -382,7 +351,7 @@ class HttpAtoutiaGameApiTest {
                     }
 
                 assertEquals(
-                    "Atoutia game API returned an unexpected player snapshot document.",
+                    "Atoutia game API returned an unexpected live match snapshot document.",
                     error.message,
                 )
             },
@@ -394,6 +363,16 @@ class HttpAtoutiaGameApiTest {
         withServer(
             handler = {
                 exchange ->
+                val json =
+                    JSONObject(
+                        validSnapshotBody(),
+                    )
+
+                json.put(
+                    "formatVersion",
+                    999,
+                )
+
                 respond(
                     exchange =
                         exchange,
@@ -402,11 +381,7 @@ class HttpAtoutiaGameApiTest {
                         HttpURLConnection.HTTP_OK,
 
                     body =
-                        validSnapshotBody()
-                            .replace(
-                                "\"formatVersion\": 1",
-                                "\"formatVersion\": 999",
-                            ),
+                        json.toString(),
                 )
             },
 
@@ -428,7 +403,59 @@ class HttpAtoutiaGameApiTest {
                     }
 
                 assertEquals(
-                    "Atoutia game API returned an unsupported player snapshot format.",
+                    "Atoutia game API returned an unsupported live match snapshot format.",
+                    error.message,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun rejectsSnapshotForAnotherRoom() {
+        withServer(
+            handler = {
+                exchange ->
+                val json =
+                    JSONObject(
+                        validSnapshotBody(),
+                    )
+
+                json.put(
+                    "sessionId",
+                    "ms1_anotherroom",
+                )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_OK,
+
+                    body =
+                        json.toString(),
+                )
+            },
+
+            block = {
+                baseUrl ->
+                val error =
+                    assertThrows(
+                        AtoutiaGameApiException::class.java,
+                    ) {
+                        HttpAtoutiaGameApi(
+                            baseUrl,
+                        ).getPlayerSnapshot(
+                            sessionId =
+                                "ms1_testroom",
+
+                            accessToken =
+                                "atk1_snapshot_access_token",
+                        )
+                    }
+
+                assertEquals(
+                    "Atoutia game API returned a snapshot for another room.",
                     error.message,
                 )
             },
@@ -447,7 +474,7 @@ class HttpAtoutiaGameApiTest {
 
                 json
                     .getJSONObject(
-                        "snapshot",
+                        "game",
                     )
                     .getJSONObject(
                         "match",
@@ -501,7 +528,7 @@ class HttpAtoutiaGameApiTest {
     }
 
     @Test
-    fun rejectsPlayerIdentityMismatch() {
+    fun rejectsPlayerIdentityMismatchInsideGameSnapshot() {
         withServer(
             handler = {
                 exchange ->
@@ -512,7 +539,7 @@ class HttpAtoutiaGameApiTest {
 
                 json
                     .getJSONObject(
-                        "snapshot",
+                        "game",
                     )
                     .getJSONObject(
                         "actions",
@@ -553,6 +580,119 @@ class HttpAtoutiaGameApiTest {
 
                 assertEquals(
                     "Atoutia game API returned inconsistent player identities.",
+                    error.message,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun rejectsRoomAndGamePlayerIdentityMismatch() {
+        withServer(
+            handler = {
+                exchange ->
+                val json =
+                    JSONObject(
+                        validSnapshotBody(),
+                    )
+
+                json.put(
+                    "player",
+                    "PLAYER_1",
+                )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_OK,
+
+                    body =
+                        json.toString(),
+                )
+            },
+
+            block = {
+                baseUrl ->
+                val error =
+                    assertThrows(
+                        AtoutiaGameApiException::class.java,
+                    ) {
+                        HttpAtoutiaGameApi(
+                            baseUrl,
+                        ).getPlayerSnapshot(
+                            sessionId =
+                                "ms1_testroom",
+
+                            accessToken =
+                                "atk1_snapshot_access_token",
+                        )
+                    }
+
+                assertEquals(
+                    "Atoutia game API returned inconsistent room and game player identities.",
+                    error.message,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun rejectsDuplicateSeatSnapshots() {
+        withServer(
+            handler = {
+                exchange ->
+                val json =
+                    JSONObject(
+                        validSnapshotBody(),
+                    )
+
+                val seats =
+                    json.getJSONArray(
+                        "seats",
+                    )
+
+                seats
+                    .getJSONObject(
+                        3,
+                    )
+                    .put(
+                        "player",
+                        "PLAYER_2",
+                    )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_OK,
+
+                    body =
+                        json.toString(),
+                )
+            },
+
+            block = {
+                baseUrl ->
+                val error =
+                    assertThrows(
+                        AtoutiaGameApiException::class.java,
+                    ) {
+                        HttpAtoutiaGameApi(
+                            baseUrl,
+                        ).getPlayerSnapshot(
+                            sessionId =
+                                "ms1_testroom",
+
+                            accessToken =
+                                "atk1_snapshot_access_token",
+                        )
+                    }
+
+                assertEquals(
+                    "Atoutia game API returned duplicate player seat snapshots.",
                     error.message,
                 )
             },
@@ -701,7 +841,29 @@ class HttpAtoutiaGameApiTest {
         {
           "formatVersion": 1,
           "engineVersion": "0.1.0",
-          "snapshot": {
+          "sessionId": "ms1_testroom",
+          "revision": 5,
+          "phase": "IN_PROGRESS",
+          "player": "PLAYER_0",
+          "seats": [
+            {
+              "player": "PLAYER_0",
+              "occupied": true
+            },
+            {
+              "player": "PLAYER_1",
+              "occupied": true
+            },
+            {
+              "player": "PLAYER_2",
+              "occupied": true
+            },
+            {
+              "player": "PLAYER_3",
+              "occupied": true
+            }
+          ],
+          "game": {
             "match": {
               "public": {
                 "dealNumber": 1,

@@ -119,6 +119,14 @@ fun RoomLobbyScreen(
             ) -> Unit
         )? =
             null,
+
+    onRoomInProgress:
+        (
+            (
+                RoomSessionMembership,
+            ) -> Unit
+        )? =
+            null,
 ) {
     val applicationContext =
         LocalContext.current
@@ -387,6 +395,21 @@ fun RoomLobbyScreen(
                 realtimeConnection =
                     null
             }
+        }
+    }
+
+    LaunchedEffect(
+        currentMembership.room.phase,
+        currentMembership.room.revision,
+    ) {
+        if (
+            currentMembership.room.phase ==
+                "IN_PROGRESS"
+        ) {
+            onRoomInProgress
+                ?.invoke(
+                    currentMembership,
+                )
         }
     }
 

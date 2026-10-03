@@ -44,11 +44,16 @@ import tech.devoo.atoutia.auth.HttpAuthSessionApi
 import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
+import tech.devoo.atoutia.network.game.AtoutiaGameApiException
+import tech.devoo.atoutia.network.game.HttpAtoutiaGameApi
+import tech.devoo.atoutia.network.game.PlayerGameSession
+import tech.devoo.atoutia.network.game.PlayerGameSessionCoordinator
 import tech.devoo.atoutia.network.room.AtoutiaRoomApiException
 import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
 import tech.devoo.atoutia.network.room.RoomSessionCoordinator
 import tech.devoo.atoutia.network.room.RoomSessionFullException
 import tech.devoo.atoutia.network.room.RoomSessionMembership
+import tech.devoo.atoutia.ui.game.GameScreen
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
 import tech.devoo.atoutia.ui.home.SignOutUiState
@@ -95,6 +100,9 @@ class MainActivity :
 
                     startRoom =
                         ::startRoom,
+
+                    loadGameSession =
+                        ::loadGameSession,
 
                     leaveRoom =
                         ::leaveRoom,
@@ -853,6 +861,135 @@ class MainActivity :
         }
     }
 
+    private fun loadGameSession(
+        membership:
+            RoomSessionMembership,
+
+        onResult:
+            (
+                LoadGameSessionResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                LoadGameSessionResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val gameApi =
+                            HttpAtoutiaGameApi(
+                                apiBaseUrl,
+                            )
+
+                        val gameSessionCoordinator =
+                            PlayerGameSessionCoordinator(
+                                gameApi =
+                                    gameApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        LoadGameSessionResult.Loaded(
+                            session =
+                                gameSessionCoordinator
+                                    .load(
+                                        sessionId =
+                                            membership
+                                                .room
+                                                .sessionId,
+
+                                        expectedPlayer =
+                                            membership.player,
+                                    ),
+                        )
+                    } catch (
+                        error:
+                            AtoutiaGameApiException,
+                    ) {
+                        if (
+                            error.statusCode ==
+                                401 ||
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            LoadGameSessionResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            LoadGameSessionResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de charger la partie Atoutia.",
+                            )
+                        }
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        if (
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            LoadGameSessionResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            LoadGameSessionResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de charger la partie Atoutia.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
     private fun leaveRoom(
         membership:
             RoomSessionMembership,
@@ -1107,6 +1244,23 @@ sealed interface StartRoomResult {
     ) : StartRoomResult
 }
 
+sealed interface LoadGameSessionResult {
+    data class Loaded(
+        val session:
+            PlayerGameSession,
+    ) : LoadGameSessionResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : LoadGameSessionResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : LoadGameSessionResult
+}
+
 sealed interface LeaveRoomResult {
     data object Left :
         LeaveRoomResult
@@ -1132,6 +1286,24 @@ sealed interface AuthenticatedDestination {
     data class Lobby(
         val membership:
             RoomSessionMembership,
+    ) : AuthenticatedDestination
+
+    data class GameLoading(
+        val membership:
+            RoomSessionMembership,
+    ) : AuthenticatedDestination
+
+    data class GameLoadFailed(
+        val membership:
+            RoomSessionMembership,
+
+        val message:
+            String,
+    ) : AuthenticatedDestination
+
+    data class Game(
+        val session:
+            PlayerGameSession,
     ) : AuthenticatedDestination
 }
 
@@ -1203,6 +1375,14 @@ private fun AtoutiaApp(
             RoomSessionMembership,
             (
                 StartRoomResult,
+            ) -> Unit,
+        ) -> Unit,
+
+    loadGameSession:
+        (
+            RoomSessionMembership,
+            (
+                LoadGameSessionResult,
             ) -> Unit,
         ) -> Unit,
 
@@ -1643,7 +1823,7 @@ private fun AtoutiaApp(
                                             RoomLobbyLeaveUiState.Idle
 
                                         destination =
-                                            AuthenticatedDestination.Lobby(
+                                            AuthenticatedDestination.GameLoading(
                                                 membership =
                                                     result.membership,
                                             )
@@ -1757,6 +1937,112 @@ private fun AtoutiaApp(
                                 }
                             }
                         },
+
+                        onRoomInProgress = {
+                            membership ->
+                            startState =
+                                RoomLobbyStartUiState.Idle
+
+                            leaveState =
+                                RoomLobbyLeaveUiState.Idle
+
+                            destination =
+                                AuthenticatedDestination.GameLoading(
+                                    membership =
+                                        membership,
+                                )
+                        },
+                    )
+                }
+
+                is AuthenticatedDestination.GameLoading -> {
+                    LaunchedEffect(
+                        currentDestination
+                            .membership
+                            .room
+                            .sessionId,
+
+                        currentDestination
+                            .membership
+                            .player,
+                    ) {
+                        loadGameSession(
+                            currentDestination.membership,
+                        ) {
+                            result ->
+                            when (
+                                result
+                            ) {
+                                is LoadGameSessionResult.Loaded -> {
+                                    destination =
+                                        AuthenticatedDestination.Game(
+                                            session =
+                                                result.session,
+                                        )
+                                }
+
+                                is LoadGameSessionResult.SessionExpired -> {
+                                    authState =
+                                        AuthStartupState.SignedOut
+
+                                    destination =
+                                        AuthenticatedDestination.Home
+
+                                    roomActionState =
+                                        RoomActionUiState.Idle
+
+                                    leaveState =
+                                        RoomLobbyLeaveUiState.Idle
+
+                                    startState =
+                                        RoomLobbyStartUiState.Idle
+
+                                    joinSessionId =
+                                        ""
+
+                                    googleSignInState =
+                                        GoogleSignInUiState.Idle
+
+                                    notice =
+                                        result.message
+                                }
+
+                                is LoadGameSessionResult.Failed -> {
+                                    destination =
+                                        AuthenticatedDestination.GameLoadFailed(
+                                            membership =
+                                                currentDestination.membership,
+
+                                            message =
+                                                result.message,
+                                        )
+                                }
+                            }
+                        }
+                    }
+
+                    GameLoadingScreen()
+                }
+
+                is AuthenticatedDestination.GameLoadFailed -> {
+                    GameLoadFailedScreen(
+                        message =
+                            currentDestination.message,
+
+                        onRetry = {
+                            destination =
+                                AuthenticatedDestination.GameLoading(
+                                    membership =
+                                        currentDestination.membership,
+                                )
+                        },
+                    )
+                }
+
+                is AuthenticatedDestination.Game -> {
+                    GameScreen(
+                        session =
+                            currentDestination.session,
                     )
                 }
             }
@@ -1846,6 +2132,139 @@ private fun AtoutiaApp(
                     }
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun GameLoadingScreen(
+    modifier:
+        Modifier =
+        Modifier,
+) {
+    Scaffold(
+        modifier =
+            modifier.fillMaxSize(),
+    ) {
+        innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        innerPadding,
+                    )
+                    .padding(
+                        horizontal =
+                            24.dp,
+                    ),
+
+            verticalArrangement =
+                Arrangement.Center,
+
+            horizontalAlignment =
+                Alignment.CenterHorizontally,
+        ) {
+            CircularProgressIndicator()
+
+            Text(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            16.dp,
+                    ),
+
+                text =
+                    "Chargement de la partie Atoutia…",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GameLoadFailedScreen(
+    message:
+        String,
+
+    onRetry:
+        () -> Unit,
+
+    modifier:
+        Modifier =
+        Modifier,
+) {
+    Scaffold(
+        modifier =
+            modifier.fillMaxSize(),
+    ) {
+        innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        innerPadding,
+                    )
+                    .padding(
+                        horizontal =
+                            24.dp,
+                    ),
+
+            verticalArrangement =
+                Arrangement.Center,
+
+            horizontalAlignment =
+                Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text =
+                    "Impossible de charger la partie",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleLarge,
+
+                fontWeight =
+                    FontWeight.Bold,
+            )
+
+            Text(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            12.dp,
+                    ),
+
+                text =
+                    message,
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+            )
+
+            Button(
+                modifier =
+                    Modifier.padding(
+                        top =
+                            24.dp,
+                    ),
+
+                onClick =
+                    onRetry,
+            ) {
+                Text(
+                    text =
+                        "Réessayer",
+                )
+            }
         }
     }
 }

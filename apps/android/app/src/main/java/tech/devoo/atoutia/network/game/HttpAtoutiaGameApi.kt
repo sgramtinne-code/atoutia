@@ -36,6 +36,9 @@ class HttpAtoutiaGameApi(
             path =
                 "/api/v1/rooms/$normalizedSessionId/snapshot",
 
+            expectedSessionId =
+                normalizedSessionId,
+
             accessToken =
                 normalizedAccessToken,
         )
@@ -43,6 +46,9 @@ class HttpAtoutiaGameApi(
 
     private fun executePlayerSnapshotRequest(
         path:
+            String,
+
+        expectedSessionId:
             String,
 
         accessToken:
@@ -107,7 +113,8 @@ class HttpAtoutiaGameApi(
                     ?.lowercase()
 
             if (
-                contentType == null ||
+                contentType ==
+                    null ||
                 !contentType.startsWith(
                     "application/json",
                 )
@@ -127,8 +134,12 @@ class HttpAtoutiaGameApi(
                         it.readText()
                     }
 
-            return parsePlayerSnapshotDocument(
-                responseBody,
+            return parseLiveMatchRoomSnapshotDocument(
+                body =
+                    responseBody,
+
+                expectedSessionId =
+                    expectedSessionId,
             )
         } catch (
             error:
@@ -171,9 +182,9 @@ class HttpAtoutiaGameApi(
             } catch (
             error:
                 Exception,
-            ) {
-                return null
-            }
+        ) {
+            return null
+        }
 
         if (
             responseBody.isBlank()
@@ -208,8 +219,11 @@ class HttpAtoutiaGameApi(
         }
     }
 
-    private fun parsePlayerSnapshotDocument(
+    private fun parseLiveMatchRoomSnapshotDocument(
         body:
+            String,
+
+        expectedSessionId:
             String,
     ): PlayerClientSnapshotDocument {
         try {
@@ -223,10 +237,10 @@ class HttpAtoutiaGameApi(
                     json,
 
                 expectedKeys =
-                    EXPECTED_DOCUMENT_KEYS,
+                    EXPECTED_LIVE_MATCH_ROOM_SNAPSHOT_KEYS,
 
                 errorMessage =
-                    "Atoutia game API returned an unexpected player snapshot document.",
+                    "Atoutia game API returned an unexpected live match snapshot document.",
             )
 
             val formatVersion =
@@ -240,10 +254,10 @@ class HttpAtoutiaGameApi(
 
             if (
                 formatVersion !=
-                SUPPORTED_PLAYER_CLIENT_SNAPSHOT_FORMAT_VERSION
+                SUPPORTED_LIVE_MATCH_ROOM_SNAPSHOT_FORMAT_VERSION
             ) {
                 throw AtoutiaGameApiException(
-                    "Atoutia game API returned an unsupported player snapshot format.",
+                    "Atoutia game API returned an unsupported live match snapshot format.",
                 )
             }
 
@@ -264,10 +278,89 @@ class HttpAtoutiaGameApi(
                 )
             }
 
+            val sessionId =
+                requireString(
+                    json =
+                        json,
+
+                    key =
+                        "sessionId",
+                )
+
+            if (
+                sessionId !=
+                    expectedSessionId
+            ) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned a snapshot for another room.",
+                )
+            }
+
+            val revision =
+                requireInt(
+                    json =
+                        json,
+
+                    key =
+                        "revision",
+                )
+
+            if (
+                revision <
+                    0
+            ) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned an invalid room revision.",
+                )
+            }
+
+            val phase =
+                requireString(
+                    json =
+                        json,
+
+                    key =
+                        "phase",
+                )
+
+            if (
+                phase !in
+                    SUPPORTED_LIVE_MATCH_ROOM_PHASES
+            ) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned an unsupported room phase.",
+                )
+            }
+
+            val player =
+                parsePlayerPosition(
+                    json =
+                        json,
+
+                    key =
+                        "player",
+                )
+
+            val seats =
+                parseSeatSnapshots(
+                    json.getJSONArray(
+                        "seats",
+                    ),
+                )
+
+            if (
+                seats[player] !=
+                    true
+            ) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned a snapshot for an unoccupied player seat.",
+                )
+            }
+
             val snapshot =
                 parsePlayerClientSnapshot(
                     json.getJSONObject(
-                        "snapshot",
+                        "game",
                     ),
                 )
 
@@ -275,9 +368,20 @@ class HttpAtoutiaGameApi(
                 snapshot,
             )
 
+            if (
+                snapshot.match.player !=
+                    player ||
+                snapshot.actions.player !=
+                    player
+            ) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned inconsistent room and game player identities.",
+                )
+            }
+
             return PlayerClientSnapshotDocument(
                 formatVersion =
-                    formatVersion,
+                    SUPPORTED_PLAYER_CLIENT_SNAPSHOT_FORMAT_VERSION,
 
                 engineVersion =
                     engineVersion,
@@ -296,12 +400,94 @@ class HttpAtoutiaGameApi(
         ) {
             throw AtoutiaGameApiException(
                 message =
-                    "Atoutia game API returned an invalid player snapshot document.",
+                    "Atoutia game API returned an invalid live match snapshot document.",
 
                 cause =
                     error,
             )
         }
+    }
+
+    private fun parseSeatSnapshots(
+        array:
+            JSONArray,
+    ): Map<PlayerPosition, Boolean> {
+        if (
+            array.length() !=
+                PlayerPosition.entries.size
+        ) {
+            throw AtoutiaGameApiException(
+                "Atoutia game API returned an invalid seat snapshot list.",
+            )
+        }
+
+        val seats =
+            mutableMapOf<
+                PlayerPosition,
+                Boolean
+            >()
+
+        for (
+            index in
+            0 until array.length()
+        ) {
+            val json =
+                array.getJSONObject(
+                    index,
+                )
+
+            requireExactKeys(
+                json =
+                    json,
+
+                expectedKeys =
+                    EXPECTED_SEAT_SNAPSHOT_KEYS,
+
+                errorMessage =
+                    "Atoutia game API returned an unexpected seat snapshot document.",
+            )
+
+            val player =
+                parsePlayerPosition(
+                    json =
+                        json,
+
+                    key =
+                        "player",
+                )
+
+            val occupied =
+                requireBoolean(
+                    json =
+                        json,
+
+                    key =
+                        "occupied",
+                )
+
+            if (
+                seats.put(
+                    player,
+                    occupied,
+                ) !=
+                null
+            ) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned duplicate player seat snapshots.",
+                )
+            }
+        }
+
+        if (
+            seats.keys !=
+                PlayerPosition.entries.toSet()
+        ) {
+            throw AtoutiaGameApiException(
+                "Atoutia game API returned an incomplete player seat snapshot list.",
+            )
+        }
+
+        return seats.toMap()
     }
 
     private fun parsePlayerClientSnapshot(
@@ -316,7 +502,7 @@ class HttpAtoutiaGameApi(
                 EXPECTED_SNAPSHOT_KEYS,
 
             errorMessage =
-                "Atoutia game API returned an unexpected snapshot document.",
+                "Atoutia game API returned an unexpected game snapshot document.",
         )
 
         return PlayerClientSnapshot(
@@ -876,7 +1062,7 @@ class HttpAtoutiaGameApi(
 
         if (
             snapshot.actions.player !=
-            player
+                player
         ) {
             throw AtoutiaGameApiException(
                 "Atoutia game API returned inconsistent player identities.",
@@ -1230,9 +1416,9 @@ class HttpAtoutiaGameApi(
             is Long -> {
                 if (
                     value <
-                    Int.MIN_VALUE.toLong() ||
+                        Int.MIN_VALUE.toLong() ||
                     value >
-                    Int.MAX_VALUE.toLong()
+                        Int.MAX_VALUE.toLong()
                 ) {
                     throw AtoutiaGameApiException(
                         "Atoutia game API returned an integer outside the supported range.",
@@ -1298,7 +1484,7 @@ class HttpAtoutiaGameApi(
 
         if (
             actualKeys !=
-            expectedKeys
+                expectedKeys
         ) {
             throw AtoutiaGameApiException(
                 errorMessage,
@@ -1313,11 +1499,33 @@ class HttpAtoutiaGameApi(
         const val READ_TIMEOUT_MS =
             5_000
 
-        val EXPECTED_DOCUMENT_KEYS =
+        const val SUPPORTED_LIVE_MATCH_ROOM_SNAPSHOT_FORMAT_VERSION =
+            1
+
+        val SUPPORTED_LIVE_MATCH_ROOM_PHASES =
+            setOf(
+                "WAITING_FOR_PLAYERS",
+                "READY",
+                "IN_PROGRESS",
+                "FINISHED",
+            )
+
+        val EXPECTED_LIVE_MATCH_ROOM_SNAPSHOT_KEYS =
             setOf(
                 "formatVersion",
                 "engineVersion",
-                "snapshot",
+                "sessionId",
+                "revision",
+                "phase",
+                "player",
+                "seats",
+                "game",
+            )
+
+        val EXPECTED_SEAT_SNAPSHOT_KEYS =
+            setOf(
+                "player",
+                "occupied",
             )
 
         val EXPECTED_SNAPSHOT_KEYS =

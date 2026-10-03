@@ -79,7 +79,7 @@ describe("player client snapshot", () => {
     ).toBe(state.dealer);
   });
 
-  it("does not expose a hand during bidding", () => {
+  it("exposes only the selected player's five-card hand during bidding", () => {
     const state =
       createMatchMachine({
         baseSeed: 3000,
@@ -93,7 +93,22 @@ describe("player client snapshot", () => {
 
     expect(
       snapshot.match.hand,
-    ).toEqual([]);
+    ).toEqual(
+      state.currentDeal.initialDeal
+        .hands.PLAYER_1,
+    );
+
+    expect(
+      snapshot.match.hand,
+    ).toHaveLength(5);
+
+    expect(
+      JSON.stringify(
+        snapshot,
+      ),
+    ).not.toContain(
+      '"hands"',
+    );
   });
 
   it("exposes the selected player's hand during play", () => {
@@ -116,6 +131,10 @@ describe("player client snapshot", () => {
       state.currentDeal.completedDeal
         ?.hands.PLAYER_2,
     );
+
+    expect(
+      snapshot.match.hand,
+    ).toHaveLength(8);
   });
 
   it("returns PLAY_CARD and legal cards for the current player", () => {

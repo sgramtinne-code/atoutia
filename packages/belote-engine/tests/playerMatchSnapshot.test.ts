@@ -71,7 +71,7 @@ describe("player match snapshot", () => {
     );
   });
 
-  it("does not expose a completed hand during bidding", () => {
+  it("exposes only the selected player's five-card hand during bidding", () => {
     const state =
       createMatchMachine({
         baseSeed: 3000,
@@ -85,7 +85,20 @@ describe("player match snapshot", () => {
 
     expect(
       snapshot.hand,
-    ).toEqual([]);
+    ).toEqual(
+      state.currentDeal.initialDeal
+        .hands.PLAYER_1,
+    );
+
+    expect(
+      snapshot.hand,
+    ).toHaveLength(5);
+
+    expect(
+      Object.isFrozen(
+        snapshot.hand,
+      ),
+    ).toBe(true);
   });
 
   it("exposes only the selected player's hand during play", () => {
