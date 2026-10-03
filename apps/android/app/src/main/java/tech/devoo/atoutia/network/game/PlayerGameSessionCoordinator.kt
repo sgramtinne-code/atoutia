@@ -89,6 +89,61 @@ class PlayerGameSessionCoordinator(
                     )
             }
 
+        return submitValidatedCommand(
+            session =
+                session,
+
+            command =
+                command,
+
+            accessToken =
+                accessToken,
+        )
+    }
+
+    fun submitPlayCard(
+        session:
+            PlayerGameSession,
+
+        card:
+            PlayerCard,
+    ): PlayerGameSession {
+        validatePlayCard(
+            session =
+                session,
+
+            card =
+                card,
+        )
+
+        val accessToken =
+            requireAccessToken()
+
+        return submitValidatedCommand(
+            session =
+                session,
+
+            command =
+                PlayerGameCommand.PlayCard(
+                    card =
+                        card,
+                ),
+
+            accessToken =
+                accessToken,
+        )
+    }
+
+    private fun submitValidatedCommand(
+        session:
+            PlayerGameSession,
+
+        command:
+            PlayerGameCommand,
+
+        accessToken:
+            String,
+    ): PlayerGameSession {
         val snapshot =
             gameApi.submitCommand(
                 sessionId =
@@ -177,6 +232,61 @@ class PlayerGameSessionCoordinator(
         ) {
             throw PlayerGameSessionProtocolException(
                 "Cette enchère Atoutia n’est pas proposée par le serveur.",
+            )
+        }
+    }
+
+    private fun validatePlayCard(
+        session:
+            PlayerGameSession,
+
+        card:
+            PlayerCard,
+    ) {
+        val snapshot =
+            session
+                .document
+                .snapshot
+
+        val availableActions =
+            snapshot.actions
+
+        if (
+            availableActions.mode !=
+                PlayerActionMode.PLAY_CARD
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Aucune carte Atoutia ne peut être jouée par ce joueur.",
+            )
+        }
+
+        if (
+            availableActions.player !=
+                session.player
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Les cartes jouables Atoutia ne correspondent pas au joueur de la partie.",
+            )
+        }
+
+        if (
+            card !in
+                availableActions
+                    .legalCards
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Cette carte Atoutia n’est pas proposée par le serveur.",
+            )
+        }
+
+        if (
+            card !in
+                snapshot
+                    .match
+                    .hand
+        ) {
+            throw PlayerGameSessionProtocolException(
+                "Cette carte Atoutia n’est pas présente dans la main du joueur.",
             )
         }
     }

@@ -19,6 +19,11 @@ sealed interface PlayerGameCommand {
         val suit:
             CardSuit,
     ) : PlayerGameCommand
+
+    data class PlayCard(
+        val card:
+            PlayerCard,
+    ) : PlayerGameCommand
 }
 
 interface AtoutiaGameApi {

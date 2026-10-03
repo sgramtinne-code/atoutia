@@ -26,6 +26,7 @@ import tech.devoo.atoutia.network.game.CardRank
 import tech.devoo.atoutia.network.game.CardSuit
 import tech.devoo.atoutia.network.game.DealPhase
 import tech.devoo.atoutia.network.game.PlayerActionMode
+import tech.devoo.atoutia.network.game.PlayerCard
 import tech.devoo.atoutia.network.game.PlayerGameSession
 import tech.devoo.atoutia.network.room.PlayerPosition
 
@@ -42,6 +43,19 @@ sealed interface GameBiddingUiState {
     ) : GameBiddingUiState
 }
 
+sealed interface GamePlayCardUiState {
+    data object Idle :
+        GamePlayCardUiState
+
+    data object Submitting :
+        GamePlayCardUiState
+
+    data class Failed(
+        val message:
+            String,
+    ) : GamePlayCardUiState
+}
+
 @Composable
 fun GameScreen(
     session:
@@ -51,10 +65,22 @@ fun GameScreen(
         GameBiddingUiState =
         GameBiddingUiState.Idle,
 
+    playCardState:
+        GamePlayCardUiState =
+        GamePlayCardUiState.Idle,
+
     onBiddingAction:
         (
             (
                 BiddingActionSnapshot,
+            ) -> Unit
+        )? =
+        null,
+
+    onPlayCard:
+        (
+            (
+                PlayerCard,
             ) -> Unit
         )? =
         null,
@@ -85,9 +111,17 @@ fun GameScreen(
     val score =
         publicMatch.score
 
-    val isSubmitting =
+    val isSubmittingBidding =
         biddingState is
             GameBiddingUiState.Submitting
+
+    val isSubmittingPlayCard =
+        playCardState is
+            GamePlayCardUiState.Submitting
+
+    val isSubmitting =
+        isSubmittingBidding ||
+            isSubmittingPlayCard
 
     Scaffold(
         modifier =
@@ -185,10 +219,7 @@ fun GameScreen(
                         value =
                             publicMatch
                                 .turnUpCard
-                                .let {
-                                    card ->
-                                    "${card.rank.toDisplayName()} de ${card.suit.toDisplayName()}"
-                                },
+                                .toDisplayName(),
                     )
 
                     GameInformationRow(
@@ -302,36 +333,166 @@ fun GameScreen(
                             }
 
                             GameBiddingUiState.Submitting -> {
-                                Row(
-                                    modifier =
-                                        Modifier.fillMaxWidth(),
-
-                                    horizontalArrangement =
-                                        Arrangement.spacedBy(
-                                            12.dp,
-                                        ),
-
-                                    verticalAlignment =
-                                        Alignment.CenterVertically,
-                                ) {
-                                    CircularProgressIndicator()
-
-                                    Text(
-                                        text =
-                                            "Envoi de l’enchère...",
-                                    )
-                                }
+                                CommandSubmittingRow(
+                                    message =
+                                        "Envoi de l’enchère...",
+                                )
                             }
 
                             is GameBiddingUiState.Failed -> {
+                                CommandFailureText(
+                                    message =
+                                        state.message,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (
+                actions.mode ==
+                    PlayerActionMode.PLAY_CARD
+            ) {
+                OutlinedCard(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier.padding(
+                                20.dp,
+                            ),
+
+                        verticalArrangement =
+                            Arrangement.spacedBy(
+                                12.dp,
+                            ),
+                    ) {
+                        Text(
+                            text =
+                                "Votre carte",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
+
+                            fontWeight =
+                                FontWeight.SemiBold,
+                        )
+
+                        Text(
+                            text =
+                                "Seules les cartes autorisées par le serveur sont proposées.",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodyMedium,
+                        )
+
+                        actions
+                            .legalCards
+                            .forEach {
+                                card ->
+                                PlayCardButton(
+                                    card =
+                                        card,
+
+                                    enabled =
+                                        !isSubmitting &&
+                                            onPlayCard !=
+                                            null,
+
+                                    onClick = {
+                                        onPlayCard
+                                            ?.invoke(
+                                                card,
+                                            )
+                                    },
+                                )
+                            }
+
+                        if (
+                            actions
+                                .legalCards
+                                .isEmpty()
+                        ) {
+                            Text(
+                                text =
+                                    "Aucune carte jouable n’est actuellement proposée par le serveur.",
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodyMedium,
+                            )
+                        }
+
+                        when (
+                            val state =
+                                playCardState
+                        ) {
+                            GamePlayCardUiState.Idle -> {
+                                // Rien à afficher.
+                            }
+
+                            GamePlayCardUiState.Submitting -> {
+                                CommandSubmittingRow(
+                                    message =
+                                        "Envoi de la carte...",
+                                )
+                            }
+
+                            is GamePlayCardUiState.Failed -> {
+                                CommandFailureText(
+                                    message =
+                                        state.message,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (
+                match.hand.isNotEmpty()
+            ) {
+                OutlinedCard(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier.padding(
+                                20.dp,
+                            ),
+
+                        verticalArrangement =
+                            Arrangement.spacedBy(
+                                8.dp,
+                            ),
+                    ) {
+                        Text(
+                            text =
+                                "Votre main",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
+
+                            fontWeight =
+                                FontWeight.SemiBold,
+                        )
+
+                        match.hand
+                            .forEach {
+                                card ->
                                 Text(
                                     text =
-                                        state.message,
-
-                                    color =
-                                        MaterialTheme
-                                            .colorScheme
-                                            .error,
+                                        card.toDisplayName(),
 
                                     style =
                                         MaterialTheme
@@ -339,7 +500,6 @@ fun GameScreen(
                                             .bodyMedium,
                                 )
                             }
-                        }
                     }
                 }
             }
@@ -430,6 +590,81 @@ private fun BiddingActionButton(
                 label,
         )
     }
+}
+
+@Composable
+private fun PlayCardButton(
+    card:
+        PlayerCard,
+
+    enabled:
+        Boolean,
+
+    onClick:
+        () -> Unit,
+) {
+    Button(
+        onClick =
+            onClick,
+
+        enabled =
+            enabled,
+
+        modifier =
+            Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text =
+                "Jouer ${card.toDisplayName()}",
+        )
+    }
+}
+
+@Composable
+private fun CommandSubmittingRow(
+    message:
+        String,
+) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth(),
+
+        horizontalArrangement =
+            Arrangement.spacedBy(
+                12.dp,
+            ),
+
+        verticalAlignment =
+            Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator()
+
+        Text(
+            text =
+                message,
+        )
+    }
+}
+
+@Composable
+private fun CommandFailureText(
+    message:
+        String,
+) {
+    Text(
+        text =
+            message,
+
+        color =
+            MaterialTheme
+                .colorScheme
+                .error,
+
+        style =
+            MaterialTheme
+                .typography
+                .bodyMedium,
+    )
 }
 
 @Composable
@@ -540,6 +775,10 @@ private fun PlayerActionMode.toDisplayName():
         PlayerActionMode.MATCH_FINISHED ->
             "Partie terminée"
     }
+
+private fun PlayerCard.toDisplayName():
+    String =
+    "${rank.toDisplayName()} de ${suit.toDisplayName()}"
 
 private fun CardSuit.toDisplayName():
     String =

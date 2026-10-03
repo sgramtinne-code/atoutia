@@ -106,6 +106,25 @@ class HttpAtoutiaGameApi(
                             "suit",
                             command.suit.name,
                         )
+
+                is PlayerGameCommand.PlayCard ->
+                    JSONObject()
+                        .put(
+                            "type",
+                            "PLAY_CARD",
+                        )
+                        .put(
+                            "card",
+                            JSONObject()
+                                .put(
+                                    "suit",
+                                    command.card.suit.name,
+                                )
+                                .put(
+                                    "rank",
+                                    command.card.rank.name,
+                                ),
+                        )
             }
 
         val documentJson =
@@ -397,7 +416,7 @@ class HttpAtoutiaGameApi(
 
             if (
                 formatVersion !=
-                SUPPORTED_LIVE_MATCH_ROOM_SNAPSHOT_FORMAT_VERSION
+                    SUPPORTED_LIVE_MATCH_ROOM_SNAPSHOT_FORMAT_VERSION
             ) {
                 throw AtoutiaGameApiException(
                     "Atoutia game API returned an unsupported live match snapshot format.",

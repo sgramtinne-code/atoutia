@@ -31,6 +31,20 @@ val atoutiaGoogleClientId =
         )
         .get()
 
+val atoutiaTestAutoplayPlayer0 =
+    providers
+        .gradleProperty(
+            "ATOUTIA_TEST_AUTOPLAY_PLAYER_0",
+        )
+        .orElse(
+            "false",
+        )
+        .get()
+        .toBooleanStrictOrNull()
+        ?: error(
+            "ATOUTIA_TEST_AUTOPLAY_PLAYER_0 must be true or false.",
+        )
+
 android {
     namespace =
         "tech.devoo.atoutia"
@@ -72,6 +86,13 @@ android {
                 atoutiaGoogleClientId
                     .asBuildConfigString(),
             )
+
+            buildConfigField(
+                "boolean",
+                "ATOUTIA_TEST_AUTOPLAY_PLAYER_0",
+                atoutiaTestAutoplayPlayer0
+                    .toString(),
+            )
         }
 
         release {
@@ -89,6 +110,12 @@ android {
                 "ATOUTIA_GOOGLE_CLIENT_ID",
                 atoutiaGoogleClientId
                     .asBuildConfigString(),
+            )
+
+            buildConfigField(
+                "boolean",
+                "ATOUTIA_TEST_AUTOPLAY_PLAYER_0",
+                "false",
             )
 
             proguardFiles(

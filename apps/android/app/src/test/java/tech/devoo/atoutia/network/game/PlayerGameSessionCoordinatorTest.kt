@@ -503,6 +503,702 @@ class PlayerGameSessionCoordinatorTest {
     }
 
     @Test
+    fun submitsServerProvidedLegalCardUsingCurrentRevision() {
+        val card =
+            PlayerCard(
+                suit =
+                    CardSuit.SPADES,
+
+                rank =
+                    CardRank.ACE,
+            )
+
+        val hand =
+            listOf(
+                card,
+
+                PlayerCard(
+                    suit =
+                        CardSuit.HEARTS,
+
+                    rank =
+                        CardRank.KING,
+                ),
+
+                PlayerCard(
+                    suit =
+                        CardSuit.CLUBS,
+
+                    rank =
+                        CardRank.SEVEN,
+                ),
+            )
+
+        val api =
+            RecordingGameApi(
+                loadSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        revision =
+                            9,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.PLAY_CARD,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            hand,
+
+                        legalCards =
+                            listOf(
+                                card,
+                            ),
+                    ),
+
+                commandSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        revision =
+                            10,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.WAIT,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            hand.drop(
+                                1,
+                            ),
+
+                        legalCards =
+                            emptyList(),
+                    ),
+            )
+
+        val coordinator =
+            PlayerGameSessionCoordinator(
+                gameApi =
+                    api,
+
+                accessTokenProvider = {
+                    "atk1_play_card_token"
+                },
+            )
+
+        val session =
+            coordinator.load(
+                sessionId =
+                    "ms1_testroom",
+
+                expectedPlayer =
+                    PlayerPosition.PLAYER_0,
+            )
+
+        val updatedSession =
+            coordinator.submitPlayCard(
+                session =
+                    session,
+
+                card =
+                    card,
+            )
+
+        assertTrue(
+            api.submitCalled,
+        )
+
+        assertEquals(
+            "ms1_testroom",
+            api.submitSessionId,
+        )
+
+        assertEquals(
+            9,
+            api.submitExpectedRevision,
+        )
+
+        assertEquals(
+            "0.1.0",
+            api.submitEngineVersion,
+        )
+
+        assertEquals(
+            PlayerGameCommand.PlayCard(
+                card =
+                    card,
+            ),
+            api.submitCommand,
+        )
+
+        assertEquals(
+            "atk1_play_card_token",
+            api.submitAccessToken,
+        )
+
+        assertEquals(
+            10,
+            updatedSession.revision,
+        )
+
+        assertEquals(
+            PlayerActionMode.WAIT,
+            updatedSession
+                .document
+                .snapshot
+                .actions
+                .mode,
+        )
+
+        assertFalse(
+            card in
+                updatedSession
+                    .document
+                    .snapshot
+                    .match
+                    .hand,
+        )
+    }
+
+    @Test
+    fun rejectsPlayCardWhenServerModeIsWait() {
+        val card =
+            PlayerCard(
+                suit =
+                    CardSuit.SPADES,
+
+                rank =
+                    CardRank.ACE,
+            )
+
+        val api =
+            RecordingGameApi(
+                loadSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.WAIT,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            listOf(
+                                card,
+                            ),
+
+                        legalCards =
+                            emptyList(),
+                    ),
+            )
+
+        val coordinator =
+            PlayerGameSessionCoordinator(
+                gameApi =
+                    api,
+
+                accessTokenProvider = {
+                    "atk1_test"
+                },
+            )
+
+        val session =
+            coordinator.load(
+                sessionId =
+                    "ms1_testroom",
+
+                expectedPlayer =
+                    PlayerPosition.PLAYER_0,
+            )
+
+        val error =
+            assertThrows(
+                PlayerGameSessionProtocolException::class.java,
+            ) {
+                coordinator.submitPlayCard(
+                    session =
+                        session,
+
+                    card =
+                        card,
+                )
+            }
+
+        assertEquals(
+            "Aucune carte Atoutia ne peut être jouée par ce joueur.",
+            error.message,
+        )
+
+        assertFalse(
+            api.submitCalled,
+        )
+    }
+
+    @Test
+    fun rejectsPlayCardNotProvidedByServer() {
+        val allowedCard =
+            PlayerCard(
+                suit =
+                    CardSuit.HEARTS,
+
+                rank =
+                    CardRank.JACK,
+            )
+
+        val unofferedCard =
+            PlayerCard(
+                suit =
+                    CardSuit.SPADES,
+
+                rank =
+                    CardRank.ACE,
+            )
+
+        val api =
+            RecordingGameApi(
+                loadSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.PLAY_CARD,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            listOf(
+                                allowedCard,
+                                unofferedCard,
+                            ),
+
+                        legalCards =
+                            listOf(
+                                allowedCard,
+                            ),
+                    ),
+            )
+
+        val coordinator =
+            PlayerGameSessionCoordinator(
+                gameApi =
+                    api,
+
+                accessTokenProvider = {
+                    "atk1_test"
+                },
+            )
+
+        val session =
+            coordinator.load(
+                sessionId =
+                    "ms1_testroom",
+
+                expectedPlayer =
+                    PlayerPosition.PLAYER_0,
+            )
+
+        val error =
+            assertThrows(
+                PlayerGameSessionProtocolException::class.java,
+            ) {
+                coordinator.submitPlayCard(
+                    session =
+                        session,
+
+                    card =
+                        unofferedCard,
+                )
+            }
+
+        assertEquals(
+            "Cette carte Atoutia n’est pas proposée par le serveur.",
+            error.message,
+        )
+
+        assertFalse(
+            api.submitCalled,
+        )
+    }
+
+    @Test
+    fun rejectsServerProvidedPlayCardMissingFromPlayerHand() {
+        val card =
+            PlayerCard(
+                suit =
+                    CardSuit.SPADES,
+
+                rank =
+                    CardRank.ACE,
+            )
+
+        val api =
+            RecordingGameApi(
+                loadSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.PLAY_CARD,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            listOf(
+                                PlayerCard(
+                                    suit =
+                                        CardSuit.HEARTS,
+
+                                    rank =
+                                        CardRank.KING,
+                                ),
+                            ),
+
+                        legalCards =
+                            listOf(
+                                card,
+                            ),
+                    ),
+            )
+
+        val coordinator =
+            PlayerGameSessionCoordinator(
+                gameApi =
+                    api,
+
+                accessTokenProvider = {
+                    "atk1_test"
+                },
+            )
+
+        val session =
+            coordinator.load(
+                sessionId =
+                    "ms1_testroom",
+
+                expectedPlayer =
+                    PlayerPosition.PLAYER_0,
+            )
+
+        val error =
+            assertThrows(
+                PlayerGameSessionProtocolException::class.java,
+            ) {
+                coordinator.submitPlayCard(
+                    session =
+                        session,
+
+                    card =
+                        card,
+                )
+            }
+
+        assertEquals(
+            "Cette carte Atoutia n’est pas présente dans la main du joueur.",
+            error.message,
+        )
+
+        assertFalse(
+            api.submitCalled,
+        )
+    }
+
+    @Test
+    fun submittingPlayCardRequiresActiveAuthentication() {
+        val card =
+            PlayerCard(
+                suit =
+                    CardSuit.CLUBS,
+
+                rank =
+                    CardRank.ACE,
+            )
+
+        val api =
+            RecordingGameApi(
+                loadSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.PLAY_CARD,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            listOf(
+                                card,
+                            ),
+
+                        legalCards =
+                            listOf(
+                                card,
+                            ),
+                    ),
+            )
+
+        var accessToken:
+            String? =
+            "atk1_initial"
+
+        val coordinator =
+            PlayerGameSessionCoordinator(
+                gameApi =
+                    api,
+
+                accessTokenProvider = {
+                    accessToken
+                },
+            )
+
+        val session =
+            coordinator.load(
+                sessionId =
+                    "ms1_testroom",
+
+                expectedPlayer =
+                    PlayerPosition.PLAYER_0,
+            )
+
+        accessToken =
+            null
+
+        val error =
+            assertThrows(
+                PlayerGameSessionUnavailableException::class.java,
+            ) {
+                coordinator.submitPlayCard(
+                    session =
+                        session,
+
+                    card =
+                        card,
+                )
+            }
+
+        assertEquals(
+            "Aucune session Atoutia active.",
+            error.message,
+        )
+
+        assertFalse(
+            api.submitCalled,
+        )
+    }
+
+    @Test
+    fun rejectsPlayCardResponseWithoutRevisionAdvance() {
+        val card =
+            PlayerCard(
+                suit =
+                    CardSuit.CLUBS,
+
+                rank =
+                    CardRank.ACE,
+            )
+
+        val api =
+            RecordingGameApi(
+                loadSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        revision =
+                            9,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.PLAY_CARD,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            listOf(
+                                card,
+                            ),
+
+                        legalCards =
+                            listOf(
+                                card,
+                            ),
+                    ),
+
+                commandSnapshot =
+                    createGameSnapshot(
+                        player =
+                            PlayerPosition.PLAYER_0,
+
+                        revision =
+                            9,
+
+                        dealPhase =
+                            DealPhase.PLAYING,
+
+                        mode =
+                            PlayerActionMode.WAIT,
+
+                        biddingActions =
+                            emptyList(),
+
+                        biddingPlayer =
+                            null,
+
+                        taker =
+                            PlayerPosition.PLAYER_1,
+
+                        trumpSuit =
+                            CardSuit.HEARTS,
+
+                        hand =
+                            emptyList(),
+
+                        legalCards =
+                            emptyList(),
+                    ),
+            )
+
+        val coordinator =
+            PlayerGameSessionCoordinator(
+                gameApi =
+                    api,
+
+                accessTokenProvider = {
+                    "atk1_test"
+                },
+            )
+
+        val session =
+            coordinator.load(
+                sessionId =
+                    "ms1_testroom",
+
+                expectedPlayer =
+                    PlayerPosition.PLAYER_0,
+            )
+
+        val error =
+            assertThrows(
+                PlayerGameSessionProtocolException::class.java,
+            ) {
+                coordinator.submitPlayCard(
+                    session =
+                        session,
+
+                    card =
+                        card,
+                )
+            }
+
+        assertEquals(
+            "La commande Atoutia n’a pas avancé la révision de la partie.",
+            error.message,
+        )
+
+        assertTrue(
+            api.submitCalled,
+        )
+    }
+
+    @Test
     fun rejectsBiddingActionWhenServerModeIsWait() {
         val pass =
             BiddingActionSnapshot.Pass(
@@ -1140,6 +1836,26 @@ class PlayerGameSessionCoordinatorTest {
                 PlayerPosition? =
                 player,
 
+            dealPhase:
+                DealPhase =
+                DealPhase.BIDDING,
+
+            taker:
+                PlayerPosition? =
+                null,
+
+            trumpSuit:
+                CardSuit? =
+                null,
+
+            hand:
+                List<PlayerCard> =
+                defaultHand(),
+
+            legalCards:
+                List<PlayerCard> =
+                emptyList(),
+
             engineVersion:
                 String = "0.1.0",
         ): PlayerGameSnapshot =
@@ -1167,6 +1883,21 @@ class PlayerGameSessionCoordinatorTest {
                         biddingPlayer =
                             biddingPlayer,
 
+                        dealPhase =
+                            dealPhase,
+
+                        taker =
+                            taker,
+
+                        trumpSuit =
+                            trumpSuit,
+
+                        hand =
+                            hand,
+
+                        legalCards =
+                            legalCards,
+
                         engineVersion =
                             engineVersion,
                     ),
@@ -1187,6 +1918,21 @@ class PlayerGameSessionCoordinatorTest {
 
             biddingPlayer:
                 PlayerPosition?,
+
+            dealPhase:
+                DealPhase,
+
+            taker:
+                PlayerPosition?,
+
+            trumpSuit:
+                CardSuit?,
+
+            hand:
+                List<PlayerCard>,
+
+            legalCards:
+                List<PlayerCard>,
 
             engineVersion:
                 String,
@@ -1211,7 +1957,7 @@ class PlayerGameSessionCoordinatorTest {
                                             PlayerPosition.PLAYER_3,
 
                                         phase =
-                                            DealPhase.BIDDING,
+                                            dealPhase,
 
                                         score =
                                             PublicMatchScoreSnapshot(
@@ -1238,10 +1984,10 @@ class PlayerGameSessionCoordinatorTest {
                                             biddingPlayer,
 
                                         taker =
-                                            null,
+                                            taker,
 
                                         trumpSuit =
-                                            null,
+                                            trumpSuit,
 
                                         turnUpCard =
                                             PlayerCard(
@@ -1260,50 +2006,10 @@ class PlayerGameSessionCoordinatorTest {
                                     matchPlayer,
 
                                 hand =
-                                    listOf(
-                                        PlayerCard(
-                                            suit =
-                                                CardSuit.CLUBS,
-
-                                            rank =
-                                                CardRank.ACE,
-                                        ),
-
-                                        PlayerCard(
-                                            suit =
-                                                CardSuit.DIAMONDS,
-
-                                            rank =
-                                                CardRank.KING,
-                                        ),
-
-                                        PlayerCard(
-                                            suit =
-                                                CardSuit.HEARTS,
-
-                                            rank =
-                                                CardRank.QUEEN,
-                                        ),
-
-                                        PlayerCard(
-                                            suit =
-                                                CardSuit.SPADES,
-
-                                            rank =
-                                                CardRank.TEN,
-                                        ),
-
-                                        PlayerCard(
-                                            suit =
-                                                CardSuit.CLUBS,
-
-                                            rank =
-                                                CardRank.NINE,
-                                        ),
-                                    ),
+                                    hand,
 
                                 legalCards =
-                                    emptyList(),
+                                    legalCards,
                             ),
 
                         actions =
@@ -1318,9 +2024,53 @@ class PlayerGameSessionCoordinatorTest {
                                     biddingActions,
 
                                 legalCards =
-                                    emptyList(),
+                                    legalCards,
                             ),
                     ),
+            )
+
+        fun defaultHand():
+            List<PlayerCard> =
+            listOf(
+                PlayerCard(
+                    suit =
+                        CardSuit.CLUBS,
+
+                    rank =
+                        CardRank.ACE,
+                ),
+
+                PlayerCard(
+                    suit =
+                        CardSuit.DIAMONDS,
+
+                    rank =
+                        CardRank.KING,
+                ),
+
+                PlayerCard(
+                    suit =
+                        CardSuit.HEARTS,
+
+                    rank =
+                        CardRank.QUEEN,
+                ),
+
+                PlayerCard(
+                    suit =
+                        CardSuit.SPADES,
+
+                    rank =
+                        CardRank.TEN,
+                ),
+
+                PlayerCard(
+                    suit =
+                        CardSuit.CLUBS,
+
+                    rank =
+                        CardRank.NINE,
+                ),
             )
     }
 }

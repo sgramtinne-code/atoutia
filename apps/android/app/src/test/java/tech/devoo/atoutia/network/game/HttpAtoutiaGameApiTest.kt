@@ -585,6 +585,235 @@ class HttpAtoutiaGameApiTest {
     }
 
     @Test
+    fun submitsAuthenticatedPlayCardCommand() {
+        withServer(
+            handler = {
+                exchange ->
+                assertEquals(
+                    "POST",
+                    exchange.requestMethod,
+                )
+
+                assertEquals(
+                    "/api/v1/rooms/ms1_testroom/commands",
+                    exchange.requestURI.path,
+                )
+
+                assertEquals(
+                    "Bearer atk1_command_access_token",
+                    exchange.requestHeaders.getFirst(
+                        "Authorization",
+                    ),
+                )
+
+                assertTrue(
+                    exchange
+                        .requestHeaders
+                        .getFirst(
+                            "Content-Type",
+                        )
+                        .startsWith(
+                            "application/json",
+                        ),
+                )
+
+                val root =
+                    JSONObject(
+                        readRequestBody(
+                            exchange,
+                        ),
+                    )
+
+                assertEquals(
+                    setOf(
+                        "document",
+                    ),
+                    keysOf(
+                        root,
+                    ),
+                )
+
+                assertFalse(
+                    root.has(
+                        "participantId",
+                    ),
+                )
+
+                val document =
+                    root.getJSONObject(
+                        "document",
+                    )
+
+                assertEquals(
+                    setOf(
+                        "formatVersion",
+                        "engineVersion",
+                        "sessionId",
+                        "expectedRevision",
+                        "command",
+                    ),
+                    keysOf(
+                        document,
+                    ),
+                )
+
+                assertEquals(
+                    1,
+                    document.getInt(
+                        "formatVersion",
+                    ),
+                )
+
+                assertEquals(
+                    "0.1.0",
+                    document.getString(
+                        "engineVersion",
+                    ),
+                )
+
+                assertEquals(
+                    "ms1_testroom",
+                    document.getString(
+                        "sessionId",
+                    ),
+                )
+
+                assertEquals(
+                    9,
+                    document.getInt(
+                        "expectedRevision",
+                    ),
+                )
+
+                assertFalse(
+                    document.has(
+                        "player",
+                    ),
+                )
+
+                assertFalse(
+                    document.has(
+                        "participantId",
+                    ),
+                )
+
+                val command =
+                    document.getJSONObject(
+                        "command",
+                    )
+
+                assertEquals(
+                    setOf(
+                        "type",
+                        "card",
+                    ),
+                    keysOf(
+                        command,
+                    ),
+                )
+
+                assertEquals(
+                    "PLAY_CARD",
+                    command.getString(
+                        "type",
+                    ),
+                )
+
+                assertFalse(
+                    command.has(
+                        "player",
+                    ),
+                )
+
+                val card =
+                    command.getJSONObject(
+                        "card",
+                    )
+
+                assertEquals(
+                    setOf(
+                        "suit",
+                        "rank",
+                    ),
+                    keysOf(
+                        card,
+                    ),
+                )
+
+                assertEquals(
+                    "SPADES",
+                    card.getString(
+                        "suit",
+                    ),
+                )
+
+                assertEquals(
+                    "ACE",
+                    card.getString(
+                        "rank",
+                    ),
+                )
+
+                assertFalse(
+                    card.has(
+                        "player",
+                    ),
+                )
+
+                respond(
+                    exchange =
+                        exchange,
+
+                    statusCode =
+                        HttpURLConnection.HTTP_OK,
+
+                    body =
+                        validSnapshotBody(
+                            revision =
+                                10,
+                        ),
+                )
+            },
+            block = {
+                baseUrl ->
+                val result =
+                    HttpAtoutiaGameApi(
+                        baseUrl,
+                    ).submitCommand(
+                        sessionId =
+                            "ms1_testroom",
+
+                        expectedRevision =
+                            9,
+
+                        engineVersion =
+                            "0.1.0",
+
+                        command =
+                            PlayerGameCommand.PlayCard(
+                                card =
+                                    PlayerCard(
+                                        suit =
+                                            CardSuit.SPADES,
+
+                                        rank =
+                                            CardRank.ACE,
+                                    ),
+                            ),
+
+                        accessToken =
+                            "atk1_command_access_token",
+                    )
+
+                assertEquals(
+                    10,
+                    result.revision,
+                )
+            },
+        )
+    }
+
+    @Test
     fun exposesStructuredAuthInvalidError() {
         withServer(
             handler = {
