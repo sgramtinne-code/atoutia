@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -70,6 +72,18 @@ sealed interface RoomLobbyLeaveUiState {
     ) : RoomLobbyLeaveUiState
 }
 
+sealed interface RoomLobbyStartUiState {
+    data object Idle :
+        RoomLobbyStartUiState
+
+    data object Starting :
+        RoomLobbyStartUiState
+
+    data class Failed(
+        val message: String,
+    ) : RoomLobbyStartUiState
+}
+
 @Composable
 fun RoomLobbyScreen(
     room:
@@ -93,6 +107,18 @@ fun RoomLobbyScreen(
     modifier:
         Modifier =
             Modifier,
+
+    startState:
+        RoomLobbyStartUiState =
+            RoomLobbyStartUiState.Idle,
+
+    onStartRoom:
+        (
+            (
+                RoomSessionMembership,
+            ) -> Unit
+        )? =
+            null,
 ) {
     val applicationContext =
         LocalContext.current
@@ -371,6 +397,19 @@ fun RoomLobbyScreen(
         realtimeState =
             realtimeState,
 
+        startState =
+            startState,
+
+        onStartRoom =
+            onStartRoom?.let {
+                startRoom ->
+                {
+                    startRoom(
+                        currentMembership,
+                    )
+                }
+            },
+
         leaveState =
             leaveState,
 
@@ -419,6 +458,12 @@ private fun RoomLobbyContent(
     realtimeState:
         RoomLobbyRealtimeUiState,
 
+    startState:
+        RoomLobbyStartUiState,
+
+    onStartRoom:
+        (() -> Unit)?,
+
     leaveState:
         RoomLobbyLeaveUiState,
 
@@ -435,6 +480,29 @@ private fun RoomLobbyContent(
     val player =
         membership.player
 
+    val isHost =
+        player ==
+            PlayerPosition.PLAYER_0
+
+    val isRoomReadyToStart =
+        room.phase ==
+            "READY" &&
+            room.occupiedSeats ==
+                PlayerPosition.entries.size &&
+            room.seats.occupiedCount ==
+                PlayerPosition.entries.size
+
+    val isStarting =
+        startState is
+            RoomLobbyStartUiState.Starting
+
+    val isLeaving =
+        leaveState is
+            RoomLobbyLeaveUiState.Leaving
+
+    val scrollState =
+        rememberScrollState()
+
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
@@ -446,6 +514,9 @@ private fun RoomLobbyContent(
                     .padding(
                         innerPadding,
                     )
+                    .verticalScroll(
+                        scrollState,
+                    )
                     .padding(
                         horizontal =
                             24.dp,
@@ -455,7 +526,7 @@ private fun RoomLobbyContent(
                     ),
 
             verticalArrangement =
-                Arrangement.Center,
+                Arrangement.Top,
 
             horizontalAlignment =
                 Alignment.CenterHorizontally,
@@ -721,6 +792,96 @@ private fun RoomLobbyContent(
             )
 
             if (
+                isHost
+            ) {
+                Button(
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                24.dp,
+                        ),
+
+                    enabled =
+                        onStartRoom !=
+                            null &&
+                            isRoomReadyToStart &&
+                            !isStarting &&
+                            !isLeaving,
+
+                    onClick = {
+                        onStartRoom
+                            ?.invoke()
+                    },
+                ) {
+                    Text(
+                        text =
+                            if (
+                                isStarting
+                            ) {
+                                "Démarrage en cours…"
+                            } else {
+                                "Démarrer la partie"
+                            },
+                    )
+                }
+
+                if (
+                    !isRoomReadyToStart &&
+                    !isStarting
+                ) {
+                    Text(
+                        modifier =
+                            Modifier.padding(
+                                top =
+                                    12.dp,
+                            ),
+
+                        text =
+                            if (
+                                room.occupiedSeats <
+                                    PlayerPosition.entries.size
+                            ) {
+                                "Le démarrage sera disponible lorsque les 4 joueurs seront présents."
+                            } else {
+                                "Le salon attend la confirmation du serveur avant le démarrage."
+                            },
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodyMedium,
+
+                        textAlign =
+                            TextAlign.Center,
+                    )
+                }
+
+                if (
+                    startState is
+                        RoomLobbyStartUiState.Failed
+                ) {
+                    Text(
+                        modifier =
+                            Modifier.padding(
+                                top =
+                                    12.dp,
+                            ),
+
+                        text =
+                            startState.message,
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodyMedium,
+
+                        textAlign =
+                            TextAlign.Center,
+                    )
+                }
+            }
+
+            if (
                 onLeaveRoom !=
                     null
             ) {
@@ -732,8 +893,8 @@ private fun RoomLobbyContent(
                         ),
 
                     enabled =
-                        leaveState !is
-                            RoomLobbyLeaveUiState.Leaving,
+                        !isLeaving &&
+                            !isStarting,
 
                     onClick =
                         onLeaveRoom,

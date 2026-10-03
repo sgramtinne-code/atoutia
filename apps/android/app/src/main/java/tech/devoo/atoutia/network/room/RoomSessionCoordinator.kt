@@ -156,6 +156,50 @@ class RoomSessionCoordinator(
         return releasedRoom
     }
 
+    fun startRoom(
+        membership:
+            RoomSessionMembership,
+    ): RoomSessionMembership {
+        val accessToken =
+            requireAccessToken()
+
+        validateRoomCanBeStarted(
+            membership,
+        )
+
+        val startedRoom =
+            roomApi.startRoom(
+                sessionId =
+                    membership
+                        .room
+                        .sessionId,
+
+                expectedRevision =
+                    membership
+                        .room
+                        .revision,
+
+                accessToken =
+                    accessToken,
+            )
+
+        validateStartedRoom(
+            previousMembership =
+                membership,
+
+            startedRoom =
+                startedRoom,
+        )
+
+        return RoomSessionMembership(
+            room =
+                startedRoom,
+
+            player =
+                membership.player,
+        )
+    }
+
     private fun requireAccessToken():
         String =
         accessTokenProvider()
@@ -176,6 +220,60 @@ class RoomSessionCoordinator(
                         player,
                     )
             }
+
+    private fun validateRoomCanBeStarted(
+        membership:
+            RoomSessionMembership,
+    ) {
+        if (
+            membership.player !=
+                PlayerPosition.PLAYER_0
+        ) {
+            throw RoomSessionStartUnavailableException(
+                "Seul l’hôte Atoutia peut démarrer la partie.",
+            )
+        }
+
+        if (
+            membership.room.phase !=
+                "READY"
+        ) {
+            throw RoomSessionStartUnavailableException(
+                "La partie Atoutia n’est pas prête à démarrer.",
+            )
+        }
+
+        if (
+            membership.room.occupiedSeats !=
+                PlayerPosition.entries.size ||
+            membership.room.seats.occupiedCount !=
+                PlayerPosition.entries.size
+        ) {
+            throw RoomSessionStartUnavailableException(
+                "La partie Atoutia doit avoir quatre joueurs pour démarrer.",
+            )
+        }
+
+        val allSeatsOccupied =
+            PlayerPosition.entries
+                .all {
+                    player ->
+                    membership
+                        .room
+                        .seats
+                        .isOccupied(
+                            player,
+                        )
+                }
+
+        if (
+            !allSeatsOccupied
+        ) {
+            throw RoomSessionStartUnavailableException(
+                "La partie Atoutia doit avoir quatre joueurs pour démarrer.",
+            )
+        }
+    }
 
     private fun validateClaimedRoom(
         previousRoom:
@@ -271,6 +369,99 @@ class RoomSessionCoordinator(
             )
         }
     }
+
+    private fun validateStartedRoom(
+        previousMembership:
+            RoomSessionMembership,
+
+        startedRoom:
+            LiveRoomSummary,
+    ) {
+        if (
+            startedRoom.sessionId !=
+                previousMembership
+                    .room
+                    .sessionId
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a changé l’identifiant du salon pendant le démarrage.",
+            )
+        }
+
+        if (
+            startedRoom.mode !=
+                previousMembership
+                    .room
+                    .mode
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a changé le mode du salon pendant le démarrage.",
+            )
+        }
+
+        if (
+            startedRoom.revision <=
+                previousMembership
+                    .room
+                    .revision
+        ) {
+            throw RoomSessionProtocolException(
+                "Le démarrage Atoutia n’a pas avancé la révision du salon.",
+            )
+        }
+
+        if (
+            startedRoom.phase !=
+                "IN_PROGRESS"
+        ) {
+            throw RoomSessionProtocolException(
+                "La partie Atoutia n’est pas passée en cours après le démarrage.",
+            )
+        }
+
+        if (
+            startedRoom.occupiedSeats !=
+                PlayerPosition.entries.size ||
+            startedRoom.seats.occupiedCount !=
+                PlayerPosition.entries.size
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a perdu un joueur pendant le démarrage.",
+            )
+        }
+
+        val allSeatsOccupied =
+            PlayerPosition.entries
+                .all {
+                    player ->
+                    startedRoom
+                        .seats
+                        .isOccupied(
+                            player,
+                        )
+                }
+
+        if (
+            !allSeatsOccupied
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a perdu un joueur pendant le démarrage.",
+            )
+        }
+
+        if (
+            !startedRoom
+                .seats
+                .isOccupied(
+                    previousMembership
+                        .player,
+                )
+        ) {
+            throw RoomSessionProtocolException(
+                "La réponse Atoutia a perdu le siège du joueur pendant le démarrage.",
+            )
+        }
+    }
 }
 
 class RoomSessionUnavailableException(
@@ -281,6 +472,13 @@ class RoomSessionUnavailableException(
 )
 
 class RoomSessionFullException(
+    message:
+        String,
+) : Exception(
+    message,
+)
+
+class RoomSessionStartUnavailableException(
     message:
         String,
 ) : Exception(

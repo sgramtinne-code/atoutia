@@ -5,9 +5,11 @@ import com.sun.net.httpserver.HttpServer
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 
 class HttpAtoutiaRoomApiTest {
@@ -264,10 +266,13 @@ class HttpAtoutiaRoomApiTest {
                     ).claimSeat(
                         sessionId =
                             "ms1_testroom",
+
                         player =
                             PlayerPosition.PLAYER_2,
+
                         expectedRevision =
                             4,
+
                         accessToken =
                             "atk1_test_access_token",
                     )
@@ -279,6 +284,183 @@ class HttpAtoutiaRoomApiTest {
 
                 assertTrue(
                     room.seats.player2,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun startsRoomUsingBearerAccessTokenAndExpectedRevisionOnly() {
+        withServer(
+            handler = {
+                exchange ->
+                assertEquals(
+                    "POST",
+                    exchange.requestMethod,
+                )
+
+                assertEquals(
+                    "/api/v1/rooms/ms1_testroom/start",
+                    exchange.requestURI.path,
+                )
+
+                assertEquals(
+                    "Bearer atk1_start_access_token",
+                    exchange.requestHeaders.getFirst(
+                        "Authorization",
+                    ),
+                )
+
+                val requestJson =
+                    JSONObject(
+                        readRequestBody(
+                            exchange,
+                        ),
+                    )
+
+                assertEquals(
+                    setOf(
+                        "expectedRevision",
+                    ),
+                    jsonKeys(
+                        requestJson,
+                    ),
+                )
+
+                assertEquals(
+                    4,
+                    requestJson.getInt(
+                        "expectedRevision",
+                    ),
+                )
+
+                assertFalse(
+                    requestJson.has(
+                        "participantId",
+                    ),
+                )
+
+                respondWithRoom(
+                    exchange = exchange,
+                    statusCode = 200,
+                    revision = 5,
+                    occupiedSeats = 4,
+                    phase = "IN_PROGRESS",
+                    player0 = true,
+                    player1 = true,
+                    player2 = true,
+                    player3 = true,
+                )
+            },
+            block = {
+                baseUrl ->
+                val room =
+                    HttpAtoutiaRoomApi(
+                        baseUrl,
+                    ).startRoom(
+                        sessionId =
+                            "ms1_testroom",
+
+                        expectedRevision =
+                            4,
+
+                        accessToken =
+                            "atk1_start_access_token",
+                    )
+
+                assertEquals(
+                    5,
+                    room.revision,
+                )
+
+                assertEquals(
+                    "IN_PROGRESS",
+                    room.phase,
+                )
+
+                assertEquals(
+                    4,
+                    room.occupiedSeats,
+                )
+
+                assertTrue(
+                    room.seats.player0,
+                )
+
+                assertTrue(
+                    room.seats.player1,
+                )
+
+                assertTrue(
+                    room.seats.player2,
+                )
+
+                assertTrue(
+                    room.seats.player3,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun exposesStructuredRevisionMismatchFromStartRequest() {
+        withServer(
+            handler = {
+                exchange ->
+                assertEquals(
+                    "POST",
+                    exchange.requestMethod,
+                )
+
+                assertEquals(
+                    "/api/v1/rooms/ms1_testroom/start",
+                    exchange.requestURI.path,
+                )
+
+                respond(
+                    exchange = exchange,
+                    statusCode = 409,
+                    body =
+                        """
+                        {
+                          "error": "REVISION_MISMATCH"
+                        }
+                        """.trimIndent(),
+                )
+            },
+            block = {
+                baseUrl ->
+                val error =
+                    assertThrows(
+                        AtoutiaRoomApiException::class.java,
+                    ) {
+                        HttpAtoutiaRoomApi(
+                            baseUrl,
+                        ).startRoom(
+                            sessionId =
+                                "ms1_testroom",
+
+                            expectedRevision =
+                                4,
+
+                            accessToken =
+                                "atk1_start_access_token",
+                        )
+                    }
+
+                assertEquals(
+                    "Atoutia room API returned HTTP 409.",
+                    error.message,
+                )
+
+                assertEquals(
+                    HttpURLConnection.HTTP_CONFLICT,
+                    error.statusCode,
+                )
+
+                assertEquals(
+                    "REVISION_MISMATCH",
+                    error.errorCode,
                 )
             },
         )
@@ -316,6 +498,57 @@ class HttpAtoutiaRoomApiTest {
                 assertEquals(
                     "Atoutia room API returned HTTP 404.",
                     error.message,
+                )
+
+                assertEquals(
+                    HttpURLConnection.HTTP_NOT_FOUND,
+                    error.statusCode,
+                )
+
+                assertEquals(
+                    "ROOM_NOT_FOUND",
+                    error.errorCode,
+                )
+            },
+        )
+    }
+
+    @Test
+    fun missingStructuredErrorBodyKeepsErrorCodeNull() {
+        withServer(
+            handler = {
+                exchange ->
+                respond(
+                    exchange = exchange,
+                    statusCode = 500,
+                    body =
+                        """
+                        {
+                          "message": "failure"
+                        }
+                        """.trimIndent(),
+                )
+            },
+            block = {
+                baseUrl ->
+                val error =
+                    assertThrows(
+                        AtoutiaRoomApiException::class.java,
+                    ) {
+                        HttpAtoutiaRoomApi(
+                            baseUrl,
+                        ).getRoom(
+                            "ms1_testroom",
+                        )
+                    }
+
+                assertEquals(
+                    HttpURLConnection.HTTP_INTERNAL_ERROR,
+                    error.statusCode,
+                )
+
+                assertNull(
+                    error.errorCode,
                 )
             },
         )
@@ -495,10 +728,13 @@ class HttpAtoutiaRoomApiTest {
                 ).claimSeat(
                     sessionId =
                         "ms1_testroom",
+
                     player =
                         PlayerPosition.PLAYER_0,
+
                     expectedRevision =
                         0,
+
                     accessToken =
                         "invalid",
                 )
@@ -506,6 +742,32 @@ class HttpAtoutiaRoomApiTest {
 
         assertEquals(
             "Invalid Atoutia access token.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun rejectsNegativeStartRevisionBeforeNetworkCall() {
+        val error =
+            assertThrows(
+                IllegalArgumentException::class.java,
+            ) {
+                HttpAtoutiaRoomApi(
+                    "http://127.0.0.1:1",
+                ).startRoom(
+                    sessionId =
+                        "ms1_testroom",
+
+                    expectedRevision =
+                        -1,
+
+                    accessToken =
+                        "atk1_test",
+                )
+            }
+
+        assertEquals(
+            "Expected room revision must be non-negative.",
             error.message,
         )
     }
@@ -571,6 +833,7 @@ class HttpAtoutiaRoomApiTest {
         statusCode: Int,
         revision: Int,
         occupiedSeats: Int,
+        phase: String = "WAITING",
         player0: Boolean = false,
         player1: Boolean = false,
         player2: Boolean = false,
@@ -585,7 +848,7 @@ class HttpAtoutiaRoomApiTest {
                   "sessionId": "ms1_testroom",
                   "mode": "CASUAL",
                   "revision": $revision,
-                  "phase": "WAITING",
+                  "phase": "$phase",
                   "occupiedSeats": $occupiedSeats,
                   "seats": {
                     "PLAYER_0": $player0,

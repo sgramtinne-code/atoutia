@@ -194,11 +194,11 @@ class RoomSessionLeaveTest {
                                 player1Occupied = true,
                             ),
 
-                    player =
-                        PlayerPosition.PLAYER_1,
-                ),
-            )
-        }
+                        player =
+                            PlayerPosition.PLAYER_1,
+                    ),
+                )
+            }
 
         assertEquals(
             "La libération du siège Atoutia n’a pas avancé la révision du salon.",
@@ -323,6 +323,13 @@ class RoomSessionLeaveTest {
 
             return releaseRoom
         }
+
+        override fun startRoom(
+            sessionId: String,
+            expectedRevision: Int,
+            accessToken: String,
+        ): LiveRoomSummary =
+            throw UnsupportedOperationException()
     }
 
     private companion object {

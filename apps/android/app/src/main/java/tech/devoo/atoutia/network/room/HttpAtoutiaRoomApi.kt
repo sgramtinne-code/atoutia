@@ -127,6 +127,43 @@ class HttpAtoutiaRoomApi(
         )
     }
 
+    override fun startRoom(
+        sessionId: String,
+        expectedRevision: Int,
+        accessToken: String,
+    ): LiveRoomSummary {
+        val normalizedSessionId =
+            validateSessionId(
+                sessionId,
+            )
+
+        require(
+            expectedRevision >= 0,
+        ) {
+            "Expected room revision must be non-negative."
+        }
+
+        val normalizedAccessToken =
+            validateAccessToken(
+                accessToken,
+            )
+
+        val body =
+            JSONObject()
+                .put(
+                    "expectedRevision",
+                    expectedRevision,
+                )
+
+        return executeRoomRequest(
+            method = "POST",
+            path = "/api/v1/rooms/$normalizedSessionId/start",
+            expectedStatus = HttpURLConnection.HTTP_OK,
+            requestBody = body,
+            accessToken = normalizedAccessToken,
+        )
+    }
+
     private fun createSeatMutationBody(
         player: PlayerPosition,
         expectedRevision: Int,
@@ -218,8 +255,20 @@ class HttpAtoutiaRoomApi(
             if (
                 responseCode != expectedStatus
             ) {
+                val errorCode =
+                    readApiErrorCode(
+                        connection,
+                    )
+
                 throw AtoutiaRoomApiException(
-                    "Atoutia room API returned HTTP $responseCode.",
+                    message =
+                        "Atoutia room API returned HTTP $responseCode.",
+
+                    statusCode =
+                        responseCode,
+
+                    errorCode =
+                        errorCode,
                 )
             }
 
@@ -259,11 +308,71 @@ class HttpAtoutiaRoomApi(
             error: Exception,
         ) {
             throw AtoutiaRoomApiException(
-                "Unable to contact Atoutia room API.",
-                error,
+                message =
+                    "Unable to contact Atoutia room API.",
+
+                cause =
+                    error,
             )
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private fun readApiErrorCode(
+        connection:
+            HttpURLConnection,
+    ): String? {
+        val errorStream =
+            connection.errorStream
+                ?: return null
+
+        val responseBody =
+            try {
+                errorStream
+                    .bufferedReader(
+                        Charsets.UTF_8,
+                    )
+                    .use {
+                        it.readText()
+                    }
+            } catch (
+                error:
+                    Exception,
+            ) {
+                return null
+            }
+
+        if (
+            responseBody.isBlank()
+        ) {
+            return null
+        }
+
+        return try {
+            val json =
+                JSONObject(
+                    responseBody,
+                )
+
+            val error =
+                json.opt(
+                    "error",
+                )
+
+            if (
+                error is String &&
+                error.isNotBlank()
+            ) {
+                error
+            } else {
+                null
+            }
+        } catch (
+            error:
+                Exception,
+        ) {
+            null
         }
     }
 
@@ -311,8 +420,11 @@ class HttpAtoutiaRoomApi(
                     error: IllegalArgumentException,
                 ) {
                     throw AtoutiaRoomApiException(
-                        "Atoutia room API returned an unsupported match mode.",
-                        error,
+                        message =
+                            "Atoutia room API returned an unsupported match mode.",
+
+                        cause =
+                            error,
                     )
                 }
 
@@ -374,8 +486,11 @@ class HttpAtoutiaRoomApi(
             error: Exception,
         ) {
             throw AtoutiaRoomApiException(
-                "Atoutia room API returned an invalid room document.",
-                error,
+                message =
+                    "Atoutia room API returned an invalid room document.",
+
+                cause =
+                    error,
             )
         }
     }

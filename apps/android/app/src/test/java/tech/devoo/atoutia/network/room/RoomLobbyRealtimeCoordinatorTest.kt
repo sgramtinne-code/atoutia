@@ -572,6 +572,13 @@ class RoomLobbyRealtimeCoordinatorTest {
             accessToken: String,
         ): LiveRoomSummary =
             throw UnsupportedOperationException()
+
+        override fun startRoom(
+            sessionId: String,
+            expectedRevision: Int,
+            accessToken: String,
+        ): LiveRoomSummary =
+            throw UnsupportedOperationException()
     }
 
     private class FakeRealtimeApi :

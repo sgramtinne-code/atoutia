@@ -1,6 +1,7 @@
 package tech.devoo.atoutia.network.room
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,7 +22,7 @@ class RoomSessionCoordinatorTest {
                         "create:$mode",
                     )
 
-                    waitingRoom(
+                    room(
                         sessionId =
                             "ms1_test_room",
 
@@ -42,7 +43,7 @@ class RoomSessionCoordinatorTest {
                         "claim:$sessionId:$player:$expectedRevision:$accessToken",
                     )
 
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -117,7 +118,7 @@ class RoomSessionCoordinatorTest {
                         "get:$sessionId",
                     )
 
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -144,7 +145,7 @@ class RoomSessionCoordinatorTest {
                         "claim:$sessionId:$player:$expectedRevision:$accessToken",
                     )
 
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -214,7 +215,7 @@ class RoomSessionCoordinatorTest {
             RecordingRoomApi(
                 onGetRoom = {
                     sessionId ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -231,7 +232,7 @@ class RoomSessionCoordinatorTest {
                     player,
                     _,
                     _ ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -277,7 +278,7 @@ class RoomSessionCoordinatorTest {
             RecordingRoomApi(
                 onGetRoom = {
                     sessionId ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -330,8 +331,7 @@ class RoomSessionCoordinatorTest {
             error.message,
         )
 
-        assertEquals(
-            false,
+        assertFalse(
             claimCalled,
         )
     }
@@ -347,7 +347,7 @@ class RoomSessionCoordinatorTest {
                     createCalled =
                         true
 
-                    waitingRoom(
+                    room(
                         sessionId =
                             "ms1_should_not_exist",
 
@@ -383,8 +383,7 @@ class RoomSessionCoordinatorTest {
             error.message,
         )
 
-        assertEquals(
-            false,
+        assertFalse(
             createCalled,
         )
     }
@@ -428,8 +427,7 @@ class RoomSessionCoordinatorTest {
             error.message,
         )
 
-        assertEquals(
-            false,
+        assertFalse(
             getCalled,
         )
     }
@@ -443,7 +441,7 @@ class RoomSessionCoordinatorTest {
         val api =
             RecordingRoomApi(
                 onCreateRoom = {
-                    waitingRoom(
+                    room(
                         sessionId =
                             "ms1_revision_test",
 
@@ -463,7 +461,7 @@ class RoomSessionCoordinatorTest {
                     claimedRevision =
                         expectedRevision
 
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -502,7 +500,7 @@ class RoomSessionCoordinatorTest {
         val api =
             RecordingRoomApi(
                 onCreateRoom = {
-                    waitingRoom(
+                    room(
                         sessionId =
                             "ms1_original",
 
@@ -519,7 +517,7 @@ class RoomSessionCoordinatorTest {
                     player,
                     _,
                     _ ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             "ms1_different",
 
@@ -564,7 +562,7 @@ class RoomSessionCoordinatorTest {
             RecordingRoomApi(
                 onGetRoom = {
                     sessionId ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -581,7 +579,7 @@ class RoomSessionCoordinatorTest {
                     player,
                     _,
                     _ ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -628,7 +626,7 @@ class RoomSessionCoordinatorTest {
             RecordingRoomApi(
                 onGetRoom = {
                     sessionId ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -650,7 +648,7 @@ class RoomSessionCoordinatorTest {
                     _,
                     _,
                     _ ->
-                    waitingRoom(
+                    room(
                         sessionId =
                             sessionId,
 
@@ -691,7 +689,617 @@ class RoomSessionCoordinatorTest {
         )
     }
 
-    private fun waitingRoom(
+    @Test
+    fun startsReadyRoomUsingCurrentRevisionAndAccessToken() {
+        val calls =
+            mutableListOf<
+                String
+            >()
+
+        val readyRoom =
+            room(
+                sessionId =
+                    "ms1_start_test",
+
+                mode =
+                    MatchMode.PRIVATE,
+
+                revision =
+                    4,
+
+                phase =
+                    "READY",
+
+                occupiedPlayers =
+                    PlayerPosition
+                        .entries
+                        .toSet(),
+            )
+
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    sessionId,
+                    expectedRevision,
+                    accessToken ->
+                    calls.add(
+                        "start:$sessionId:$expectedRevision:$accessToken",
+                    )
+
+                    room(
+                        sessionId =
+                            sessionId,
+
+                        mode =
+                            MatchMode.PRIVATE,
+
+                        revision =
+                            5,
+
+                        phase =
+                            "IN_PROGRESS",
+
+                        occupiedPlayers =
+                            PlayerPosition
+                                .entries
+                                .toSet(),
+                    )
+                },
+            )
+
+        val coordinator =
+            RoomSessionCoordinator(
+                roomApi =
+                    api,
+
+                accessTokenProvider = {
+                    calls.add(
+                        "token",
+                    )
+
+                    "atk1_start_token"
+                },
+            )
+
+        val result =
+            coordinator.startRoom(
+                RoomSessionMembership(
+                    room =
+                        readyRoom,
+
+                    player =
+                        PlayerPosition.PLAYER_0,
+                ),
+            )
+
+        assertEquals(
+            listOf(
+                "token",
+                "start:ms1_start_test:4:atk1_start_token",
+            ),
+            calls,
+        )
+
+        assertEquals(
+            PlayerPosition.PLAYER_0,
+            result.player,
+        )
+
+        assertEquals(
+            5,
+            result.room.revision,
+        )
+
+        assertEquals(
+            "IN_PROGRESS",
+            result.room.phase,
+        )
+
+        assertEquals(
+            4,
+            result.room.occupiedSeats,
+        )
+    }
+
+    @Test
+    fun doesNotStartRoomWithoutActiveSession() {
+        var startCalled =
+            false
+
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    _,
+                    _,
+                    _ ->
+                    startCalled =
+                        true
+
+                    throw AssertionError(
+                        "Start must not be called without authentication.",
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionUnavailableException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        null
+                    },
+                )
+                    .startRoom(
+                        readyHostMembership(),
+                    )
+            }
+
+        assertEquals(
+            "Aucune session Atoutia active.",
+            error.message,
+        )
+
+        assertFalse(
+            startCalled,
+        )
+    }
+
+    @Test
+    fun rejectsNonHostBeforeStartRequest() {
+        var startCalled =
+            false
+
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    _,
+                    _,
+                    _ ->
+                    startCalled =
+                        true
+
+                    throw AssertionError(
+                        "Start must not be called by a non-host player.",
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionStartUnavailableException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        RoomSessionMembership(
+                            room =
+                                room(
+                                    sessionId =
+                                        "ms1_non_host",
+
+                                    mode =
+                                        MatchMode.PRIVATE,
+
+                                    revision =
+                                        4,
+
+                                    phase =
+                                        "READY",
+
+                                    occupiedPlayers =
+                                        PlayerPosition
+                                            .entries
+                                            .toSet(),
+                                ),
+
+                            player =
+                                PlayerPosition.PLAYER_1,
+                        ),
+                    )
+            }
+
+        assertEquals(
+            "Seul l’hôte Atoutia peut démarrer la partie.",
+            error.message,
+        )
+
+        assertFalse(
+            startCalled,
+        )
+    }
+
+    @Test
+    fun rejectsRoomThatIsNotReadyBeforeStartRequest() {
+        var startCalled =
+            false
+
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    _,
+                    _,
+                    _ ->
+                    startCalled =
+                        true
+
+                    throw AssertionError(
+                        "Start must not be called before the room is ready.",
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionStartUnavailableException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        RoomSessionMembership(
+                            room =
+                                room(
+                                    sessionId =
+                                        "ms1_not_ready",
+
+                                    mode =
+                                        MatchMode.PRIVATE,
+
+                                    revision =
+                                        3,
+
+                                    phase =
+                                        "WAITING_FOR_PLAYERS",
+
+                                    occupiedPlayers =
+                                        setOf(
+                                            PlayerPosition.PLAYER_0,
+                                            PlayerPosition.PLAYER_1,
+                                            PlayerPosition.PLAYER_2,
+                                        ),
+                                ),
+
+                            player =
+                                PlayerPosition.PLAYER_0,
+                        ),
+                    )
+            }
+
+        assertEquals(
+            "La partie Atoutia n’est pas prête à démarrer.",
+            error.message,
+        )
+
+        assertFalse(
+            startCalled,
+        )
+    }
+
+    @Test
+    fun rejectsReadyRoomWithoutFourPlayersBeforeStartRequest() {
+        var startCalled =
+            false
+
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    _,
+                    _,
+                    _ ->
+                    startCalled =
+                        true
+
+                    throw AssertionError(
+                        "Start must not be called without four occupied seats.",
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionStartUnavailableException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        RoomSessionMembership(
+                            room =
+                                room(
+                                    sessionId =
+                                        "ms1_missing_player",
+
+                                    mode =
+                                        MatchMode.PRIVATE,
+
+                                    revision =
+                                        4,
+
+                                    phase =
+                                        "READY",
+
+                                    occupiedPlayers =
+                                        setOf(
+                                            PlayerPosition.PLAYER_0,
+                                            PlayerPosition.PLAYER_1,
+                                            PlayerPosition.PLAYER_2,
+                                        ),
+                                ),
+
+                            player =
+                                PlayerPosition.PLAYER_0,
+                        ),
+                    )
+            }
+
+        assertEquals(
+            "La partie Atoutia doit avoir quatre joueurs pour démarrer.",
+            error.message,
+        )
+
+        assertFalse(
+            startCalled,
+        )
+    }
+
+    @Test
+    fun rejectsStartResponseWithoutRevisionAdvance() {
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    sessionId,
+                    _,
+                    _ ->
+                    room(
+                        sessionId =
+                            sessionId,
+
+                        mode =
+                            MatchMode.PRIVATE,
+
+                        revision =
+                            4,
+
+                        phase =
+                            "IN_PROGRESS",
+
+                        occupiedPlayers =
+                            PlayerPosition
+                                .entries
+                                .toSet(),
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionProtocolException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        readyHostMembership(),
+                    )
+            }
+
+        assertEquals(
+            "Le démarrage Atoutia n’a pas avancé la révision du salon.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun rejectsStartResponseThatIsNotInProgress() {
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    sessionId,
+                    _,
+                    _ ->
+                    room(
+                        sessionId =
+                            sessionId,
+
+                        mode =
+                            MatchMode.PRIVATE,
+
+                        revision =
+                            5,
+
+                        phase =
+                            "READY",
+
+                        occupiedPlayers =
+                            PlayerPosition
+                                .entries
+                                .toSet(),
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionProtocolException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        readyHostMembership(),
+                    )
+            }
+
+        assertEquals(
+            "La partie Atoutia n’est pas passée en cours après le démarrage.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun rejectsStartResponseWithDifferentSessionId() {
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    _,
+                    _,
+                    _ ->
+                    room(
+                        sessionId =
+                            "ms1_other",
+
+                        mode =
+                            MatchMode.PRIVATE,
+
+                        revision =
+                            5,
+
+                        phase =
+                            "IN_PROGRESS",
+
+                        occupiedPlayers =
+                            PlayerPosition
+                                .entries
+                                .toSet(),
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionProtocolException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        readyHostMembership(),
+                    )
+            }
+
+        assertEquals(
+            "La réponse Atoutia a changé l’identifiant du salon pendant le démarrage.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun rejectsStartResponseThatLosesAPlayer() {
+        val api =
+            RecordingRoomApi(
+                onStartRoom = {
+                    sessionId,
+                    _,
+                    _ ->
+                    room(
+                        sessionId =
+                            sessionId,
+
+                        mode =
+                            MatchMode.PRIVATE,
+
+                        revision =
+                            5,
+
+                        phase =
+                            "IN_PROGRESS",
+
+                        occupiedPlayers =
+                            setOf(
+                                PlayerPosition.PLAYER_0,
+                                PlayerPosition.PLAYER_1,
+                                PlayerPosition.PLAYER_2,
+                            ),
+                    )
+                },
+            )
+
+        val error =
+            assertThrows(
+                RoomSessionProtocolException::class.java,
+            ) {
+                RoomSessionCoordinator(
+                    roomApi =
+                        api,
+
+                    accessTokenProvider = {
+                        "atk1_test"
+                    },
+                )
+                    .startRoom(
+                        readyHostMembership(),
+                    )
+            }
+
+        assertEquals(
+            "La réponse Atoutia a perdu un joueur pendant le démarrage.",
+            error.message,
+        )
+    }
+
+    private fun readyHostMembership():
+        RoomSessionMembership =
+        RoomSessionMembership(
+            room =
+                room(
+                    sessionId =
+                        "ms1_start_test",
+
+                    mode =
+                        MatchMode.PRIVATE,
+
+                    revision =
+                        4,
+
+                    phase =
+                        "READY",
+
+                    occupiedPlayers =
+                        PlayerPosition
+                            .entries
+                            .toSet(),
+                ),
+
+            player =
+                PlayerPosition.PLAYER_0,
+        )
+
+    private fun room(
         sessionId:
             String,
 
@@ -700,6 +1308,10 @@ class RoomSessionCoordinatorTest {
 
         revision:
             Int,
+
+        phase:
+            String =
+            "WAITING_FOR_PLAYERS",
 
         occupiedPlayers:
             Set<PlayerPosition> =
@@ -735,7 +1347,7 @@ class RoomSessionCoordinatorTest {
                 revision,
 
             phase =
-                "WAITING_FOR_PLAYERS",
+                phase,
 
             occupiedSeats =
                 seats.occupiedCount,
@@ -785,6 +1397,18 @@ class RoomSessionCoordinatorTest {
                 String,
             ) -> LiveRoomSummary = {
                 _,
+                _,
+                _,
+                _ ->
+                throw UnsupportedOperationException()
+            },
+
+        private val onStartRoom:
+            (
+                String,
+                Int,
+                String,
+            ) -> LiveRoomSummary = {
                 _,
                 _,
                 _ ->
@@ -843,6 +1467,22 @@ class RoomSessionCoordinatorTest {
             onReleaseSeat(
                 sessionId,
                 player,
+                expectedRevision,
+                accessToken,
+            )
+
+        override fun startRoom(
+            sessionId:
+                String,
+
+            expectedRevision:
+                Int,
+
+            accessToken:
+                String,
+        ): LiveRoomSummary =
+            onStartRoom(
+                sessionId,
                 expectedRevision,
                 accessToken,
             )

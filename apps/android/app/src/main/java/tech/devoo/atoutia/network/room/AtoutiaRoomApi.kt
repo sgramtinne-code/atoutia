@@ -39,4 +39,15 @@ interface AtoutiaRoomApi {
         accessToken:
             String,
     ): LiveRoomSummary
+
+    fun startRoom(
+        sessionId:
+            String,
+
+        expectedRevision:
+            Int,
+
+        accessToken:
+            String,
+    ): LiveRoomSummary
 }
