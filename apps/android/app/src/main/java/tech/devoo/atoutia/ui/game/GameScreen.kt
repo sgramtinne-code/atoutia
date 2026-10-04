@@ -130,6 +130,16 @@ fun GameScreen(
                 currentPlayer,
         )
 
+    val headerText =
+        if (
+            screenTitle ==
+                actionStatus
+        ) {
+            screenTitle
+        } else {
+            "$screenTitle • $actionStatus"
+        }
+
     val hudContent:
         @Composable () -> Unit = {
             GameHud(
@@ -266,24 +276,28 @@ fun GameScreen(
 
     val footerContent:
         @Composable () -> Unit = {
-            OutlinedButton(
-                onClick = {
-                    onRefresh
-                        ?.invoke()
-                },
-
-                enabled =
-                    onRefresh !=
-                        null &&
-                        !isSubmitting,
-
-                modifier =
-                    Modifier.fillMaxWidth(),
+            if (
+                !score.completed
             ) {
-                Text(
-                    text =
-                        "Actualiser la partie",
-                )
+                OutlinedButton(
+                    onClick = {
+                        onRefresh
+                            ?.invoke()
+                    },
+
+                    enabled =
+                        onRefresh !=
+                            null &&
+                            !isSubmitting,
+
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text =
+                            "Actualiser la partie",
+                    )
+                }
             }
 
             Text(
@@ -375,7 +389,7 @@ fun GameScreen(
                     ) {
                         Text(
                             text =
-                                "$screenTitle • $actionStatus",
+                                headerText,
 
                             style =
                                 MaterialTheme
@@ -435,21 +449,26 @@ fun GameScreen(
                             TextAlign.Center,
                     )
 
-                    Text(
-                        text =
-                            actionStatus,
+                    if (
+                        actionStatus !=
+                            screenTitle
+                    ) {
+                        Text(
+                            text =
+                                actionStatus,
 
-                        style =
-                            MaterialTheme
-                                .typography
-                                .titleMedium,
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
 
-                        fontWeight =
-                            FontWeight.SemiBold,
+                            fontWeight =
+                                FontWeight.SemiBold,
 
-                        textAlign =
-                            TextAlign.Center,
-                    )
+                            textAlign =
+                                TextAlign.Center,
+                        )
+                    }
 
                     hudContent()
 
