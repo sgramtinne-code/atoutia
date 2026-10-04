@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import tech.devoo.atoutia.auth.AndroidSecureAuthTokenStore
 import tech.devoo.atoutia.auth.AuthSessionCoordinator
 import tech.devoo.atoutia.auth.AuthStartupCoordinator
@@ -46,6 +48,8 @@ import tech.devoo.atoutia.auth.HttpGoogleAuthApi
 import tech.devoo.atoutia.network.AtoutiaBackendClient
 import tech.devoo.atoutia.network.BackendHealth
 import tech.devoo.atoutia.network.game.AtoutiaGameApiException
+import tech.devoo.atoutia.network.game.AtoutiaGameRealtimeClient
+import tech.devoo.atoutia.network.game.AtoutiaGameRealtimeSubscription
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
 import tech.devoo.atoutia.network.game.HttpAtoutiaGameApi
 import tech.devoo.atoutia.network.game.PlayerActionMode
@@ -73,16 +77,21 @@ import tech.devoo.atoutia.ui.theme.AtoutiaTheme
 import java.io.IOException
 
 private const val GAME_AUTO_REFRESH_INTERVAL_MS =
-    750L
+    5_000L
 
 private const val GAME_AUTO_REFRESH_MAX_INTERVAL_MS =
-    5_000L
+    15_000L
 
 private const val TEST_AUTOPLAY_ACTION_DELAY_MS =
     150L
 
 class MainActivity :
     ComponentActivity() {
+    private val gameRealtimeHttpClient =
+        OkHttpClient
+            .Builder()
+            .build()
+
     override fun onCreate(
         savedInstanceState:
             Bundle?,
@@ -122,6 +131,9 @@ class MainActivity :
 
                     refreshGameSession =
                         ::refreshGameSession,
+
+                    subscribeGameRealtime =
+                        ::subscribeGameRealtime,
 
                     submitBiddingAction =
                         ::submitBiddingAction,
@@ -1142,6 +1154,79 @@ class MainActivity :
         }
     }
 
+    private fun subscribeGameRealtime(
+        session:
+            PlayerGameSession,
+
+        onRevisionAvailable:
+            (
+                Int,
+            ) -> Unit,
+    ): AtoutiaGameRealtimeSubscription? {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            return null
+        }
+
+        val tokenStore =
+            AndroidSecureAuthTokenStore(
+                applicationContext,
+            )
+
+        val sessionApi =
+            HttpAuthSessionApi(
+                apiBaseUrl,
+            )
+
+        val authSessionCoordinator =
+            AuthSessionCoordinator(
+                tokenStore =
+                    tokenStore,
+
+                sessionApi =
+                    sessionApi,
+            )
+
+        val realtimeClient =
+            AtoutiaGameRealtimeClient(
+                baseUrl =
+                    apiBaseUrl,
+
+                webSocketClient =
+                    gameRealtimeHttpClient,
+            )
+
+        return realtimeClient
+            .subscribe(
+                sessionId =
+                    session.sessionId,
+
+                initialRevision =
+                    session.revision,
+
+                accessTokenProvider =
+                    authSessionCoordinator::accessTokenOrRefresh,
+
+                onRevisionAvailable = {
+                    revision ->
+                    lifecycleScope.launch {
+                        onRevisionAvailable(
+                            revision,
+                        )
+                    }
+                },
+
+                onConnectionIssue = {
+                    // Le polling HTTP reste le filet de sécurité.
+                },
+            )
+    }
+
     private fun submitBiddingAction(
         session:
             PlayerGameSession,
@@ -2031,6 +2116,14 @@ private fun AtoutiaApp(
             ) -> Unit,
         ) -> Unit,
 
+    subscribeGameRealtime:
+        (
+            PlayerGameSession,
+            (
+                Int,
+            ) -> Unit,
+        ) -> AtoutiaGameRealtimeSubscription?,
+
     submitBiddingAction:
         (
             PlayerGameSession,
@@ -2736,6 +2829,170 @@ private fun AtoutiaApp(
                             .snapshot
                             .actions
 
+                    var realtimeRevision by
+                        remember(
+                            gameSession.sessionId,
+                        ) {
+                            mutableStateOf(
+                                gameSession.revision,
+                            )
+                        }
+
+                    var realtimeSubscription by
+                        remember(
+                            gameSession.sessionId,
+                        ) {
+                            mutableStateOf<
+                                AtoutiaGameRealtimeSubscription?
+                            >(
+                                null,
+                            )
+                        }
+
+                    fun applyRefreshedGameSession(
+                        refreshedSession:
+                            PlayerGameSession,
+                    ) {
+                        realtimeSubscription
+                            ?.acknowledgeRevision(
+                                refreshedSession.revision,
+                            )
+
+                        val activeDestination =
+                            destination
+
+                        if (
+                            activeDestination !is
+                                AuthenticatedDestination.Game ||
+                            activeDestination
+                                .session
+                                .sessionId !=
+                                refreshedSession.sessionId ||
+                            refreshedSession.revision <
+                                activeDestination
+                                    .session
+                                    .revision
+                        ) {
+                            return
+                        }
+
+                        gameBiddingState =
+                            GameBiddingUiState.Idle
+
+                        gamePlayCardState =
+                            GamePlayCardUiState.Idle
+
+                        destination =
+                            AuthenticatedDestination.Game(
+                                session =
+                                    refreshedSession,
+                            )
+                    }
+
+                    DisposableEffect(
+                        gameSession.sessionId,
+                        gameSession.player,
+                    ) {
+                        val subscription =
+                            subscribeGameRealtime(
+                                gameSession,
+                            ) {
+                                revision ->
+                                if (
+                                    revision >
+                                    realtimeRevision
+                                ) {
+                                    realtimeRevision =
+                                        revision
+                                }
+                            }
+
+                        realtimeSubscription =
+                            subscription
+
+                        onDispose {
+                            if (
+                                realtimeSubscription ===
+                                subscription
+                            ) {
+                                realtimeSubscription =
+                                    null
+                            }
+
+                            subscription
+                                ?.close()
+                        }
+                    }
+
+                    LaunchedEffect(
+                        gameSession.sessionId,
+                        gameSession.revision,
+                        realtimeRevision,
+                    ) {
+                        if (
+                            realtimeRevision <=
+                                gameSession.revision
+                        ) {
+                            realtimeSubscription
+                                ?.acknowledgeRevision(
+                                    gameSession.revision,
+                                )
+
+                            return@LaunchedEffect
+                        }
+
+                        refreshGameSession(
+                            gameSession,
+                        ) {
+                            result ->
+                            when (
+                                result
+                            ) {
+                                is RefreshGameSessionResult.Refreshed -> {
+                                    applyRefreshedGameSession(
+                                        result.session,
+                                    )
+                                }
+
+                                is RefreshGameSessionResult.SessionExpired -> {
+                                    authState =
+                                        AuthStartupState.SignedOut
+
+                                    destination =
+                                        AuthenticatedDestination.Home
+
+                                    roomActionState =
+                                        RoomActionUiState.Idle
+
+                                    leaveState =
+                                        RoomLobbyLeaveUiState.Idle
+
+                                    startState =
+                                        RoomLobbyStartUiState.Idle
+
+                                    gameBiddingState =
+                                        GameBiddingUiState.Idle
+
+                                    gamePlayCardState =
+                                        GamePlayCardUiState.Idle
+
+                                    joinSessionId =
+                                        ""
+
+                                    googleSignInState =
+                                        GoogleSignInUiState.Idle
+
+                                    notice =
+                                        result.message
+                                }
+
+                                is RefreshGameSessionResult.Failed -> {
+                                    // Le polling HTTP prendra le relais.
+                                }
+                            }
+                        }
+                    }
+
                     LaunchedEffect(
                         gameSession.sessionId,
                         gameSession.revision,
@@ -2781,17 +3038,9 @@ private fun AtoutiaApp(
                                             nextDelayMs =
                                                 GAME_AUTO_REFRESH_INTERVAL_MS
 
-                                            gameBiddingState =
-                                                GameBiddingUiState.Idle
-
-                                            gamePlayCardState =
-                                                GamePlayCardUiState.Idle
-
-                                            destination =
-                                                AuthenticatedDestination.Game(
-                                                    session =
-                                                        result.session,
-                                                )
+                                            applyRefreshedGameSession(
+                                                result.session,
+                                            )
                                         }
 
                                         is RefreshGameSessionResult.SessionExpired -> {
@@ -3280,17 +3529,9 @@ private fun AtoutiaApp(
                                     result
                                 ) {
                                     is RefreshGameSessionResult.Refreshed -> {
-                                        gameBiddingState =
-                                            GameBiddingUiState.Idle
-
-                                        gamePlayCardState =
-                                            GamePlayCardUiState.Idle
-
-                                        destination =
-                                            AuthenticatedDestination.Game(
-                                                session =
-                                                    result.session,
-                                            )
+                                        applyRefreshedGameSession(
+                                            result.session,
+                                        )
                                     }
 
                                     is RefreshGameSessionResult.SessionExpired -> {
@@ -3589,10 +3830,14 @@ private fun SignedOutOrLoadingScreen(
 
     onCheckBackend:
         () -> Unit,
+
+    modifier:
+        Modifier =
+        Modifier,
 ) {
     Scaffold(
         modifier =
-            Modifier.fillMaxSize(),
+            modifier.fillMaxSize(),
     ) {
         innerPadding ->
         Column(
