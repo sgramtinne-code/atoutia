@@ -226,10 +226,9 @@ fun BeloteHand(
                             canSelect
                         ) {
                             {
-                                onPlayCard
-                                    ?.invoke(
-                                        card,
-                                    )
+                                onPlayCard(
+                                    card,
+                                )
                             }
                         } else {
                             null
