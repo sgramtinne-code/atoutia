@@ -1,8 +1,11 @@
 package tech.devoo.atoutia.ui.game
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -106,79 +109,29 @@ fun GameScreen(
                 null
         }
 
-    Scaffold(
-        modifier =
-            modifier.fillMaxSize(),
-    ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(
-                        innerPadding,
-                    )
-                    .verticalScroll(
-                        rememberScrollState(),
-                    )
-                    .padding(
-                        16.dp,
-                    ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    12.dp,
-                ),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
+    val screenTitle =
+        if (
+            score.completed
         ) {
-            Text(
-                text =
-                    if (
-                        score.completed
-                    ) {
-                        "Partie terminée"
-                    } else {
-                        "Partie Atoutia"
-                    },
+            "Partie terminée"
+        } else {
+            "Partie Atoutia"
+        }
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineMedium,
+    val actionStatus =
+        createActionStatus(
+            localPlayer =
+                session.player,
 
-                fontWeight =
-                    FontWeight.Bold,
+            actionsMode =
+                actions.mode,
 
-                textAlign =
-                    TextAlign.Center,
-            )
+            currentPlayer =
+                currentPlayer,
+        )
 
-            Text(
-                text =
-                    createActionStatus(
-                        localPlayer =
-                            session.player,
-
-                        actionsMode =
-                            actions.mode,
-
-                        currentPlayer =
-                            currentPlayer,
-                    ),
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
+    val hudContent:
+        @Composable () -> Unit = {
             GameHud(
                 dealNumber =
                     publicMatch.dealNumber,
@@ -207,7 +160,10 @@ fun GameScreen(
                 modifier =
                     Modifier.fillMaxWidth(),
             )
+        }
 
+    val tableContent:
+        @Composable () -> Unit = {
             BeloteTable(
                 localPlayer =
                     session.player,
@@ -236,7 +192,10 @@ fun GameScreen(
                 modifier =
                     Modifier.fillMaxWidth(),
             )
+        }
 
+    val controlsContent:
+        @Composable () -> Unit = {
             if (
                 actions.mode ==
                     PlayerActionMode.BID
@@ -303,7 +262,10 @@ fun GameScreen(
                         score.winner,
                 )
             }
+        }
 
+    val footerContent:
+        @Composable () -> Unit = {
             OutlinedButton(
                 onClick = {
                     onRefresh
@@ -335,7 +297,169 @@ fun GameScreen(
 
                 textAlign =
                     TextAlign.Center,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
             )
+        }
+
+    Scaffold(
+        modifier =
+            modifier.fillMaxSize(),
+    ) { innerPadding ->
+        BoxWithConstraints(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        innerPadding,
+                    ),
+        ) {
+            val landscapeLayout =
+                maxWidth >
+                    maxHeight &&
+                    maxWidth >=
+                    600.dp
+
+            if (
+                landscapeLayout
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                10.dp,
+                            ),
+
+                    horizontalArrangement =
+                        Arrangement.spacedBy(
+                            12.dp,
+                        ),
+
+                    verticalAlignment =
+                        Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(
+                                    1.55f,
+                                )
+                                .fillMaxHeight(),
+
+                        contentAlignment =
+                            Alignment.Center,
+                    ) {
+                        tableContent()
+                    }
+
+                    Column(
+                        modifier =
+                            Modifier
+                                .weight(
+                                    1f,
+                                )
+                                .fillMaxHeight()
+                                .verticalScroll(
+                                    rememberScrollState(),
+                                ),
+
+                        verticalArrangement =
+                            Arrangement.spacedBy(
+                                10.dp,
+                            ),
+
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text =
+                                "$screenTitle • $actionStatus",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
+
+                            fontWeight =
+                                FontWeight.Bold,
+
+                            textAlign =
+                                TextAlign.Center,
+
+                            modifier =
+                                Modifier.fillMaxWidth(),
+                        )
+
+                        hudContent()
+
+                        controlsContent()
+
+                        footerContent()
+                    }
+                }
+            } else {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(
+                                rememberScrollState(),
+                            )
+                            .padding(
+                                16.dp,
+                            ),
+
+                    verticalArrangement =
+                        Arrangement.spacedBy(
+                            12.dp,
+                        ),
+
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text =
+                            screenTitle,
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .headlineMedium,
+
+                        fontWeight =
+                            FontWeight.Bold,
+
+                        textAlign =
+                            TextAlign.Center,
+                    )
+
+                    Text(
+                        text =
+                            actionStatus,
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleMedium,
+
+                        fontWeight =
+                            FontWeight.SemiBold,
+
+                        textAlign =
+                            TextAlign.Center,
+                    )
+
+                    hudContent()
+
+                    tableContent()
+
+                    controlsContent()
+
+                    footerContent()
+                }
+            }
         }
     }
 }
