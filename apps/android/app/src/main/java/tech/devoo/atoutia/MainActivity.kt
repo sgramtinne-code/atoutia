@@ -56,6 +56,10 @@ import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerCard
 import tech.devoo.atoutia.network.game.PlayerGameSession
 import tech.devoo.atoutia.network.game.PlayerGameSessionCoordinator
+import tech.devoo.atoutia.network.room.ActiveRoomSessionRecoveryCoordinator
+import tech.devoo.atoutia.network.room.ActiveRoomSessionRecoveryResult
+import tech.devoo.atoutia.network.room.ActiveRoomSessionReference
+import tech.devoo.atoutia.network.room.AndroidActiveRoomSessionStore
 import tech.devoo.atoutia.network.room.AtoutiaRoomApiException
 import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
 import tech.devoo.atoutia.network.room.RoomSessionCoordinator
@@ -110,6 +114,15 @@ class MainActivity :
 
                     restoreAuth =
                         ::restoreAuth,
+
+                    restoreActiveRoomSession =
+                        ::restoreActiveRoomSession,
+
+                    rememberActiveRoomSession =
+                        ::rememberActiveRoomSession,
+
+                    clearActiveRoomSession =
+                        ::clearActiveRoomSession,
 
                     signInWithGoogle =
                         ::signInWithGoogle,
@@ -204,6 +217,172 @@ class MainActivity :
             onResult(
                 state,
             )
+        }
+    }
+
+    private fun restoreActiveRoomSession(
+        accountId:
+            String,
+
+        onResult:
+            (
+                ActiveRoomSessionRecoveryResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                ActiveRoomSessionRecoveryResult.Unavailable(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val activeRoomSessionStore =
+                        AndroidActiveRoomSessionStore(
+                            applicationContext,
+                        )
+
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val roomApi =
+                            HttpAtoutiaRoomApi(
+                                apiBaseUrl,
+                            )
+
+                        val gameApi =
+                            HttpAtoutiaGameApi(
+                                apiBaseUrl,
+                            )
+
+                        val gameSessionCoordinator =
+                            PlayerGameSessionCoordinator(
+                                gameApi =
+                                    gameApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        ActiveRoomSessionRecoveryCoordinator(
+                            activeRoomSessionStore =
+                                activeRoomSessionStore,
+
+                            roomApi =
+                                roomApi,
+
+                            gameSessionCoordinator =
+                                gameSessionCoordinator,
+                        )
+                            .restore(
+                                accountId =
+                                    accountId,
+                            )
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        if (
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            ActiveRoomSessionRecoveryResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            ActiveRoomSessionRecoveryResult.Unavailable(
+                                message =
+                                    error.message
+                                        ?: "Impossible de restaurer la partie Atoutia pour le moment.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
+    private fun rememberActiveRoomSession(
+        accountId:
+            String,
+
+        membership:
+            RoomSessionMembership,
+    ): Boolean =
+        try {
+            AndroidActiveRoomSessionStore(
+                applicationContext,
+            )
+                .save(
+                    ActiveRoomSessionReference(
+                        accountId =
+                            accountId,
+
+                        sessionId =
+                            membership
+                                .room
+                                .sessionId,
+
+                        player =
+                            membership.player,
+                    ),
+                )
+
+            true
+        } catch (
+            ignored:
+                Exception,
+        ) {
+            false
+        }
+
+    private fun clearActiveRoomSession() {
+        try {
+            AndroidActiveRoomSessionStore(
+                applicationContext,
+            )
+                .clear()
+        } catch (
+            ignored:
+                Exception,
+        ) {
+            Unit
         }
     }
 
@@ -2063,6 +2242,23 @@ private fun AtoutiaApp(
             ) -> Unit,
         ) -> Unit,
 
+    restoreActiveRoomSession:
+        (
+            String,
+            (
+                ActiveRoomSessionRecoveryResult,
+            ) -> Unit,
+        ) -> Unit,
+
+    rememberActiveRoomSession:
+        (
+            String,
+            RoomSessionMembership,
+        ) -> Boolean,
+
+    clearActiveRoomSession:
+        () -> Unit,
+
     signInWithGoogle:
         (
             (
@@ -2256,12 +2452,124 @@ private fun AtoutiaApp(
             )
         }
 
+    fun applyAuthenticatedState(
+        authenticatedState:
+            AuthStartupState.Authenticated,
+    ) {
+        authState =
+            AuthStartupState.Loading
+
+        restoreActiveRoomSession(
+            authenticatedState.accountId,
+        ) {
+            recoveryResult ->
+            roomActionState =
+                RoomActionUiState.Idle
+
+            leaveState =
+                RoomLobbyLeaveUiState.Idle
+
+            startState =
+                RoomLobbyStartUiState.Idle
+
+            gameBiddingState =
+                GameBiddingUiState.Idle
+
+            gamePlayCardState =
+                GamePlayCardUiState.Idle
+
+            joinSessionId =
+                ""
+
+            googleSignInState =
+                GoogleSignInUiState.Idle
+
+            when (
+                recoveryResult
+            ) {
+                ActiveRoomSessionRecoveryResult.None -> {
+                    destination =
+                        AuthenticatedDestination.Home
+
+                    notice =
+                        null
+
+                    authState =
+                        authenticatedState
+                }
+
+                is ActiveRoomSessionRecoveryResult.Lobby -> {
+                    destination =
+                        AuthenticatedDestination.Lobby(
+                            membership =
+                                recoveryResult.membership,
+                        )
+
+                    notice =
+                        null
+
+                    authState =
+                        authenticatedState
+                }
+
+                is ActiveRoomSessionRecoveryResult.Game -> {
+                    destination =
+                        AuthenticatedDestination.Game(
+                            session =
+                                recoveryResult.session,
+                        )
+
+                    notice =
+                        null
+
+                    authState =
+                        authenticatedState
+                }
+
+                is ActiveRoomSessionRecoveryResult.SessionExpired -> {
+                    destination =
+                        AuthenticatedDestination.Home
+
+                    notice =
+                        recoveryResult.message
+
+                    authState =
+                        AuthStartupState.SignedOut
+                }
+
+                is ActiveRoomSessionRecoveryResult.Unavailable -> {
+                    destination =
+                        AuthenticatedDestination.Home
+
+                    notice =
+                        recoveryResult.message
+
+                    authState =
+                        authenticatedState
+                }
+            }
+        }
+    }
+
     LaunchedEffect(
         Unit,
     ) {
         restoreAuth {
-            authState =
-                it
+            restoredState ->
+            when (
+                restoredState
+            ) {
+                is AuthStartupState.Authenticated -> {
+                    applyAuthenticatedState(
+                        restoredState,
+                    )
+                }
+
+                else -> {
+                    authState =
+                        restoredState
+                }
+            }
         }
     }
 
@@ -2339,6 +2647,8 @@ private fun AtoutiaApp(
                                     result
                                 ) {
                                     is SignOutResult.SignedOut -> {
+                                        clearActiveRoomSession()
+
                                         authState =
                                             AuthStartupState.SignedOut
 
@@ -2421,6 +2731,21 @@ private fun AtoutiaApp(
                                         startState =
                                             RoomLobbyStartUiState.Idle
 
+                                        val recoverySaved =
+                                            rememberActiveRoomSession(
+                                                currentAuthState.accountId,
+                                                result.membership,
+                                            )
+
+                                        notice =
+                                            if (
+                                                recoverySaved
+                                            ) {
+                                                null
+                                            } else {
+                                                "La partie fonctionne, mais sa reprise automatique n’a pas pu être enregistrée."
+                                            }
+
                                         destination =
                                             AuthenticatedDestination.Lobby(
                                                 membership =
@@ -2500,6 +2825,21 @@ private fun AtoutiaApp(
 
                                             joinSessionId =
                                                 normalizedSessionId
+
+                                            val recoverySaved =
+                                                rememberActiveRoomSession(
+                                                    currentAuthState.accountId,
+                                                    result.membership,
+                                                )
+
+                                            notice =
+                                                if (
+                                                    recoverySaved
+                                                ) {
+                                                    null
+                                                } else {
+                                                    "La partie fonctionne, mais sa reprise automatique n’a pas pu être enregistrée."
+                                                }
 
                                             destination =
                                                 AuthenticatedDestination.Lobby(
@@ -2659,6 +2999,8 @@ private fun AtoutiaApp(
                                     result
                                 ) {
                                     LeaveRoomResult.Left -> {
+                                        clearActiveRoomSession()
+
                                         leaveState =
                                             RoomLobbyLeaveUiState.Idle
 
@@ -3587,6 +3929,8 @@ private fun AtoutiaApp(
                         },
 
                         onReplay = {
+                            clearActiveRoomSession()
+
                             roomActionState =
                                 RoomActionUiState.Idle
 
@@ -3643,35 +3987,15 @@ private fun AtoutiaApp(
                             result
                         ) {
                             is GoogleSignInResult.Authenticated -> {
-                                authState =
+                                applyAuthenticatedState(
                                     AuthStartupState.Authenticated(
                                         accountId =
                                             result.accountId,
 
                                         sessionId =
                                             result.sessionId,
-                                    )
-
-                                destination =
-                                    AuthenticatedDestination.Home
-
-                                roomActionState =
-                                    RoomActionUiState.Idle
-
-                                leaveState =
-                                    RoomLobbyLeaveUiState.Idle
-
-                                startState =
-                                    RoomLobbyStartUiState.Idle
-
-                                joinSessionId =
-                                    ""
-
-                                googleSignInState =
-                                    GoogleSignInUiState.Idle
-
-                                notice =
-                                    null
+                                    ),
+                                )
                             }
 
                             GoogleSignInResult.Cancelled -> {
