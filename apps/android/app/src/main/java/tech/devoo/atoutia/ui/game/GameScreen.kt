@@ -28,7 +28,6 @@ import tech.devoo.atoutia.network.game.MatchTeam
 import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerCard
 import tech.devoo.atoutia.network.game.PlayerGameSession
-import tech.devoo.atoutia.network.game.PublicCurrentTrickSnapshot
 import tech.devoo.atoutia.network.room.PlayerPosition
 
 sealed interface GameBiddingUiState {
@@ -113,28 +112,38 @@ fun GameScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(
+                        innerPadding,
+                    )
                     .verticalScroll(
                         rememberScrollState(),
                     )
-                    .padding(16.dp),
+                    .padding(
+                        16.dp,
+                    ),
 
             verticalArrangement =
-                Arrangement.spacedBy(16.dp),
+                Arrangement.spacedBy(
+                    16.dp,
+                ),
 
             horizontalAlignment =
                 Alignment.CenterHorizontally,
         ) {
             Text(
                 text =
-                    if (score.completed) {
+                    if (
+                        score.completed
+                    ) {
                         "Partie terminée"
                     } else {
                         "Partie Atoutia"
                     },
 
                 style =
-                    MaterialTheme.typography.headlineMedium,
+                    MaterialTheme
+                        .typography
+                        .headlineMedium,
 
                 fontWeight =
                     FontWeight.Bold,
@@ -157,7 +166,9 @@ fun GameScreen(
                     ),
 
                 style =
-                    MaterialTheme.typography.titleMedium,
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
 
                 fontWeight =
                     FontWeight.SemiBold,
@@ -195,7 +206,7 @@ fun GameScreen(
                     session.revision,
             )
 
-            GameTable(
+            BeloteTable(
                 localPlayer =
                     session.player,
 
@@ -219,6 +230,9 @@ fun GameScreen(
 
                 turnUpCard =
                     publicMatch.turnUpCard,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
             )
 
             if (
@@ -234,12 +248,15 @@ fun GameScreen(
 
                     enabled =
                         !isSubmitting &&
-                            onBiddingAction != null,
+                            onBiddingAction !=
+                            null,
 
-                    onAction = { action ->
-                        onBiddingAction?.invoke(
-                            action,
-                        )
+                    onAction = {
+                        action ->
+                        onBiddingAction
+                            ?.invoke(
+                                action,
+                            )
                     },
                 )
             }
@@ -270,7 +287,9 @@ fun GameScreen(
                 )
             }
 
-            if (score.completed) {
+            if (
+                score.completed
+            ) {
                 MatchFinishedPanel(
                     team0 =
                         score.scores.team0,
@@ -285,11 +304,13 @@ fun GameScreen(
 
             OutlinedButton(
                 onClick = {
-                    onRefresh?.invoke()
+                    onRefresh
+                        ?.invoke()
                 },
 
                 enabled =
-                    onRefresh != null &&
+                    onRefresh !=
+                        null &&
                         !isSubmitting,
 
                 modifier =
@@ -306,7 +327,9 @@ fun GameScreen(
                     "Révision serveur ${session.revision} • moteur ${document.engineVersion}",
 
                 style =
-                    MaterialTheme.typography.bodySmall,
+                    MaterialTheme
+                        .typography
+                        .bodySmall,
 
                 textAlign =
                     TextAlign.Center,
@@ -333,10 +356,14 @@ private fun MatchSummaryCard(
     ) {
         Column(
             modifier =
-                Modifier.padding(16.dp),
+                Modifier.padding(
+                    16.dp,
+                ),
 
             verticalArrangement =
-                Arrangement.spacedBy(10.dp),
+                Arrangement.spacedBy(
+                    10.dp,
+                ),
         ) {
             GameInformationRow(
                 label =
@@ -367,7 +394,8 @@ private fun MatchSummaryCard(
                     "Preneur",
 
                 value =
-                    taker?.toDisplayName()
+                    taker
+                        ?.toDisplayName()
                         ?: "—",
             )
 
@@ -376,7 +404,8 @@ private fun MatchSummaryCard(
                     "Atout",
 
                 value =
-                    trumpSuit?.toDisplayName()
+                    trumpSuit
+                        ?.toDisplayName()
                         ?: "—",
             )
 
@@ -400,416 +429,6 @@ private fun MatchSummaryCard(
 }
 
 @Composable
-private fun GameTable(
-    localPlayer: PlayerPosition,
-    dealer: PlayerPosition,
-    taker: PlayerPosition?,
-    currentPlayer: PlayerPosition?,
-    trick: PublicCurrentTrickSnapshot?,
-    phase: DealPhase,
-    trumpSuit: CardSuit?,
-    turnUpCard: PlayerCard,
-) {
-    val leftPlayer =
-        localPlayer.offsetBy(1)
-
-    val topPlayer =
-        localPlayer.offsetBy(2)
-
-    val rightPlayer =
-        localPlayer.offsetBy(3)
-
-    OutlinedCard(
-        modifier =
-            Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier =
-                Modifier.padding(12.dp),
-
-            verticalArrangement =
-                Arrangement.spacedBy(12.dp),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
-        ) {
-            SeatPanel(
-                player =
-                    topPlayer,
-
-                localPlayer =
-                    localPlayer,
-
-                dealer =
-                    dealer,
-
-                taker =
-                    taker,
-
-                currentPlayer =
-                    currentPlayer,
-
-                playedCard =
-                    trick.cardPlayedBy(
-                        topPlayer,
-                    ),
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-            )
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.spacedBy(8.dp),
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
-            ) {
-                SeatPanel(
-                    player =
-                        leftPlayer,
-
-                    localPlayer =
-                        localPlayer,
-
-                    dealer =
-                        dealer,
-
-                    taker =
-                        taker,
-
-                    currentPlayer =
-                        currentPlayer,
-
-                    playedCard =
-                        trick.cardPlayedBy(
-                            leftPlayer,
-                        ),
-
-                    modifier =
-                        Modifier.weight(1f),
-                )
-
-                TableCenter(
-                    phase =
-                        phase,
-
-                    trumpSuit =
-                        trumpSuit,
-
-                    turnUpCard =
-                        turnUpCard,
-
-                    trick =
-                        trick,
-
-                    modifier =
-                        Modifier.weight(1.15f),
-                )
-
-                SeatPanel(
-                    player =
-                        rightPlayer,
-
-                    localPlayer =
-                        localPlayer,
-
-                    dealer =
-                        dealer,
-
-                    taker =
-                        taker,
-
-                    currentPlayer =
-                        currentPlayer,
-
-                    playedCard =
-                        trick.cardPlayedBy(
-                            rightPlayer,
-                        ),
-
-                    modifier =
-                        Modifier.weight(1f),
-                )
-            }
-
-            SeatPanel(
-                player =
-                    localPlayer,
-
-                localPlayer =
-                    localPlayer,
-
-                dealer =
-                    dealer,
-
-                taker =
-                    taker,
-
-                currentPlayer =
-                    currentPlayer,
-
-                playedCard =
-                    trick.cardPlayedBy(
-                        localPlayer,
-                    ),
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SeatPanel(
-    player: PlayerPosition,
-    localPlayer: PlayerPosition,
-    dealer: PlayerPosition,
-    taker: PlayerPosition?,
-    currentPlayer: PlayerPosition?,
-    playedCard: PlayerCard?,
-    modifier: Modifier = Modifier,
-) {
-    OutlinedCard(
-        modifier =
-            modifier,
-    ) {
-        Column(
-            modifier =
-                Modifier.padding(10.dp),
-
-            verticalArrangement =
-                Arrangement.spacedBy(6.dp),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text =
-                    if (
-                        player ==
-                            localPlayer
-                    ) {
-                        "Vous • ${player.toDisplayName()}"
-                    } else {
-                        player.toDisplayName()
-                    },
-
-                style =
-                    MaterialTheme.typography.bodyMedium,
-
-                fontWeight =
-                    if (
-                        player ==
-                            currentPlayer
-                    ) {
-                        FontWeight.Bold
-                    } else {
-                        FontWeight.SemiBold
-                    },
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
-            val markers =
-                buildList {
-                    if (
-                        player ==
-                            dealer
-                    ) {
-                        add(
-                            "Donneur",
-                        )
-                    }
-
-                    if (
-                        player ==
-                            taker
-                    ) {
-                        add(
-                            "Preneur",
-                        )
-                    }
-
-                    if (
-                        player ==
-                            currentPlayer
-                    ) {
-                        add(
-                            "À jouer",
-                        )
-                    }
-                }
-
-            if (
-                markers.isNotEmpty()
-            ) {
-                Text(
-                    text =
-                        markers.joinToString(
-                            separator =
-                                " • ",
-                        ),
-
-                    style =
-                        MaterialTheme.typography.bodySmall,
-
-                    textAlign =
-                        TextAlign.Center,
-                )
-            }
-
-            if (
-                playedCard != null
-            ) {
-                BeloteCard(
-                    card =
-                        playedCard,
-
-                    size =
-                        BeloteCardSize.SMALL,
-                )
-            } else {
-                Text(
-                    text =
-                        "—",
-
-                    style =
-                        MaterialTheme.typography.titleMedium,
-
-                    textAlign =
-                        TextAlign.Center,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TableCenter(
-    phase: DealPhase,
-    trumpSuit: CardSuit?,
-    turnUpCard: PlayerCard,
-    trick: PublicCurrentTrickSnapshot?,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier =
-            modifier.padding(
-                horizontal =
-                    4.dp,
-            ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(8.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text =
-                when (phase) {
-                    DealPhase.BIDDING ->
-                        "Enchères"
-
-                    DealPhase.PLAYING ->
-                        "Pli en cours"
-
-                    DealPhase.FINISHED ->
-                        "Donne terminée"
-                },
-
-            style =
-                MaterialTheme.typography.titleSmall,
-
-            fontWeight =
-                FontWeight.Bold,
-
-            textAlign =
-                TextAlign.Center,
-        )
-
-        if (
-            phase ==
-                DealPhase.BIDDING
-        ) {
-            Text(
-                text =
-                    "Retournée",
-
-                style =
-                    MaterialTheme.typography.bodySmall,
-            )
-
-            BeloteCard(
-                card =
-                    turnUpCard,
-
-                size =
-                    BeloteCardSize.SMALL,
-
-                highlighted =
-                    true,
-            )
-        } else {
-            Text(
-                text =
-                    "Atout",
-
-                style =
-                    MaterialTheme.typography.bodySmall,
-            )
-
-            Text(
-                text =
-                    trumpSuit?.toSymbol()
-                        ?: "—",
-
-                style =
-                    MaterialTheme.typography.headlineMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
-            Text(
-                text =
-                    trumpSuit?.toDisplayName()
-                        ?: "—",
-
-                style =
-                    MaterialTheme.typography.bodyMedium,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
-            Text(
-                text =
-                    "${trick?.plays?.size ?: 0} / 4 cartes",
-
-                style =
-                    MaterialTheme.typography.bodySmall,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-        }
-    }
-}
-
-@Composable
 private fun BiddingPanel(
     actions: List<BiddingActionSnapshot>,
     state: GameBiddingUiState,
@@ -822,17 +441,23 @@ private fun BiddingPanel(
     ) {
         Column(
             modifier =
-                Modifier.padding(16.dp),
+                Modifier.padding(
+                    16.dp,
+                ),
 
             verticalArrangement =
-                Arrangement.spacedBy(10.dp),
+                Arrangement.spacedBy(
+                    10.dp,
+                ),
         ) {
             Text(
                 text =
                     "À vous d’enchérir",
 
                 style =
-                    MaterialTheme.typography.titleMedium,
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
 
                 fontWeight =
                     FontWeight.Bold,
@@ -843,10 +468,13 @@ private fun BiddingPanel(
                     "Les choix ci-dessous viennent directement du serveur.",
 
                 style =
-                    MaterialTheme.typography.bodyMedium,
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
             )
 
-            actions.forEach { action ->
+            actions.forEach {
+                action ->
                 BiddingActionButton(
                     action =
                         action,
@@ -862,7 +490,9 @@ private fun BiddingPanel(
                 )
             }
 
-            when (state) {
+            when (
+                state
+            ) {
                 GameBiddingUiState.Idle -> {
                     Unit
                 }
@@ -900,17 +530,23 @@ private fun PlayerHandPanel(
     ) {
         Column(
             modifier =
-                Modifier.padding(16.dp),
+                Modifier.padding(
+                    16.dp,
+                ),
 
             verticalArrangement =
-                Arrangement.spacedBy(12.dp),
+                Arrangement.spacedBy(
+                    12.dp,
+                ),
         ) {
             Text(
                 text =
                     "Votre main",
 
                 style =
-                    MaterialTheme.typography.titleMedium,
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
 
                 fontWeight =
                     FontWeight.Bold,
@@ -918,14 +554,18 @@ private fun PlayerHandPanel(
 
             Text(
                 text =
-                    if (canPlay) {
+                    if (
+                        canPlay
+                    ) {
                         "Choisissez une carte mise en évidence."
                     } else {
                         "En attente de votre prochain tour."
                     },
 
                 style =
-                    MaterialTheme.typography.bodyMedium,
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
             )
 
             BeloteHand(
@@ -948,7 +588,9 @@ private fun PlayerHandPanel(
                     Modifier.fillMaxWidth(),
             )
 
-            when (playCardState) {
+            when (
+                playCardState
+            ) {
                 GamePlayCardUiState.Idle -> {
                     Unit
                 }
@@ -983,10 +625,14 @@ private fun MatchFinishedPanel(
     ) {
         Column(
             modifier =
-                Modifier.padding(20.dp),
+                Modifier.padding(
+                    20.dp,
+                ),
 
             verticalArrangement =
-                Arrangement.spacedBy(10.dp),
+                Arrangement.spacedBy(
+                    10.dp,
+                ),
 
             horizontalAlignment =
                 Alignment.CenterHorizontally,
@@ -996,7 +642,9 @@ private fun MatchFinishedPanel(
                     "Résultat final",
 
                 style =
-                    MaterialTheme.typography.titleLarge,
+                    MaterialTheme
+                        .typography
+                        .titleLarge,
 
                 fontWeight =
                     FontWeight.Bold,
@@ -1007,7 +655,9 @@ private fun MatchFinishedPanel(
                     "$team0 - $team1",
 
                 style =
-                    MaterialTheme.typography.headlineMedium,
+                    MaterialTheme
+                        .typography
+                        .headlineMedium,
 
                 fontWeight =
                     FontWeight.Bold,
@@ -1022,7 +672,9 @@ private fun MatchFinishedPanel(
                         ?: "Partie terminée",
 
                 style =
-                    MaterialTheme.typography.titleMedium,
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
             )
         }
     }
@@ -1035,7 +687,9 @@ private fun BiddingActionButton(
     onClick: () -> Unit,
 ) {
     val label =
-        when (action) {
+        when (
+            action
+        ) {
             is BiddingActionSnapshot.Pass ->
                 "Passer"
 
@@ -1069,7 +723,9 @@ private fun CommandSubmittingRow(
             Modifier.fillMaxWidth(),
 
         horizontalArrangement =
-            Arrangement.spacedBy(12.dp),
+            Arrangement.spacedBy(
+                12.dp,
+            ),
 
         verticalAlignment =
             Alignment.CenterVertically,
@@ -1092,10 +748,14 @@ private fun CommandFailureText(
             message,
 
         color =
-            MaterialTheme.colorScheme.error,
+            MaterialTheme
+                .colorScheme
+                .error,
 
         style =
-            MaterialTheme.typography.bodyMedium,
+            MaterialTheme
+                .typography
+                .bodyMedium,
     )
 }
 
@@ -1109,7 +769,9 @@ private fun GameInformationRow(
             Modifier.fillMaxWidth(),
 
         horizontalArrangement =
-            Arrangement.spacedBy(16.dp),
+            Arrangement.spacedBy(
+                16.dp,
+            ),
 
         verticalAlignment =
             Alignment.CenterVertically,
@@ -1119,10 +781,14 @@ private fun GameInformationRow(
                 label,
 
             modifier =
-                Modifier.weight(1f),
+                Modifier.weight(
+                    1f,
+                ),
 
             style =
-                MaterialTheme.typography.bodyMedium,
+                MaterialTheme
+                    .typography
+                    .bodyMedium,
 
             fontWeight =
                 FontWeight.SemiBold,
@@ -1133,10 +799,14 @@ private fun GameInformationRow(
                 value,
 
             modifier =
-                Modifier.weight(1f),
+                Modifier.weight(
+                    1f,
+                ),
 
             style =
-                MaterialTheme.typography.bodyMedium,
+                MaterialTheme
+                    .typography
+                    .bodyMedium,
 
             textAlign =
                 TextAlign.End,
@@ -1149,7 +819,9 @@ private fun createActionStatus(
     actionsMode: PlayerActionMode,
     currentPlayer: PlayerPosition?,
 ): String =
-    when (actionsMode) {
+    when (
+        actionsMode
+    ) {
         PlayerActionMode.BID ->
             "À vous d’enchérir"
 
@@ -1175,36 +847,11 @@ private fun createActionStatus(
             }
     }
 
-private fun PublicCurrentTrickSnapshot?.cardPlayedBy(
-    player: PlayerPosition,
-): PlayerCard? =
-    this
-        ?.plays
-        ?.firstOrNull { play ->
-            play.player ==
-                player
-        }
-        ?.card
-
-private fun PlayerPosition.offsetBy(
-    offset: Int,
-): PlayerPosition {
-    val players =
-        PlayerPosition.entries
-
-    val index =
-        (
-            ordinal +
-                offset
-            ) %
-            players.size
-
-    return players[index]
-}
-
 private fun PlayerPosition.toDisplayName():
     String =
-    when (this) {
+    when (
+        this
+    ) {
         PlayerPosition.PLAYER_0 ->
             "Joueur 1"
 
@@ -1220,7 +867,9 @@ private fun PlayerPosition.toDisplayName():
 
 private fun MatchTeam.toDisplayName():
     String =
-    when (this) {
+    when (
+        this
+    ) {
         MatchTeam.TEAM_0 ->
             "Équipe 0"
 
@@ -1228,25 +877,11 @@ private fun MatchTeam.toDisplayName():
             "Équipe 1"
     }
 
-private fun CardSuit.toSymbol():
-    String =
-    when (this) {
-        CardSuit.CLUBS ->
-            "♣"
-
-        CardSuit.DIAMONDS ->
-            "♦"
-
-        CardSuit.HEARTS ->
-            "♥"
-
-        CardSuit.SPADES ->
-            "♠"
-    }
-
 private fun CardSuit.toDisplayName():
     String =
-    when (this) {
+    when (
+        this
+    ) {
         CardSuit.CLUBS ->
             "trèfle"
 
