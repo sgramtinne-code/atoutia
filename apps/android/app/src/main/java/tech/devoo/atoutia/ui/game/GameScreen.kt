@@ -22,7 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
-import tech.devoo.atoutia.network.game.CardRank
 import tech.devoo.atoutia.network.game.CardSuit
 import tech.devoo.atoutia.network.game.DealPhase
 import tech.devoo.atoutia.network.game.MatchTeam
@@ -929,69 +928,25 @@ private fun PlayerHandPanel(
                     MaterialTheme.typography.bodyMedium,
             )
 
-            hand
-                .chunked(4)
-                .forEach { rowCards ->
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
+            BeloteHand(
+                hand =
+                    hand,
 
-                        horizontalArrangement =
-                            Arrangement.spacedBy(
-                                space =
-                                    8.dp,
+                legalCards =
+                    legalCards,
 
-                                alignment =
-                                    Alignment.CenterHorizontally,
-                            ),
+                canPlay =
+                    canPlay,
 
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-                        rowCards.forEach { card ->
-                            val isLegal =
-                                canPlay &&
-                                    card in legalCards
+                submitting =
+                    submitting,
 
-                            val canSelect =
-                                isLegal &&
-                                    !submitting &&
-                                    onPlayCard != null
+                onPlayCard =
+                    onPlayCard,
 
-                            BeloteCard(
-                                card =
-                                    card,
-
-                                size =
-                                    BeloteCardSize.MEDIUM,
-
-                                enabled =
-                                    if (isLegal) {
-                                        canSelect
-                                    } else {
-                                        false
-                                    },
-
-                                highlighted =
-                                    isLegal,
-
-                                onClick =
-                                    if (
-                                        isLegal &&
-                                        onPlayCard != null
-                                    ) {
-                                        {
-                                            onPlayCard(
-                                                card,
-                                            )
-                                        }
-                                    } else {
-                                        null
-                                    },
-                            )
-                        }
-                    }
-                }
+                modifier =
+                    Modifier.fillMaxWidth(),
+            )
 
             when (playCardState) {
                 GamePlayCardUiState.Idle -> {
@@ -1303,33 +1258,4 @@ private fun CardSuit.toDisplayName():
 
         CardSuit.SPADES ->
             "pique"
-    }
-
-@Suppress("unused")
-private fun CardRank.toDisplayName():
-    String =
-    when (this) {
-        CardRank.SEVEN ->
-            "7"
-
-        CardRank.EIGHT ->
-            "8"
-
-        CardRank.NINE ->
-            "9"
-
-        CardRank.TEN ->
-            "10"
-
-        CardRank.JACK ->
-            "V"
-
-        CardRank.QUEEN ->
-            "D"
-
-        CardRank.KING ->
-            "R"
-
-        CardRank.ACE ->
-            "A"
     }
