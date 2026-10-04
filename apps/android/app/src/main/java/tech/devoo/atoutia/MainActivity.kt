@@ -3585,6 +3585,32 @@ private fun AtoutiaApp(
                                 }
                             }
                         },
+
+                        onReplay = {
+                            roomActionState =
+                                RoomActionUiState.Idle
+
+                            leaveState =
+                                RoomLobbyLeaveUiState.Idle
+
+                            startState =
+                                RoomLobbyStartUiState.Idle
+
+                            gameBiddingState =
+                                GameBiddingUiState.Idle
+
+                            gamePlayCardState =
+                                GamePlayCardUiState.Idle
+
+                            joinSessionId =
+                                ""
+
+                            notice =
+                                null
+
+                            destination =
+                                AuthenticatedDestination.Play
+                        },
                     )
                 }
             }

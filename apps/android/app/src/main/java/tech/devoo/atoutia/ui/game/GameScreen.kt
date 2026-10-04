@@ -65,6 +65,7 @@ fun GameScreen(
     onBiddingAction: ((BiddingActionSnapshot) -> Unit)? = null,
     onPlayCard: ((PlayerCard) -> Unit)? = null,
     onRefresh: (() -> Unit)? = null,
+    onReplay: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val document =
@@ -270,6 +271,9 @@ fun GameScreen(
 
                     winner =
                         score.winner,
+
+                    onReplay =
+                        onReplay,
                 )
             }
         }
@@ -673,6 +677,7 @@ private fun MatchFinishedPanel(
     team0: Int,
     team1: Int,
     winner: MatchTeam?,
+    onReplay: (() -> Unit)?,
 ) {
     OutlinedCard(
         modifier =
@@ -731,6 +736,29 @@ private fun MatchFinishedPanel(
                         .typography
                         .titleMedium,
             )
+
+            if (
+                onReplay !=
+                    null
+            ) {
+                Button(
+                    onClick =
+                        onReplay,
+
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top =
+                                    6.dp,
+                            ),
+                ) {
+                    Text(
+                        text =
+                            "Rejouer",
+                    )
+                }
+            }
         }
     }
 }
