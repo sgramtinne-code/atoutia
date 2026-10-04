@@ -3,6 +3,7 @@ package tech.devoo.atoutia.ui.game
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -90,221 +91,333 @@ fun BeloteTable(
             3,
         )
 
-    Surface(
+    BoxWithConstraints(
         modifier =
-            modifier
-                .fillMaxWidth()
-                .height(
-                    410.dp,
-                ),
-
-        shape =
-            RoundedCornerShape(
-                30.dp,
-            ),
-
-        color =
-            TableGreen,
-
-        border =
-            BorderStroke(
-                width =
-                    2.dp,
-
-                color =
-                    TableGreenDark,
-            ),
-
-        shadowElevation =
-            6.dp,
+            modifier.fillMaxWidth(),
     ) {
-        Box(
+        val compactLandscape =
+            maxWidth >=
+                520.dp
+
+        val tableHeight =
+            if (
+                compactLandscape
+            ) {
+                300.dp
+            } else {
+                410.dp
+            }
+
+        Surface(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(
-                        14.dp,
+                    .height(
+                        tableHeight,
                     ),
+
+            shape =
+                RoundedCornerShape(
+                    if (
+                        compactLandscape
+                    ) {
+                        24.dp
+                    } else {
+                        30.dp
+                    },
+                ),
+
+            color =
+                TableGreen,
+
+            border =
+                BorderStroke(
+                    width =
+                        2.dp,
+
+                    color =
+                        TableGreenDark,
+                ),
+
+            shadowElevation =
+                6.dp,
         ) {
-            PlayerSeatBadge(
-                player =
-                    topPlayer,
-
-                localPlayer =
-                    localPlayer,
-
-                dealer =
-                    dealer,
-
-                taker =
-                    taker,
-
-                currentPlayer =
-                    currentPlayer,
-
+            Box(
                 modifier =
                     Modifier
-                        .align(
-                            Alignment.TopCenter,
+                        .fillMaxWidth()
+                        .padding(
+                            if (
+                                compactLandscape
+                            ) {
+                                10.dp
+                            } else {
+                                14.dp
+                            },
                         ),
-            )
-
-            PlayerSeatBadge(
-                player =
-                    leftPlayer,
-
-                localPlayer =
-                    localPlayer,
-
-                dealer =
-                    dealer,
-
-                taker =
-                    taker,
-
-                currentPlayer =
-                    currentPlayer,
-
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.CenterStart,
-                        ),
-            )
-
-            PlayerSeatBadge(
-                player =
-                    rightPlayer,
-
-                localPlayer =
-                    localPlayer,
-
-                dealer =
-                    dealer,
-
-                taker =
-                    taker,
-
-                currentPlayer =
-                    currentPlayer,
-
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.CenterEnd,
-                        ),
-            )
-
-            PlayerSeatBadge(
-                player =
-                    localPlayer,
-
-                localPlayer =
-                    localPlayer,
-
-                dealer =
-                    dealer,
-
-                taker =
-                    taker,
-
-                currentPlayer =
-                    currentPlayer,
-
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.BottomCenter,
-                        ),
-            )
-
-            PlayedCardSlot(
-                card =
-                    trick.cardPlayedBy(
+            ) {
+                PlayerSeatBadge(
+                    player =
                         topPlayer,
-                    ),
 
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.TopCenter,
-                        )
-                        .offset(
-                            y =
-                                78.dp,
-                        ),
-            )
-
-            PlayedCardSlot(
-                card =
-                    trick.cardPlayedBy(
-                        leftPlayer,
-                    ),
-
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.CenterStart,
-                        )
-                        .offset(
-                            x =
-                                92.dp,
-                        ),
-            )
-
-            PlayedCardSlot(
-                card =
-                    trick.cardPlayedBy(
-                        rightPlayer,
-                    ),
-
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.CenterEnd,
-                        )
-                        .offset(
-                            x =
-                                (-92).dp,
-                        ),
-            )
-
-            PlayedCardSlot(
-                card =
-                    trick.cardPlayedBy(
+                    localPlayer =
                         localPlayer,
-                    ),
 
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.BottomCenter,
-                        )
-                        .offset(
-                            y =
-                                (-78).dp,
+                    dealer =
+                        dealer,
+
+                    taker =
+                        taker,
+
+                    currentPlayer =
+                        currentPlayer,
+
+                    compact =
+                        compactLandscape,
+
+                    modifier =
+                        Modifier.align(
+                            Alignment.TopCenter,
                         ),
-            )
+                )
 
-            TableCenterStatus(
-                phase =
-                    phase,
+                PlayerSeatBadge(
+                    player =
+                        leftPlayer,
 
-                trumpSuit =
-                    trumpSuit,
+                    localPlayer =
+                        localPlayer,
 
-                turnUpCard =
-                    turnUpCard,
+                    dealer =
+                        dealer,
 
-                trick =
-                    trick,
+                    taker =
+                        taker,
 
-                modifier =
-                    Modifier
-                        .align(
+                    currentPlayer =
+                        currentPlayer,
+
+                    compact =
+                        compactLandscape,
+
+                    modifier =
+                        Modifier.align(
+                            Alignment.CenterStart,
+                        ),
+                )
+
+                PlayerSeatBadge(
+                    player =
+                        rightPlayer,
+
+                    localPlayer =
+                        localPlayer,
+
+                    dealer =
+                        dealer,
+
+                    taker =
+                        taker,
+
+                    currentPlayer =
+                        currentPlayer,
+
+                    compact =
+                        compactLandscape,
+
+                    modifier =
+                        Modifier.align(
+                            Alignment.CenterEnd,
+                        ),
+                )
+
+                PlayerSeatBadge(
+                    player =
+                        localPlayer,
+
+                    localPlayer =
+                        localPlayer,
+
+                    dealer =
+                        dealer,
+
+                    taker =
+                        taker,
+
+                    currentPlayer =
+                        currentPlayer,
+
+                    compact =
+                        compactLandscape,
+
+                    modifier =
+                        Modifier.align(
+                            Alignment.BottomCenter,
+                        ),
+                )
+
+                if (
+                    compactLandscape
+                ) {
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                topPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.Center,
+                                )
+                                .offset(
+                                    y =
+                                        (-108).dp,
+                                ),
+                    )
+
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                leftPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.Center,
+                                )
+                                .offset(
+                                    x =
+                                        (-118).dp,
+                                ),
+                    )
+
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                rightPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.Center,
+                                )
+                                .offset(
+                                    x =
+                                        118.dp,
+                                ),
+                    )
+
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                localPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.Center,
+                                )
+                                .offset(
+                                    y =
+                                        108.dp,
+                                ),
+                    )
+                } else {
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                topPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.TopCenter,
+                                )
+                                .offset(
+                                    y =
+                                        78.dp,
+                                ),
+                    )
+
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                leftPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.CenterStart,
+                                )
+                                .offset(
+                                    x =
+                                        92.dp,
+                                ),
+                    )
+
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                rightPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.CenterEnd,
+                                )
+                                .offset(
+                                    x =
+                                        (-92).dp,
+                                ),
+                    )
+
+                    PlayedCardSlot(
+                        card =
+                            trick.cardPlayedBy(
+                                localPlayer,
+                            ),
+
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.BottomCenter,
+                                )
+                                .offset(
+                                    y =
+                                        (-78).dp,
+                                ),
+                    )
+                }
+
+                TableCenterStatus(
+                    phase =
+                        phase,
+
+                    trumpSuit =
+                        trumpSuit,
+
+                    turnUpCard =
+                        turnUpCard,
+
+                    trick =
+                        trick,
+
+                    compact =
+                        compactLandscape,
+
+                    modifier =
+                        Modifier.align(
                             Alignment.Center,
                         ),
-            )
+                )
+            }
         }
     }
 }
@@ -325,6 +438,9 @@ private fun PlayerSeatBadge(
 
     currentPlayer:
         PlayerPosition?,
+
+    compact:
+        Boolean,
 
     modifier:
         Modifier =
@@ -373,7 +489,13 @@ private fun PlayerSeatBadge(
 
         shape =
             RoundedCornerShape(
-                18.dp,
+                if (
+                    compact
+                ) {
+                    15.dp
+                } else {
+                    18.dp
+                },
             ),
 
         color =
@@ -429,10 +551,22 @@ private fun PlayerSeatBadge(
             modifier =
                 Modifier.padding(
                     horizontal =
-                        12.dp,
+                        if (
+                            compact
+                        ) {
+                            10.dp
+                        } else {
+                            12.dp
+                        },
 
                     vertical =
-                        8.dp,
+                        if (
+                            compact
+                        ) {
+                            5.dp
+                        } else {
+                            8.dp
+                        },
                 ),
 
             horizontalAlignment =
@@ -440,7 +574,13 @@ private fun PlayerSeatBadge(
 
             verticalArrangement =
                 Arrangement.spacedBy(
-                    2.dp,
+                    if (
+                        compact
+                    ) {
+                        0.dp
+                    } else {
+                        2.dp
+                    },
                 ),
         ) {
             Text(
@@ -454,9 +594,17 @@ private fun PlayerSeatBadge(
                     },
 
                 style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
+                    if (
+                        compact
+                    ) {
+                        MaterialTheme
+                            .typography
+                            .bodySmall
+                    } else {
+                        MaterialTheme
+                            .typography
+                            .bodyMedium
+                    },
 
                 fontWeight =
                     FontWeight.Bold,
@@ -478,7 +626,7 @@ private fun PlayerSeatBadge(
                     style =
                         MaterialTheme
                             .typography
-                            .bodySmall,
+                            .labelSmall,
 
                     fontWeight =
                         if (
@@ -542,6 +690,9 @@ private fun TableCenterStatus(
     trick:
         PublicCurrentTrickSnapshot?,
 
+    compact:
+        Boolean,
+
     modifier:
         Modifier =
         Modifier,
@@ -552,7 +703,13 @@ private fun TableCenterStatus(
 
         shape =
             RoundedCornerShape(
-                20.dp,
+                if (
+                    compact
+                ) {
+                    16.dp
+                } else {
+                    20.dp
+                },
             ),
 
         color =
@@ -573,10 +730,22 @@ private fun TableCenterStatus(
             modifier =
                 Modifier.padding(
                     horizontal =
-                        14.dp,
+                        if (
+                            compact
+                        ) {
+                            10.dp
+                        } else {
+                            14.dp
+                        },
 
                     vertical =
-                        10.dp,
+                        if (
+                            compact
+                        ) {
+                            6.dp
+                        } else {
+                            10.dp
+                        },
                 ),
 
             horizontalAlignment =
@@ -584,7 +753,13 @@ private fun TableCenterStatus(
 
             verticalArrangement =
                 Arrangement.spacedBy(
-                    4.dp,
+                    if (
+                        compact
+                    ) {
+                        2.dp
+                    } else {
+                        4.dp
+                    },
                 ),
         ) {
             when (
@@ -596,9 +771,17 @@ private fun TableCenterStatus(
                             "Enchères",
 
                         style =
-                            MaterialTheme
-                                .typography
-                                .titleSmall,
+                            if (
+                                compact
+                            ) {
+                                MaterialTheme
+                                    .typography
+                                    .bodyMedium
+                            } else {
+                                MaterialTheme
+                                    .typography
+                                    .titleSmall
+                            },
 
                         fontWeight =
                             FontWeight.Bold,
@@ -611,7 +794,7 @@ private fun TableCenterStatus(
                         style =
                             MaterialTheme
                                 .typography
-                                .bodySmall,
+                                .labelSmall,
                     )
 
                     BeloteCard(
@@ -634,7 +817,7 @@ private fun TableCenterStatus(
                         style =
                             MaterialTheme
                                 .typography
-                                .bodySmall,
+                                .labelSmall,
                     )
 
                     Text(
@@ -651,9 +834,17 @@ private fun TableCenterStatus(
                                 ),
 
                         style =
-                            MaterialTheme
-                                .typography
-                                .headlineMedium,
+                            if (
+                                compact
+                            ) {
+                                MaterialTheme
+                                    .typography
+                                    .titleLarge
+                            } else {
+                                MaterialTheme
+                                    .typography
+                                    .headlineMedium
+                            },
 
                         fontWeight =
                             FontWeight.Bold,
@@ -666,9 +857,17 @@ private fun TableCenterStatus(
                                 ?: "—",
 
                         style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
+                            if (
+                                compact
+                            ) {
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall
+                            } else {
+                                MaterialTheme
+                                    .typography
+                                    .bodyMedium
+                            },
 
                         fontWeight =
                             FontWeight.SemiBold,
@@ -681,7 +880,7 @@ private fun TableCenterStatus(
                         style =
                             MaterialTheme
                                 .typography
-                                .bodySmall,
+                                .labelSmall,
                     )
                 }
 
@@ -691,9 +890,17 @@ private fun TableCenterStatus(
                             "Donne terminée",
 
                         style =
-                            MaterialTheme
-                                .typography
-                                .titleSmall,
+                            if (
+                                compact
+                            ) {
+                                MaterialTheme
+                                    .typography
+                                    .bodyMedium
+                            } else {
+                                MaterialTheme
+                                    .typography
+                                    .titleSmall
+                            },
 
                         fontWeight =
                             FontWeight.Bold,
@@ -713,9 +920,17 @@ private fun TableCenterStatus(
                                 ),
 
                         style =
-                            MaterialTheme
-                                .typography
-                                .headlineMedium,
+                            if (
+                                compact
+                            ) {
+                                MaterialTheme
+                                    .typography
+                                    .titleLarge
+                            } else {
+                                MaterialTheme
+                                    .typography
+                                    .headlineMedium
+                            },
 
                         fontWeight =
                             FontWeight.Bold,
@@ -728,7 +943,7 @@ private fun TableCenterStatus(
                         style =
                             MaterialTheme
                                 .typography
-                                .bodySmall,
+                                .labelSmall,
                     )
                 }
             }
