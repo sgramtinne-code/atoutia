@@ -93,7 +93,9 @@ fun GameScreen(
             isSubmittingPlayCard
 
     val currentPlayer =
-        when (publicMatch.phase) {
+        when (
+            publicMatch.phase
+        ) {
             DealPhase.BIDDING ->
                 publicMatch.biddingPlayer
 
@@ -124,7 +126,7 @@ fun GameScreen(
 
             verticalArrangement =
                 Arrangement.spacedBy(
-                    16.dp,
+                    12.dp,
                 ),
 
             horizontalAlignment =
@@ -177,12 +179,9 @@ fun GameScreen(
                     TextAlign.Center,
             )
 
-            MatchSummaryCard(
+            GameHud(
                 dealNumber =
                     publicMatch.dealNumber,
-
-                localPlayer =
-                    session.player,
 
                 dealer =
                     publicMatch.dealer,
@@ -204,6 +203,9 @@ fun GameScreen(
 
                 revision =
                     session.revision,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
             )
 
             BeloteTable(
@@ -333,96 +335,6 @@ fun GameScreen(
 
                 textAlign =
                     TextAlign.Center,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MatchSummaryCard(
-    dealNumber: Int,
-    localPlayer: PlayerPosition,
-    dealer: PlayerPosition,
-    taker: PlayerPosition?,
-    trumpSuit: CardSuit?,
-    scoreTeam0: Int,
-    scoreTeam1: Int,
-    targetScore: Int,
-    revision: Int,
-) {
-    OutlinedCard(
-        modifier =
-            Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier =
-                Modifier.padding(
-                    16.dp,
-                ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    10.dp,
-                ),
-        ) {
-            GameInformationRow(
-                label =
-                    "Vous",
-
-                value =
-                    localPlayer.toDisplayName(),
-            )
-
-            GameInformationRow(
-                label =
-                    "Donne",
-
-                value =
-                    dealNumber.toString(),
-            )
-
-            GameInformationRow(
-                label =
-                    "Donneur",
-
-                value =
-                    dealer.toDisplayName(),
-            )
-
-            GameInformationRow(
-                label =
-                    "Preneur",
-
-                value =
-                    taker
-                        ?.toDisplayName()
-                        ?: "—",
-            )
-
-            GameInformationRow(
-                label =
-                    "Atout",
-
-                value =
-                    trumpSuit
-                        ?.toDisplayName()
-                        ?: "—",
-            )
-
-            GameInformationRow(
-                label =
-                    "Score",
-
-                value =
-                    "$scoreTeam0 - $scoreTeam1 / $targetScore",
-            )
-
-            GameInformationRow(
-                label =
-                    "Révision",
-
-                value =
-                    revision.toString(),
             )
         }
     }
@@ -757,61 +669,6 @@ private fun CommandFailureText(
                 .typography
                 .bodyMedium,
     )
-}
-
-@Composable
-private fun GameInformationRow(
-    label: String,
-    value: String,
-) {
-    Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                16.dp,
-            ),
-
-        verticalAlignment =
-            Alignment.CenterVertically,
-    ) {
-        Text(
-            text =
-                label,
-
-            modifier =
-                Modifier.weight(
-                    1f,
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            fontWeight =
-                FontWeight.SemiBold,
-        )
-
-        Text(
-            text =
-                value,
-
-            modifier =
-                Modifier.weight(
-                    1f,
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            textAlign =
-                TextAlign.End,
-        )
-    }
 }
 
 private fun createActionStatus(
