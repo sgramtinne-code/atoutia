@@ -1,3 +1,7 @@
+import {
+  WebSocket,
+} from "ws";
+
 const DEFAULT_BASE_URL =
   "http://127.0.0.1:3000";
 
@@ -24,6 +28,18 @@ const ANDROID_PLAYER_0_FLAG =
 
 const COMMAND_FORMAT_VERSION =
   1;
+
+const REALTIME_PROTOCOL_VERSION =
+  1;
+
+const REALTIME_HEARTBEAT_INTERVAL_MS =
+  10_000;
+
+const REALTIME_CONNECT_TIMEOUT_MS =
+  5_000;
+
+const activeRealtimeConnections =
+  new Map();
 
 const POLL_INTERVAL_MS =
   250;
@@ -344,6 +360,241 @@ async function createBotIdentity(
   });
 }
 
+function createRealtimeUrl(
+  baseUrl,
+  sessionId,
+) {
+  const url =
+    new URL(
+      baseUrl,
+    );
+
+  if (
+    url.protocol ===
+      "http:"
+  ) {
+    url.protocol =
+      "ws:";
+  } else if (
+    url.protocol ===
+      "https:"
+  ) {
+    url.protocol =
+      "wss:";
+  } else {
+    throw new Error(
+      `Unsupported realtime base URL protocol: ${url.protocol}`,
+    );
+  }
+
+  url.pathname =
+    "/ws";
+
+  url.search =
+    "";
+
+  url.hash =
+    "";
+
+  url.searchParams.set(
+    "sessionId",
+    sessionId,
+  );
+
+  return url.toString();
+}
+
+async function connectRealtimeIdentity(
+  baseUrl,
+  sessionId,
+  identity,
+) {
+  const socket =
+    new WebSocket(
+      createRealtimeUrl(
+        baseUrl,
+        sessionId,
+      ),
+      {
+        headers: {
+          authorization:
+            `Bearer ${identity.accessToken}`,
+        },
+      },
+    );
+
+  await new Promise(
+    (
+      resolvePromise,
+      rejectPromise,
+    ) => {
+      let opened =
+        false;
+
+      const timeout =
+        setTimeout(
+          () => {
+            if (
+              opened
+            ) {
+              return;
+            }
+
+            socket.terminate();
+
+            rejectPromise(
+              new Error(
+                `${identity.player}: realtime connection timed out.`,
+              ),
+            );
+          },
+          REALTIME_CONNECT_TIMEOUT_MS,
+        );
+
+      socket.once(
+        "open",
+        () => {
+          opened =
+            true;
+
+          clearTimeout(
+            timeout,
+          );
+
+          const heartbeatTimer =
+            setInterval(
+              () => {
+                if (
+                  socket.readyState ===
+                    WebSocket.OPEN
+                ) {
+                  socket.send(
+                    JSON.stringify({
+                      protocolVersion:
+                        REALTIME_PROTOCOL_VERSION,
+
+                      type:
+                        "HEARTBEAT",
+                    }),
+                  );
+                }
+              },
+              REALTIME_HEARTBEAT_INTERVAL_MS,
+            );
+
+          heartbeatTimer.unref();
+
+          activeRealtimeConnections.set(
+            socket,
+            heartbeatTimer,
+          );
+
+          console.log(
+            `${identity.player}: realtime connected.`,
+          );
+
+          resolvePromise();
+        },
+      );
+
+      socket.on(
+        "error",
+        (
+          error,
+        ) => {
+          if (
+            !opened
+          ) {
+            clearTimeout(
+              timeout,
+            );
+
+            rejectPromise(
+              new Error(
+                `${identity.player}: realtime connection failed: ${error.message}`,
+              ),
+            );
+
+            return;
+          }
+
+          console.error(
+            `${identity.player}: realtime socket error: ${error.message}`,
+          );
+        },
+      );
+
+      socket.on(
+        "close",
+        () => {
+          clearTimeout(
+            timeout,
+          );
+
+          const heartbeatTimer =
+            activeRealtimeConnections.get(
+              socket,
+            );
+
+          if (
+            heartbeatTimer !==
+              undefined
+          ) {
+            clearInterval(
+              heartbeatTimer,
+            );
+
+            activeRealtimeConnections.delete(
+              socket,
+            );
+          }
+
+          if (
+            !opened
+          ) {
+            rejectPromise(
+              new Error(
+                `${identity.player}: realtime connection closed before opening.`,
+              ),
+            );
+          }
+        },
+      );
+    },
+  );
+}
+
+function closeRealtimeConnections() {
+  for (
+    const [
+      socket,
+      heartbeatTimer,
+    ]
+    of activeRealtimeConnections
+  ) {
+    clearInterval(
+      heartbeatTimer,
+    );
+
+    if (
+      socket.readyState ===
+        WebSocket.OPEN
+    ) {
+      socket.close(
+        1000,
+        "Autoplay finished",
+      );
+    } else if (
+      socket.readyState ===
+        WebSocket.CONNECTING
+    ) {
+      socket.terminate();
+    }
+  }
+
+  activeRealtimeConnections.clear();
+}
+
 function isSeatOccupied(
   room,
   player,
@@ -443,6 +694,12 @@ async function createAndClaimBot(
     );
 
   await claimSeat(
+    baseUrl,
+    sessionId,
+    identity,
+  );
+
+  await connectRealtimeIdentity(
     baseUrl,
     sessionId,
     identity,
@@ -1492,5 +1749,10 @@ main()
 
       process.exitCode =
         1;
+    },
+  )
+  .finally(
+    () => {
+      closeRealtimeConnections();
     },
   );
