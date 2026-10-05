@@ -42,6 +42,14 @@ import {
 } from "./liveRoomStore.js";
 
 import {
+  createMatchHistoryEntry,
+} from "./matchHistoryEntry.js";
+
+import type {
+  MatchResultRepository,
+} from "./matchResultRepository.js";
+
+import {
   isMatchMode,
   type MatchMode,
 } from "./matchMode.js";
@@ -52,6 +60,9 @@ export interface CreateBackendServerOptions {
 
   readonly authService?:
     AuthService;
+
+  readonly matchResultRepository?:
+    MatchResultRepository;
 }
 
 interface CreateRoomBody {
@@ -653,6 +664,188 @@ function handleHealth(
 
       liveRooms:
         roomStore.count(),
+    },
+  );
+}
+
+function handleMatchHistory(
+  request:
+    IncomingMessage,
+
+  response:
+    ServerResponse,
+
+  authService:
+    AuthService | undefined,
+
+  matchResultRepository:
+    MatchResultRepository | undefined,
+): void {
+  if (
+    request.method !==
+      "GET"
+  ) {
+    sendMethodNotAllowed(
+      response,
+    );
+
+    return;
+  }
+
+  if (
+    authService ===
+      undefined ||
+    matchResultRepository ===
+      undefined
+  ) {
+    sendNotFound(
+      response,
+    );
+
+    return;
+  }
+
+  const authentication =
+    authenticateHttpParticipant(
+      request,
+      authService,
+    );
+
+  if (
+    authentication.status ===
+      "MISSING"
+  ) {
+    sendJson(
+      response,
+      401,
+      {
+        error:
+          "AUTH_REQUIRED",
+      },
+    );
+
+    return;
+  }
+
+  if (
+    authentication.status ===
+      "INVALID"
+  ) {
+    sendJson(
+      response,
+      401,
+      {
+        error:
+          "AUTH_INVALID",
+      },
+    );
+
+    return;
+  }
+
+  const url =
+    new URL(
+      request.url ??
+        "/",
+
+      "http://localhost",
+    );
+
+  const queryKeys =
+    [
+      ...url.searchParams.keys(),
+    ];
+
+  const limitValues =
+    url.searchParams.getAll(
+      "limit",
+    );
+
+  if (
+    queryKeys.some(
+      (
+        key,
+      ) =>
+        key !==
+          "limit",
+    ) ||
+    limitValues.length >
+      1
+  ) {
+    sendJson(
+      response,
+      400,
+      {
+        error:
+          "INVALID_REQUEST",
+      },
+    );
+
+    return;
+  }
+
+  const limitText =
+    limitValues[0];
+
+  let limit =
+    20;
+
+  if (
+    limitText !==
+      undefined
+  ) {
+    if (
+      !/^(?:[1-9]|[1-9][0-9]|100)$/.test(
+        limitText,
+      )
+    ) {
+      sendJson(
+        response,
+        400,
+        {
+          error:
+            "INVALID_REQUEST",
+        },
+      );
+
+      return;
+    }
+
+    limit =
+      Number(
+        limitText,
+      );
+  }
+
+  const participantId =
+    authentication
+      .identity
+      .participantId;
+
+  const entries =
+    matchResultRepository
+      .listLatestByParticipant(
+        participantId,
+        limit,
+      )
+      .map(
+        (
+          result,
+        ) =>
+          createMatchHistoryEntry(
+            result,
+            participantId,
+          ),
+      );
+
+  sendJson(
+    response,
+    200,
+    {
+      formatVersion:
+        1,
+
+      entries,
     },
   );
 }
@@ -1786,6 +1979,9 @@ async function handleRequest(
 
   authService:
     AuthService | undefined,
+
+  matchResultRepository:
+    MatchResultRepository | undefined,
 ): Promise<void> {
   if (
     authService !==
@@ -1828,6 +2024,20 @@ async function handleRequest(
     handleHealth(
       response,
       roomStore,
+    );
+
+    return;
+  }
+
+  if (
+    pathname ===
+      "/api/v1/matches/history"
+  ) {
+    handleMatchHistory(
+      request,
+      response,
+      authService,
+      matchResultRepository,
     );
 
     return;
@@ -2062,6 +2272,7 @@ export function createBackendServer(
         response,
         roomStore,
         options.authService,
+        options.matchResultRepository,
       ).catch(
         (
           error:

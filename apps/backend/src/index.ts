@@ -179,6 +179,8 @@ const server =
   createBackendServer({
     roomStore,
     authService,
+
+    matchResultRepository,
   });
 
 const realtime =
