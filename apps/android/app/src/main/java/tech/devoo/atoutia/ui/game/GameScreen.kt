@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
 import tech.devoo.atoutia.network.game.CardSuit
 import tech.devoo.atoutia.network.game.DealPhase
+import tech.devoo.atoutia.network.game.GameRealtimeAdjudication
+import tech.devoo.atoutia.network.game.GameRealtimeAdjudicationEvent
+import tech.devoo.atoutia.network.game.GameRealtimePresence
 import tech.devoo.atoutia.network.game.MatchTeam
 import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerCard
@@ -62,6 +65,8 @@ fun GameScreen(
     session: PlayerGameSession,
     biddingState: GameBiddingUiState = GameBiddingUiState.Idle,
     playCardState: GamePlayCardUiState = GamePlayCardUiState.Idle,
+    presence: GameRealtimePresence? = null,
+    adjudication: GameRealtimeAdjudicationEvent? = null,
     onBiddingAction: ((BiddingActionSnapshot) -> Unit)? = null,
     onPlayCard: ((PlayerCard) -> Unit)? = null,
     onRefresh: (() -> Unit)? = null,
@@ -86,6 +91,19 @@ fun GameScreen(
     val score =
         publicMatch.score
 
+    val forfeitAdjudication =
+        adjudication
+            ?.adjudication as?
+            GameRealtimeAdjudication.Forfeit
+
+    val isForfeitCompleted =
+        forfeitAdjudication !=
+            null
+
+    val isMatchCompleted =
+        score.completed ||
+            isForfeitCompleted
+
     val isSubmittingBidding =
         biddingState is GameBiddingUiState.Submitting
 
@@ -97,7 +115,11 @@ fun GameScreen(
             isSubmittingPlayCard
 
     val currentPlayer =
-        when (
+        if (
+            isForfeitCompleted
+        ) {
+            null
+        } else when (
             publicMatch.phase
         ) {
             DealPhase.BIDDING ->
@@ -111,25 +133,34 @@ fun GameScreen(
         }
 
     val screenTitle =
-        if (
-            score.completed
-        ) {
-            "Partie terminée"
-        } else {
-            "Partie Atoutia"
+        when {
+            isForfeitCompleted ->
+                "Partie terminée par forfait"
+
+            score.completed ->
+                "Partie terminée"
+
+            else ->
+                "Partie Atoutia"
         }
 
     val actionStatus =
-        createActionStatus(
-            localPlayer =
-                session.player,
+        if (
+            isForfeitCompleted
+        ) {
+            "Partie terminée par forfait"
+        } else {
+            createActionStatus(
+                localPlayer =
+                    session.player,
 
-            actionsMode =
-                actions.mode,
+                actionsMode =
+                    actions.mode,
 
-            currentPlayer =
-                currentPlayer,
-        )
+                currentPlayer =
+                    currentPlayer,
+            )
+        }
 
     val headerText =
         if (
@@ -200,6 +231,9 @@ fun GameScreen(
                 turnUpCard =
                     publicMatch.turnUpCard,
 
+                presence =
+                    presence,
+
                 modifier =
                     Modifier.fillMaxWidth(),
             )
@@ -208,6 +242,7 @@ fun GameScreen(
     val controlsContent:
         @Composable () -> Unit = {
             if (
+                !isForfeitCompleted &&
                 actions.mode ==
                     PlayerActionMode.BID
             ) {
@@ -234,7 +269,7 @@ fun GameScreen(
             }
 
             if (
-                !score.completed &&
+                !isMatchCompleted &&
                 match.hand.isNotEmpty()
             ) {
                 PlayerHandPanel(
@@ -260,6 +295,29 @@ fun GameScreen(
             }
 
             if (
+                forfeitAdjudication !=
+                    null
+            ) {
+                MatchForfeitPanel(
+                    localPlayer =
+                        session.player,
+
+                    forfeitingPlayer =
+                        forfeitAdjudication
+                            .forfeitingPlayer,
+
+                    losingTeam =
+                        forfeitAdjudication
+                            .losingTeam,
+
+                    winningTeam =
+                        forfeitAdjudication
+                            .winningTeam,
+
+                    onReplay =
+                        onReplay,
+                )
+            } else if (
                 score.completed
             ) {
                 MatchFinishedPanel(
@@ -281,7 +339,7 @@ fun GameScreen(
     val footerContent:
         @Composable () -> Unit = {
             if (
-                !score.completed
+                !isMatchCompleted
             ) {
                 OutlinedButton(
                     onClick = {
@@ -665,6 +723,126 @@ private fun PlayerHandPanel(
                     CommandFailureText(
                         message =
                             playCardState.message,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MatchForfeitPanel(
+    localPlayer: PlayerPosition,
+    forfeitingPlayer: PlayerPosition,
+    losingTeam: MatchTeam,
+    winningTeam: MatchTeam,
+    onReplay: (() -> Unit)?,
+) {
+    val absenceMessage =
+        if (
+            forfeitingPlayer ==
+                localPlayer
+        ) {
+            "Vous avez été déclaré absent."
+        } else {
+            "${forfeitingPlayer.toDisplayName()} a été déclaré absent."
+        }
+
+    OutlinedCard(
+        modifier =
+            Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier =
+                Modifier.padding(
+                    20.dp,
+                ),
+
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    10.dp,
+                ),
+
+            horizontalAlignment =
+                Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text =
+                    "Partie terminée par forfait",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleLarge,
+
+                fontWeight =
+                    FontWeight.Bold,
+
+                textAlign =
+                    TextAlign.Center,
+            )
+
+            Text(
+                text =
+                    "Victoire ${winningTeam.toDisplayName()}",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+
+                fontWeight =
+                    FontWeight.Bold,
+
+                textAlign =
+                    TextAlign.Center,
+            )
+
+            Text(
+                text =
+                    absenceMessage,
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyLarge,
+
+                textAlign =
+                    TextAlign.Center,
+            )
+
+            Text(
+                text =
+                    "${losingTeam.toDisplayName()} perd la partie.",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+
+                textAlign =
+                    TextAlign.Center,
+            )
+
+            if (
+                onReplay !=
+                    null
+            ) {
+                Button(
+                    onClick =
+                        onReplay,
+
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top =
+                                    6.dp,
+                            ),
+                ) {
+                    Text(
+                        text =
+                            "Rejouer",
                     )
                 }
             }

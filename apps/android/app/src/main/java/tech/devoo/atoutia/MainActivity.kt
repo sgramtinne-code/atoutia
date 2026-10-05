@@ -51,6 +51,8 @@ import tech.devoo.atoutia.network.game.AtoutiaGameApiException
 import tech.devoo.atoutia.network.game.AtoutiaGameRealtimeClient
 import tech.devoo.atoutia.network.game.AtoutiaGameRealtimeSubscription
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
+import tech.devoo.atoutia.network.game.GameRealtimeAdjudicationEvent
+import tech.devoo.atoutia.network.game.GameRealtimePresence
 import tech.devoo.atoutia.network.game.HttpAtoutiaGameApi
 import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerCard
@@ -1341,6 +1343,16 @@ class MainActivity :
             (
                 Int,
             ) -> Unit,
+
+        onPresence:
+            (
+                GameRealtimePresence,
+            ) -> Unit,
+
+        onAdjudication:
+            (
+                GameRealtimeAdjudicationEvent,
+            ) -> Unit,
     ): AtoutiaGameRealtimeSubscription? {
         val apiBaseUrl =
             BuildConfig
@@ -1396,6 +1408,24 @@ class MainActivity :
                     lifecycleScope.launch {
                         onRevisionAvailable(
                             revision,
+                        )
+                    }
+                },
+
+                onPresence = {
+                    presence ->
+                    lifecycleScope.launch {
+                        onPresence(
+                            presence,
+                        )
+                    }
+                },
+
+                onAdjudication = {
+                    adjudication ->
+                    lifecycleScope.launch {
+                        onAdjudication(
+                            adjudication,
                         )
                     }
                 },
@@ -2318,6 +2348,12 @@ private fun AtoutiaApp(
             (
                 Int,
             ) -> Unit,
+            (
+                GameRealtimePresence,
+            ) -> Unit,
+            (
+                GameRealtimeAdjudicationEvent,
+            ) -> Unit,
         ) -> AtoutiaGameRealtimeSubscription?,
 
     submitBiddingAction:
@@ -3191,6 +3227,28 @@ private fun AtoutiaApp(
                             )
                         }
 
+                    var gameRealtimePresence by
+                        remember(
+                            gameSession.sessionId,
+                        ) {
+                            mutableStateOf<
+                                GameRealtimePresence?
+                            >(
+                                null,
+                            )
+                        }
+
+                    var gameRealtimeAdjudication by
+                        remember(
+                            gameSession.sessionId,
+                        ) {
+                            mutableStateOf<
+                                GameRealtimeAdjudicationEvent?
+                            >(
+                                null,
+                            )
+                        }
+
                     fun applyRefreshedGameSession(
                         refreshedSession:
                             PlayerGameSession,
@@ -3238,16 +3296,30 @@ private fun AtoutiaApp(
                         val subscription =
                             subscribeGameRealtime(
                                 gameSession,
-                            ) {
-                                revision ->
-                                if (
-                                    revision >
-                                    realtimeRevision
-                                ) {
-                                    realtimeRevision =
-                                        revision
-                                }
-                            }
+
+                                {
+                                    revision ->
+                                    if (
+                                        revision >
+                                            realtimeRevision
+                                    ) {
+                                        realtimeRevision =
+                                            revision
+                                    }
+                                },
+
+                                {
+                                    presence ->
+                                    gameRealtimePresence =
+                                        presence
+                                },
+
+                                {
+                                    adjudication ->
+                                    gameRealtimeAdjudication =
+                                        adjudication
+                                },
+                            )
 
                         realtimeSubscription =
                             subscription
@@ -3681,6 +3753,12 @@ private fun AtoutiaApp(
 
                         playCardState =
                             gamePlayCardState,
+
+                        presence =
+                            gameRealtimePresence,
+
+                        adjudication =
+                            gameRealtimeAdjudication,
 
                         onBiddingAction = {
                             action ->

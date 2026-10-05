@@ -50,6 +50,18 @@ class AtoutiaGameRealtimeClient(
                 Int,
             ) -> Unit,
 
+        onPresence:
+            (
+                GameRealtimePresence,
+            ) -> Unit =
+            {},
+
+        onAdjudication:
+            (
+                GameRealtimeAdjudicationEvent,
+            ) -> Unit =
+            {},
+
         onConnectionIssue:
             (
                 String,
@@ -90,6 +102,12 @@ class AtoutiaGameRealtimeClient(
             onRevisionAvailable =
                 onRevisionAvailable,
 
+            onPresence =
+                onPresence,
+
+            onAdjudication =
+                onAdjudication,
+
             onConnectionIssue =
                 onConnectionIssue,
         )
@@ -114,6 +132,16 @@ class AtoutiaGameRealtimeClient(
         private val onRevisionAvailable:
             (
                 Int,
+            ) -> Unit,
+
+        private val onPresence:
+            (
+                GameRealtimePresence,
+            ) -> Unit,
+
+        private val onAdjudication:
+            (
+                GameRealtimeAdjudicationEvent,
             ) -> Unit,
 
         private val onConnectionIssue:
@@ -237,7 +265,7 @@ class AtoutiaGameRealtimeClient(
                 closed.get() ||
                 connecting ||
                 webSocket !=
-                null
+                    null
             ) {
                 return
             }
@@ -369,7 +397,7 @@ class AtoutiaGameRealtimeClient(
                                 message =
                                     if (
                                         code ==
-                                        NORMAL_CLOSE_CODE
+                                            NORMAL_CLOSE_CODE
                                     ) {
                                         null
                                     } else {
@@ -441,7 +469,7 @@ class AtoutiaGameRealtimeClient(
 
             if (
                 protocolVersion !=
-                REALTIME_PROTOCOL_VERSION
+                    REALTIME_PROTOCOL_VERSION
             ) {
                 reportConnectionIssue(
                     "Version du protocole temps réel Atoutia non prise en charge.",
@@ -461,6 +489,18 @@ class AtoutiaGameRealtimeClient(
                     )
                 }
 
+                "PRESENCE" -> {
+                    handlePresenceMessage(
+                        message,
+                    )
+                }
+
+                "ADJUDICATION" -> {
+                    handleAdjudicationMessage(
+                        message,
+                    )
+                }
+
                 "ERROR" -> {
                     val code =
                         message.optString(
@@ -471,12 +511,6 @@ class AtoutiaGameRealtimeClient(
                     reportConnectionIssue(
                         "Erreur temps réel Atoutia : $code.",
                     )
-                }
-
-                "PRESENCE",
-                "ADJUDICATION",
-                -> {
-                    Unit
                 }
 
                 else -> {
@@ -514,7 +548,7 @@ class AtoutiaGameRealtimeClient(
 
             if (
                 snapshotSessionId !=
-                sessionId
+                    sessionId
             ) {
                 reportConnectionIssue(
                     "Snapshot temps réel reçu pour un autre salon.",
@@ -541,7 +575,7 @@ class AtoutiaGameRealtimeClient(
 
             if (
                 revision <
-                0
+                    0
             ) {
                 reportConnectionIssue(
                     "Révision temps réel Atoutia invalide.",
@@ -552,9 +586,9 @@ class AtoutiaGameRealtimeClient(
 
             if (
                 revision <=
-                knownRevision ||
+                    knownRevision ||
                 revision <=
-                lastSignaledRevision
+                    lastSignaledRevision
             ) {
                 return
             }
@@ -573,6 +607,102 @@ class AtoutiaGameRealtimeClient(
                 reportConnectionIssue(
                     error.message
                         ?: "Le traitement de la révision temps réel Atoutia a échoué.",
+                )
+            }
+        }
+
+        private fun handlePresenceMessage(
+            message:
+                JSONObject,
+        ) {
+            val presence =
+                try {
+                    GameRealtimeEventParser
+                        .parsePresence(
+                            message,
+                        )
+                } catch (
+                    error:
+                        Exception,
+                ) {
+                    reportConnectionIssue(
+                        error.message
+                            ?: "Présence temps réel Atoutia invalide.",
+                    )
+
+                    return
+                }
+
+            if (
+                presence.sessionId !=
+                    sessionId
+            ) {
+                reportConnectionIssue(
+                    "Présence temps réel reçue pour un autre salon.",
+                )
+
+                return
+            }
+
+            try {
+                onPresence(
+                    presence,
+                )
+            } catch (
+                error:
+                    Exception,
+            ) {
+                reportConnectionIssue(
+                    error.message
+                        ?: "Le traitement de la présence temps réel Atoutia a échoué.",
+                )
+            }
+        }
+
+        private fun handleAdjudicationMessage(
+            message:
+                JSONObject,
+        ) {
+            val event =
+                try {
+                    GameRealtimeEventParser
+                        .parseAdjudication(
+                            message,
+                        )
+                } catch (
+                    error:
+                        Exception,
+                ) {
+                    reportConnectionIssue(
+                        error.message
+                            ?: "Adjudication temps réel Atoutia invalide.",
+                    )
+
+                    return
+                }
+
+            if (
+                event.sessionId !=
+                    sessionId
+            ) {
+                reportConnectionIssue(
+                    "Adjudication temps réel reçue pour un autre salon.",
+                )
+
+                return
+            }
+
+            try {
+                onAdjudication(
+                    event,
+                )
+            } catch (
+                error:
+                    Exception,
+            ) {
+                reportConnectionIssue(
+                    error.message
+                        ?: "Le traitement de l’adjudication temps réel Atoutia a échoué.",
                 )
             }
         }
@@ -616,7 +746,7 @@ class AtoutiaGameRealtimeClient(
         ) {
             if (
                 this.webSocket !==
-                webSocket
+                    webSocket
             ) {
                 return
             }

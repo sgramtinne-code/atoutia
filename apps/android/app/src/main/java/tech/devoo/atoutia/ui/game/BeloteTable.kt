@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.game.CardSuit
 import tech.devoo.atoutia.network.game.DealPhase
+import tech.devoo.atoutia.network.game.GameRealtimeConnectionStateName
+import tech.devoo.atoutia.network.game.GameRealtimePresence
 import tech.devoo.atoutia.network.game.PlayerCard
 import tech.devoo.atoutia.network.game.PublicCurrentTrickSnapshot
 import tech.devoo.atoutia.network.room.PlayerPosition
@@ -71,6 +73,10 @@ fun BeloteTable(
 
     turnUpCard:
         PlayerCard,
+
+    presence:
+        GameRealtimePresence? =
+        null,
 
     modifier:
         Modifier =
@@ -172,6 +178,9 @@ fun BeloteTable(
                     currentPlayer =
                         currentPlayer,
 
+                    presence =
+                        presence,
+
                     compact =
                         compactLandscape,
 
@@ -196,6 +205,9 @@ fun BeloteTable(
 
                     currentPlayer =
                         currentPlayer,
+
+                    presence =
+                        presence,
 
                     compact =
                         compactLandscape,
@@ -222,6 +234,9 @@ fun BeloteTable(
                     currentPlayer =
                         currentPlayer,
 
+                    presence =
+                        presence,
+
                     compact =
                         compactLandscape,
 
@@ -246,6 +261,9 @@ fun BeloteTable(
 
                     currentPlayer =
                         currentPlayer,
+
+                    presence =
+                        presence,
 
                     compact =
                         compactLandscape,
@@ -439,6 +457,9 @@ private fun PlayerSeatBadge(
     currentPlayer:
         PlayerPosition?,
 
+    presence:
+        GameRealtimePresence?,
+
     compact:
         Boolean,
 
@@ -453,6 +474,33 @@ private fun PlayerSeatBadge(
     val isCurrentPlayer =
         player ==
             currentPlayer
+
+    val connectionState =
+        presence
+            ?.connectionStates
+            ?.firstOrNull {
+                state ->
+                state.player ==
+                    player
+            }
+            ?.state
+
+    val connectionLabel =
+        when (
+            connectionState
+        ) {
+            GameRealtimeConnectionStateName.CONNECTED ->
+                "En ligne"
+
+            GameRealtimeConnectionStateName.RECONNECTING ->
+                "Reconnexion"
+
+            GameRealtimeConnectionStateName.ABSENT ->
+                "Absent"
+
+            null ->
+                null
+        }
 
     val markers =
         buildList {
@@ -635,6 +683,34 @@ private fun PlayerSeatBadge(
                             FontWeight.SemiBold
                         } else {
                             FontWeight.Normal
+                        },
+
+                    textAlign =
+                        TextAlign.Center,
+                )
+            }
+
+            if (
+                connectionLabel !=
+                    null
+            ) {
+                Text(
+                    text =
+                        connectionLabel,
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelSmall,
+
+                    fontWeight =
+                        if (
+                            connectionState ==
+                                GameRealtimeConnectionStateName.CONNECTED
+                        ) {
+                            FontWeight.Normal
+                        } else {
+                            FontWeight.SemiBold
                         },
 
                     textAlign =
