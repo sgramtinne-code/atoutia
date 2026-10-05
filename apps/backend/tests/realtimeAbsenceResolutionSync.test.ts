@@ -573,6 +573,361 @@ describe(
     );
 
     it(
+      "does not create a TEAM_FORFEIT resolution after the ranked room adjudication is already completed",
+      async () => {
+        let currentTime =
+          1_000;
+
+        const running =
+          await startServer(
+            () =>
+              currentTime,
+          );
+
+        const room =
+          running.roomStore.create({
+            mode:
+              "RANKED",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            0,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "participant-0",
+        });
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            1,
+
+          player:
+            "PLAYER_1",
+
+          participantId:
+            "participant-1",
+        });
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            2,
+
+          player:
+            "PLAYER_2",
+
+          participantId:
+            "participant-2",
+        });
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            3,
+
+          player:
+            "PLAYER_3",
+
+          participantId:
+            "participant-3",
+        });
+
+        running.roomStore.start({
+          sessionId,
+
+          expectedRevision:
+            4,
+        });
+
+        running.roomStore
+          .forfeitForPlayerAbsence({
+            sessionId,
+
+            player:
+              "PLAYER_1",
+
+            completedAtMs:
+              1_500,
+          });
+
+        const socket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-0",
+          );
+
+        await waitForOpen(
+          socket,
+        );
+
+        await closeSocket(
+          socket,
+        );
+
+        currentTime =
+          182_000;
+
+        await new Promise<void>(
+          (
+            resolve,
+          ) => {
+            setTimeout(
+              resolve,
+              30,
+            );
+          },
+        );
+
+        expect(
+          running.roomStore
+            .getAbsenceResolution(
+              sessionId,
+              "PLAYER_0",
+            ),
+        ).toBeUndefined();
+
+        expect(
+          running.roomStore
+            .getAdjudication(
+              sessionId,
+            ),
+        ).toEqual({
+          status:
+            "COMPLETED",
+
+          completion:
+            "FORFEIT",
+
+          reason:
+            "PLAYER_ABSENCE",
+
+          forfeitingPlayer:
+            "PLAYER_1",
+
+          losingTeam:
+            "TEAM_1",
+
+          winningTeam:
+            "TEAM_0",
+
+          completedAtMs:
+            1_500,
+        });
+      },
+    );
+
+    it(
+      "clears a previously pending TEAM_FORFEIT after the ranked room adjudication completes",
+      async () => {
+        let currentTime =
+          1_000;
+
+        const running =
+          await startServer(
+            () =>
+              currentTime,
+          );
+
+        const room =
+          running.roomStore.create({
+            mode:
+              "RANKED",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            0,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "participant-0",
+        });
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            1,
+
+          player:
+            "PLAYER_1",
+
+          participantId:
+            "participant-1",
+        });
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            2,
+
+          player:
+            "PLAYER_2",
+
+          participantId:
+            "participant-2",
+        });
+
+        running.roomStore.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            3,
+
+          player:
+            "PLAYER_3",
+
+          participantId:
+            "participant-3",
+        });
+
+        running.roomStore.start({
+          sessionId,
+
+          expectedRevision:
+            4,
+        });
+
+        const disconnectedSocket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-2",
+          );
+
+        await waitForOpen(
+          disconnectedSocket,
+        );
+
+        await closeSocket(
+          disconnectedSocket,
+        );
+
+        currentTime =
+          182_000;
+
+        await waitForCondition(
+          () =>
+            running.roomStore
+              .getAbsenceResolution(
+                sessionId,
+                "PLAYER_2",
+              )?.status ===
+              "PENDING",
+
+          "pending TEAM_FORFEIT before completed adjudication",
+        );
+
+        expect(
+          running.roomStore
+            .getAbsenceResolution(
+              sessionId,
+              "PLAYER_2",
+            ),
+        ).toEqual({
+          player:
+            "PLAYER_2",
+
+          action:
+            "TEAM_FORFEIT",
+
+          status:
+            "PENDING",
+        });
+
+        running.roomStore
+          .forfeitForPlayerAbsence({
+            sessionId,
+
+            player:
+              "PLAYER_1",
+
+            completedAtMs:
+              182_001,
+          });
+
+        const observerSocket =
+          createSocket(
+            running,
+            sessionId,
+            "participant-0",
+          );
+
+        await waitForOpen(
+          observerSocket,
+        );
+
+        await waitForCondition(
+          () =>
+            running.roomStore
+              .getAbsenceResolution(
+                sessionId,
+                "PLAYER_2",
+              ) ===
+              undefined,
+
+          "obsolete TEAM_FORFEIT cleanup after completed adjudication",
+        );
+
+        expect(
+          running.roomStore
+            .getAdjudication(
+              sessionId,
+            ),
+        ).toEqual({
+          status:
+            "COMPLETED",
+
+          completion:
+            "FORFEIT",
+
+          reason:
+            "PLAYER_ABSENCE",
+
+          forfeitingPlayer:
+            "PLAYER_1",
+
+          losingTeam:
+            "TEAM_1",
+
+          winningTeam:
+            "TEAM_0",
+
+          completedAtMs:
+            182_001,
+        });
+
+        await closeSocket(
+          observerSocket,
+        );
+      },
+    );
+
+    it(
       "clears an unresolved pending resolution when the participant reconnects",
       async () => {
         let currentTime =

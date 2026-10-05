@@ -873,6 +873,45 @@ export function createRealtimeServer(
     absences:
       readonly RealtimeAbsencePlayer[],
   ): void {
+    const adjudication =
+      options.roomStore
+        .getAdjudication(
+          sessionId,
+        );
+
+    if (
+      adjudication.status ===
+        "COMPLETED"
+    ) {
+      const resolutions =
+        options.roomStore
+          .listAbsenceResolutions(
+            sessionId,
+          );
+
+      for (
+        const resolution
+        of resolutions
+      ) {
+        if (
+          resolution.status !==
+            "PENDING"
+        ) {
+          continue;
+        }
+
+        options.roomStore
+          .clearAbsenceResolution({
+            sessionId,
+
+            player:
+              resolution.player,
+          });
+      }
+
+      return;
+    }
+
     for (
       const absence
       of absences
