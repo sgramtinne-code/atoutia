@@ -31,6 +31,10 @@ import {
 } from "./liveRoomStore.js";
 
 import {
+  createMatchResultRecorder,
+} from "./matchResultRecorder.js";
+
+import {
   createRealtimeServer,
 } from "./realtime.js";
 
@@ -45,6 +49,10 @@ import {
 import {
   SQLiteLiveRoomRepository,
 } from "./sqliteLiveRoomRepository.js";
+
+import {
+  SQLiteMatchResultRepository,
+} from "./sqliteMatchResultRepository.js";
 
 const config =
   loadBackendConfig();
@@ -67,6 +75,12 @@ const roomRepository =
 
 const authRepository =
   new SQLiteAuthRepository({
+    databasePath:
+      config.databasePath,
+  });
+
+const matchResultRepository =
+  new SQLiteMatchResultRepository({
     databasePath:
       config.databasePath,
   });
@@ -107,6 +121,29 @@ const roomStore =
     repository:
       roomRepository,
   });
+
+const matchResultRecorder =
+  createMatchResultRecorder({
+    roomStore,
+
+    repository:
+      matchResultRepository,
+
+    onError:
+      (
+        error,
+        context,
+      ) => {
+        console.error(
+          `Match result recording failed for ${context.sessionId}.`,
+          error,
+        );
+      },
+  });
+
+matchResultRecorder.reconcile(
+  roomRepository.listSessionIds(),
+);
 
 const botCycleScheduler =
   createBotCycleScheduler({
@@ -218,6 +255,8 @@ async function shutdown(
 
   botCycleScheduler.close();
 
+  matchResultRecorder.close();
+
   try {
     await realtime.close();
   } catch (
@@ -257,6 +296,20 @@ async function shutdown(
       );
     },
   );
+
+  try {
+    matchResultRepository.close();
+  } catch (
+    error:
+      unknown
+  ) {
+    console.error(
+      error,
+    );
+
+    process.exitCode =
+      1;
+  }
 
   try {
     authRepository.close();
