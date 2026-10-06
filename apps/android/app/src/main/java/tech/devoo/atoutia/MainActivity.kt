@@ -4288,6 +4288,67 @@ private fun AtoutiaApp(
                             destination =
                                 AuthenticatedDestination.Play
                         },
+
+                        onHistory = {
+                            clearActiveRoomSession()
+
+                            roomActionState =
+                                RoomActionUiState.Idle
+
+                            leaveState =
+                                RoomLobbyLeaveUiState.Idle
+
+                            startState =
+                                RoomLobbyStartUiState.Idle
+
+                            gameBiddingState =
+                                GameBiddingUiState.Idle
+
+                            gamePlayCardState =
+                                GamePlayCardUiState.Idle
+
+                            joinSessionId =
+                                ""
+
+                            notice =
+                                null
+
+                            destination =
+                                AuthenticatedDestination.History
+
+                            requestMatchHistory()
+                        },
+
+                        onHome = {
+                            clearActiveRoomSession()
+
+                            roomActionState =
+                                RoomActionUiState.Idle
+
+                            leaveState =
+                                RoomLobbyLeaveUiState.Idle
+
+                            startState =
+                                RoomLobbyStartUiState.Idle
+
+                            gameBiddingState =
+                                GameBiddingUiState.Idle
+
+                            gamePlayCardState =
+                                GamePlayCardUiState.Idle
+
+                            matchHistoryState =
+                                MatchHistoryUiState.Loading
+
+                            joinSessionId =
+                                ""
+
+                            notice =
+                                null
+
+                            destination =
+                                AuthenticatedDestination.Home
+                        },
                     )
                 }
             }

@@ -71,6 +71,8 @@ fun GameScreen(
     onPlayCard: ((PlayerCard) -> Unit)? = null,
     onRefresh: (() -> Unit)? = null,
     onReplay: (() -> Unit)? = null,
+    onHistory: (() -> Unit)? = null,
+    onHome: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val document =
@@ -316,6 +318,12 @@ fun GameScreen(
 
                     onReplay =
                         onReplay,
+
+                    onHistory =
+                        onHistory,
+
+                    onHome =
+                        onHome,
                 )
             } else if (
                 score.completed
@@ -332,6 +340,12 @@ fun GameScreen(
 
                     onReplay =
                         onReplay,
+
+                    onHistory =
+                        onHistory,
+
+                    onHome =
+                        onHome,
                 )
             }
         }
@@ -737,6 +751,8 @@ private fun MatchForfeitPanel(
     losingTeam: MatchTeam,
     winningTeam: MatchTeam,
     onReplay: (() -> Unit)?,
+    onHistory: (() -> Unit)?,
+    onHome: (() -> Unit)?,
 ) {
     val absenceMessage =
         if (
@@ -824,28 +840,16 @@ private fun MatchForfeitPanel(
                     TextAlign.Center,
             )
 
-            if (
-                onReplay !=
-                    null
-            ) {
-                Button(
-                    onClick =
-                        onReplay,
+            MatchCompletionActions(
+                onReplay =
+                    onReplay,
 
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                top =
-                                    6.dp,
-                            ),
-                ) {
-                    Text(
-                        text =
-                            "Rejouer",
-                    )
-                }
-            }
+                onHistory =
+                    onHistory,
+
+                onHome =
+                    onHome,
+            )
         }
     }
 }
@@ -856,6 +860,8 @@ private fun MatchFinishedPanel(
     team1: Int,
     winner: MatchTeam?,
     onReplay: (() -> Unit)?,
+    onHistory: (() -> Unit)?,
+    onHome: (() -> Unit)?,
 ) {
     OutlinedCard(
         modifier =
@@ -915,27 +921,91 @@ private fun MatchFinishedPanel(
                         .titleMedium,
             )
 
-            if (
-                onReplay !=
-                    null
-            ) {
-                Button(
-                    onClick =
-                        onReplay,
+            MatchCompletionActions(
+                onReplay =
+                    onReplay,
 
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                top =
-                                    6.dp,
-                            ),
-                ) {
-                    Text(
-                        text =
-                            "Rejouer",
-                    )
-                }
+                onHistory =
+                    onHistory,
+
+                onHome =
+                    onHome,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MatchCompletionActions(
+    onReplay: (() -> Unit)?,
+    onHistory: (() -> Unit)?,
+    onHome: (() -> Unit)?,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    top =
+                        6.dp,
+                ),
+
+        verticalArrangement =
+            Arrangement.spacedBy(
+                8.dp,
+            ),
+    ) {
+        if (
+            onReplay !=
+                null
+        ) {
+            Button(
+                onClick =
+                    onReplay,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text =
+                        "Rejouer",
+                )
+            }
+        }
+
+        if (
+            onHistory !=
+                null
+        ) {
+            OutlinedButton(
+                onClick =
+                    onHistory,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text =
+                        "Historique",
+                )
+            }
+        }
+
+        if (
+            onHome !=
+                null
+        ) {
+            OutlinedButton(
+                onClick =
+                    onHome,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text =
+                        "Accueil",
+                )
             }
         }
     }
