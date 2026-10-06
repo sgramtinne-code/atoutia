@@ -58,6 +58,10 @@ import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerCard
 import tech.devoo.atoutia.network.game.PlayerGameSession
 import tech.devoo.atoutia.network.game.PlayerGameSessionCoordinator
+import tech.devoo.atoutia.network.history.AtoutiaMatchHistoryApiException
+import tech.devoo.atoutia.network.history.HttpAtoutiaMatchHistoryApi
+import tech.devoo.atoutia.network.history.MatchHistoryCoordinator
+import tech.devoo.atoutia.network.history.MatchHistoryResponse
 import tech.devoo.atoutia.network.room.ActiveRoomSessionRecoveryCoordinator
 import tech.devoo.atoutia.network.room.ActiveRoomSessionRecoveryResult
 import tech.devoo.atoutia.network.room.ActiveRoomSessionReference
@@ -71,6 +75,8 @@ import tech.devoo.atoutia.network.room.PlayerPosition
 import tech.devoo.atoutia.ui.game.GameBiddingUiState
 import tech.devoo.atoutia.ui.game.GamePlayCardUiState
 import tech.devoo.atoutia.ui.game.GameScreen
+import tech.devoo.atoutia.ui.history.MatchHistoryScreen
+import tech.devoo.atoutia.ui.history.MatchHistoryUiState
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
 import tech.devoo.atoutia.ui.home.SignOutUiState
@@ -155,6 +161,9 @@ class MainActivity :
 
                     submitPlayCard =
                         ::submitPlayCard,
+
+                    loadMatchHistory =
+                        ::loadMatchHistory,
 
                     leaveRoom =
                         ::leaveRoom,
@@ -1854,6 +1863,124 @@ class MainActivity :
         }
     }
 
+    private fun loadMatchHistory(
+        onResult:
+            (
+                LoadMatchHistoryResult,
+            ) -> Unit,
+    ) {
+        val apiBaseUrl =
+            BuildConfig
+                .ATOUTIA_API_BASE_URL
+
+        if (
+            apiBaseUrl.isBlank()
+        ) {
+            onResult(
+                LoadMatchHistoryResult.Failed(
+                    message =
+                        "Le backend Atoutia n’est pas configuré.",
+                ),
+            )
+
+            return
+        }
+
+        lifecycleScope.launch {
+            val result =
+                withContext(
+                    Dispatchers.IO,
+                ) {
+                    val tokenStore =
+                        AndroidSecureAuthTokenStore(
+                            applicationContext,
+                        )
+
+                    try {
+                        val sessionApi =
+                            HttpAuthSessionApi(
+                                apiBaseUrl,
+                            )
+
+                        val authSessionCoordinator =
+                            AuthSessionCoordinator(
+                                tokenStore =
+                                    tokenStore,
+
+                                sessionApi =
+                                    sessionApi,
+                            )
+
+                        val historyApi =
+                            HttpAtoutiaMatchHistoryApi(
+                                apiBaseUrl,
+                            )
+
+                        val historyCoordinator =
+                            MatchHistoryCoordinator(
+                                historyApi =
+                                    historyApi,
+
+                                accessTokenProvider =
+                                    authSessionCoordinator::accessTokenOrRefresh,
+                            )
+
+                        LoadMatchHistoryResult.Loaded(
+                            history =
+                                historyCoordinator
+                                    .load(),
+                        )
+                    } catch (
+                        error:
+                            AtoutiaMatchHistoryApiException,
+                    ) {
+                        if (
+                            error.statusCode ==
+                                401 ||
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            LoadMatchHistoryResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            LoadMatchHistoryResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de charger l’historique Atoutia.",
+                            )
+                        }
+                    } catch (
+                        error:
+                            Exception,
+                    ) {
+                        if (
+                            !sessionStillAvailable(
+                                tokenStore,
+                            )
+                        ) {
+                            LoadMatchHistoryResult.SessionExpired(
+                                message =
+                                    "Ta session Atoutia a expiré. Reconnecte-toi.",
+                            )
+                        } else {
+                            LoadMatchHistoryResult.Failed(
+                                message =
+                                    error.message
+                                        ?: "Impossible de charger l’historique Atoutia.",
+                            )
+                        }
+                    }
+                }
+
+            onResult(
+                result,
+            )
+        }
+    }
+
     private fun leaveRoom(
         membership:
             RoomSessionMembership,
@@ -2192,6 +2319,23 @@ sealed interface SubmitPlayCardResult {
     ) : SubmitPlayCardResult
 }
 
+sealed interface LoadMatchHistoryResult {
+    data class Loaded(
+        val history:
+            MatchHistoryResponse,
+    ) : LoadMatchHistoryResult
+
+    data class SessionExpired(
+        val message:
+            String,
+    ) : LoadMatchHistoryResult
+
+    data class Failed(
+        val message:
+            String,
+    ) : LoadMatchHistoryResult
+}
+
 sealed interface LeaveRoomResult {
     data object Left :
         LeaveRoomResult
@@ -2212,6 +2356,9 @@ sealed interface AuthenticatedDestination {
         AuthenticatedDestination
 
     data object Play :
+        AuthenticatedDestination
+
+    data object History :
         AuthenticatedDestination
 
     data class Lobby(
@@ -2300,6 +2447,13 @@ private fun AtoutiaApp(
         (
             (
                 SignOutResult,
+            ) -> Unit,
+        ) -> Unit,
+
+    loadMatchHistory:
+        (
+            (
+                LoadMatchHistoryResult,
             ) -> Unit,
         ) -> Unit,
 
@@ -2418,6 +2572,15 @@ private fun AtoutiaApp(
             )
         }
 
+    var matchHistoryState by
+        remember {
+            mutableStateOf<
+                MatchHistoryUiState
+            >(
+                MatchHistoryUiState.Loading,
+            )
+        }
+
     var destination by
         remember {
             mutableStateOf<
@@ -2487,6 +2650,71 @@ private fun AtoutiaApp(
                 null,
             )
         }
+
+    fun requestMatchHistory() {
+        matchHistoryState =
+            MatchHistoryUiState.Loading
+
+        loadMatchHistory {
+            result ->
+            when (
+                result
+            ) {
+                is LoadMatchHistoryResult.Loaded -> {
+                    matchHistoryState =
+                        MatchHistoryUiState.Loaded(
+                            entries =
+                                result
+                                    .history
+                                    .entries,
+                        )
+                }
+
+                is LoadMatchHistoryResult.SessionExpired -> {
+                    authState =
+                        AuthStartupState.SignedOut
+
+                    destination =
+                        AuthenticatedDestination.Home
+
+                    matchHistoryState =
+                        MatchHistoryUiState.Loading
+
+                    roomActionState =
+                        RoomActionUiState.Idle
+
+                    leaveState =
+                        RoomLobbyLeaveUiState.Idle
+
+                    startState =
+                        RoomLobbyStartUiState.Idle
+
+                    gameBiddingState =
+                        GameBiddingUiState.Idle
+
+                    gamePlayCardState =
+                        GamePlayCardUiState.Idle
+
+                    joinSessionId =
+                        ""
+
+                    googleSignInState =
+                        GoogleSignInUiState.Idle
+
+                    notice =
+                        result.message
+                }
+
+                is LoadMatchHistoryResult.Failed -> {
+                    matchHistoryState =
+                        MatchHistoryUiState.Failed(
+                            message =
+                                result.message,
+                        )
+                }
+            }
+        }
+    }
 
     fun applyAuthenticatedState(
         authenticatedState:
@@ -2663,7 +2891,12 @@ private fun AtoutiaApp(
 
                                 HomeAction.History -> {
                                     notice =
-                                        "L’historique des parties arrive prochainement."
+                                        null
+
+                                    destination =
+                                        AuthenticatedDestination.History
+
+                                    requestMatchHistory()
                                 }
 
                                 HomeAction.Settings -> {
@@ -2722,6 +2955,28 @@ private fun AtoutiaApp(
                                     }
                                 }
                             }
+                        },
+                    )
+                }
+
+                AuthenticatedDestination.History -> {
+                    MatchHistoryScreen(
+                        state =
+                            matchHistoryState,
+
+                        onRetry = {
+                            requestMatchHistory()
+                        },
+
+                        onBack = {
+                            matchHistoryState =
+                                MatchHistoryUiState.Loading
+
+                            notice =
+                                null
+
+                            destination =
+                                AuthenticatedDestination.Home
                         },
                     )
                 }
