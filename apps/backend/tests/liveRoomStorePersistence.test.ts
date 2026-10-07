@@ -713,5 +713,175 @@ describe(
         secondRepository.close();
       },
     );
+    it(
+      "refuses to delete an active persisted room",
+      async () => {
+        const databasePath =
+          await createDatabasePath();
+
+        const repository =
+          new SQLiteLiveRoomRepository({
+            databasePath,
+          });
+
+        const store =
+          new LiveRoomStore({
+            repository,
+          });
+
+        const room =
+          store.create({
+            mode:
+              "CASUAL",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        expect(
+          () =>
+            store.deleteCompleted(
+              sessionId,
+            ),
+        ).toThrow(
+          `Cannot delete active live room: ${sessionId}`,
+        );
+
+        expect(
+          store.count(),
+        ).toBe(
+          1,
+        );
+
+        expect(
+          store.get(
+            sessionId,
+          ),
+        ).toBeDefined();
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toBeDefined();
+
+        repository.close();
+      },
+    );
+
+    it(
+      "deletes a completed room from memory and persistence",
+      async () => {
+        const databasePath =
+          await createDatabasePath();
+
+        const repository =
+          new SQLiteLiveRoomRepository({
+            databasePath,
+          });
+
+        const store =
+          new LiveRoomStore({
+            repository,
+          });
+
+        const room =
+          store.create({
+            mode:
+              "RANKED",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        claimAllSeats(
+          store,
+          sessionId,
+          "completed",
+        );
+
+        store.start({
+          sessionId,
+
+          expectedRevision:
+            4,
+        });
+
+        store.forfeitForPlayerAbsence({
+          sessionId,
+
+          player:
+            "PLAYER_0",
+
+          completedAtMs:
+            777_000,
+        });
+
+        expect(
+          store.getAdjudication(
+            sessionId,
+          ).status,
+        ).toBe(
+          "COMPLETED",
+        );
+
+        expect(
+          store.count(),
+        ).toBe(
+          1,
+        );
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toBeDefined();
+
+        expect(
+          store.deleteCompleted(
+            sessionId,
+          ),
+        ).toBe(
+          true,
+        );
+
+        expect(
+          store.count(),
+        ).toBe(
+          0,
+        );
+
+        expect(
+          store.get(
+            sessionId,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          repository.listSessionIds(),
+        ).not.toContain(
+          sessionId,
+        );
+
+        expect(
+          store.deleteCompleted(
+            sessionId,
+          ),
+        ).toBe(
+          false,
+        );
+
+        repository.close();
+      },
+    );
+
   },
 );

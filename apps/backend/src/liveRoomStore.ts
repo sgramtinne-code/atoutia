@@ -1205,6 +1205,68 @@ export class LiveRoomStore {
     return this.#rooms.size;
   }
 
+  public deleteCompleted(
+    sessionId:
+      string,
+  ): boolean {
+    const room =
+      this.#rooms.get(
+        sessionId,
+      )
+
+    if (
+      room ===
+        undefined
+    ) {
+      return false
+    }
+
+    const adjudication =
+      this.getAdjudication(
+        sessionId,
+      )
+
+    if (
+      adjudication.status !==
+        "COMPLETED"
+    ) {
+      throw new Error(
+        `Cannot delete active live room: ${sessionId}`,
+      )
+    }
+
+    if (
+      this.#repository !==
+        undefined
+    ) {
+      this.#repository.delete(
+        sessionId,
+      )
+    }
+
+    this.#rooms.delete(
+      sessionId,
+    )
+
+    this.#modes.delete(
+      sessionId,
+    )
+
+    this.#adjudications.delete(
+      sessionId,
+    )
+
+    this.#absenceResolutions.delete(
+      sessionId,
+    )
+
+    this.#seatControls.delete(
+      sessionId,
+    )
+
+    return true
+  }
+
   #hydrateFromRepository():
     void {
     if (

@@ -19,6 +19,10 @@ import {
 } from "./botCycleScheduler.js";
 
 import {
+  cleanupCompletedLiveRooms,
+} from "./completedLiveRoomCleanup.js";
+
+import {
   loadBackendConfig,
 } from "./config.js";
 
@@ -141,9 +145,40 @@ const matchResultRecorder =
       },
   });
 
+const startupSessionIds =
+  roomRepository.listSessionIds();
+
 matchResultRecorder.reconcile(
-  roomRepository.listSessionIds(),
+  startupSessionIds,
 );
+
+const completedRoomCleanup =
+  cleanupCompletedLiveRooms({
+    roomStore,
+
+    matchResultRepository,
+
+    sessionIds:
+      startupSessionIds,
+  });
+
+if (
+  completedRoomCleanup.deleted >
+    0 ||
+  completedRoomCleanup
+    .skippedWithoutMatchResult >
+    0
+) {
+  console.log(
+    [
+      "Atoutia completed live-room cleanup:",
+      `${completedRoomCleanup.deleted} deleted,`,
+      `${completedRoomCleanup.skippedWithoutMatchResult} retained without match result.`,
+    ].join(
+      " ",
+    ),
+  );
+}
 
 const botCycleScheduler =
   createBotCycleScheduler({
