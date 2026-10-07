@@ -23,6 +23,10 @@ import {
 } from "../src/liveRoomStore.js";
 
 import {
+  createLiveRoomPersistenceDocument,
+} from "../src/liveRoomPersistenceDocument.js";
+
+import {
   SQLiteLiveRoomRepository,
 } from "../src/sqliteLiveRoomRepository.js";
 
@@ -878,6 +882,349 @@ describe(
         ).toBe(
           false,
         );
+
+        repository.close();
+      },
+    );
+
+    it(
+      "persists creation activity timestamps",
+      async () => {
+        const databasePath =
+          await createDatabasePath();
+
+        const repository =
+          new SQLiteLiveRoomRepository({
+            databasePath,
+          });
+
+        const nowMs =
+          100_000;
+
+        const store =
+          new LiveRoomStore({
+            repository,
+
+            activityNow:
+              () =>
+                nowMs,
+          });
+
+        const room =
+          store.create({
+            mode:
+              "PRIVATE",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        expect(
+          store.getActivityTimestamps(
+            sessionId,
+          ),
+        ).toEqual({
+          createdAtMs:
+            nowMs,
+
+          lastActivityAtMs:
+            nowMs,
+        });
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toMatchObject({
+          createdAtMs:
+            nowMs,
+
+          lastActivityAtMs:
+            nowMs,
+        });
+
+        repository.close();
+      },
+    );
+
+    it(
+      "updates last activity timestamp after a room mutation",
+      async () => {
+        const databasePath =
+          await createDatabasePath();
+
+        const repository =
+          new SQLiteLiveRoomRepository({
+            databasePath,
+          });
+
+        let nowMs =
+          200_000;
+
+        const store =
+          new LiveRoomStore({
+            repository,
+
+            activityNow:
+              () =>
+                nowMs,
+          });
+
+        const room =
+          store.create({
+            mode:
+              "PRIVATE",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        nowMs =
+          205_000;
+
+        store.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            0,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "activity-player-0",
+        });
+
+        expect(
+          store.getActivityTimestamps(
+            sessionId,
+          ),
+        ).toEqual({
+          createdAtMs:
+            200_000,
+
+          lastActivityAtMs:
+            205_000,
+        });
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toMatchObject({
+          createdAtMs:
+            200_000,
+
+          lastActivityAtMs:
+            205_000,
+        });
+
+        repository.close();
+      },
+    );
+
+    it(
+      "preserves creation timestamp across multiple mutations",
+      async () => {
+        const databasePath =
+          await createDatabasePath();
+
+        const repository =
+          new SQLiteLiveRoomRepository({
+            databasePath,
+          });
+
+        let nowMs =
+          300_000;
+
+        const store =
+          new LiveRoomStore({
+            repository,
+
+            activityNow:
+              () =>
+                nowMs,
+          });
+
+        const room =
+          store.create({
+            mode:
+              "PRIVATE",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        nowMs =
+          310_000;
+
+        store.claimSeat({
+          sessionId,
+
+          expectedRevision:
+            0,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "persistent-created-at-player",
+        });
+
+        nowMs =
+          320_000;
+
+        store.releaseSeat({
+          sessionId,
+
+          expectedRevision:
+            1,
+
+          player:
+            "PLAYER_0",
+
+          participantId:
+            "persistent-created-at-player",
+        });
+
+        expect(
+          store.getActivityTimestamps(
+            sessionId,
+          ),
+        ).toEqual({
+          createdAtMs:
+            300_000,
+
+          lastActivityAtMs:
+            320_000,
+        });
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toMatchObject({
+          createdAtMs:
+            300_000,
+
+          lastActivityAtMs:
+            320_000,
+        });
+
+        repository.close();
+      },
+    );
+
+    it(
+      "migrates legacy null activity timestamps without expiring the room",
+      async () => {
+        const databasePath =
+          await createDatabasePath();
+
+        const repository =
+          new SQLiteLiveRoomRepository({
+            databasePath,
+          });
+
+        const sourceStore =
+          new LiveRoomStore({
+            activityNow:
+              () =>
+                400_000,
+          });
+
+        const room =
+          sourceStore.create({
+            mode:
+              "PRIVATE",
+          });
+
+        const sessionId =
+          room.managedRoom.room.session
+            .sessionId;
+
+        repository.save(
+          createLiveRoomPersistenceDocument({
+            room,
+
+            mode:
+              sourceStore.requireMode(
+                sessionId,
+              ),
+
+            adjudication:
+              sourceStore.getAdjudication(
+                sessionId,
+              ),
+
+            absenceResolutions:
+              sourceStore.listAbsenceResolutions(
+                sessionId,
+              ),
+
+            seatControls:
+              sourceStore.listSeatControls(
+                sessionId,
+              ),
+
+            createdAtMs:
+              null,
+
+            lastActivityAtMs:
+              null,
+          }),
+        );
+
+        const migrationNowMs =
+          500_000;
+
+        const migratedStore =
+          new LiveRoomStore({
+            repository,
+
+            activityNow:
+              () =>
+                migrationNowMs,
+          });
+
+        expect(
+          migratedStore.count(),
+        ).toBe(
+          1,
+        );
+
+        expect(
+          migratedStore.get(
+            sessionId,
+          ),
+        ).toBeDefined();
+
+        expect(
+          migratedStore.getActivityTimestamps(
+            sessionId,
+          ),
+        ).toEqual({
+          createdAtMs:
+            migrationNowMs,
+
+          lastActivityAtMs:
+            migrationNowMs,
+        });
+
+        expect(
+          repository.get(
+            sessionId,
+          ),
+        ).toMatchObject({
+          createdAtMs:
+            migrationNowMs,
+
+          lastActivityAtMs:
+            migrationNowMs,
+        });
 
         repository.close();
       },

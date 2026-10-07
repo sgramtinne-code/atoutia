@@ -250,6 +250,135 @@ describe(
     );
 
     it(
+      "parses a legacy document without activity timestamps",
+      () => {
+        const document =
+          createDocument();
+
+        const raw =
+          JSON.parse(
+            serializeLiveRoomPersistenceDocument(
+              document,
+            ),
+          ) as Record<
+            string,
+            unknown
+          >;
+
+        delete raw.createdAtMs;
+        delete raw.lastActivityAtMs;
+
+        const parsed =
+          parseLiveRoomPersistenceDocument(
+            JSON.stringify(
+              raw,
+            ),
+          );
+
+        expect(
+          parsed.createdAtMs,
+        ).toBeNull();
+
+        expect(
+          parsed.lastActivityAtMs,
+        ).toBeNull();
+      },
+    );
+
+    it(
+      "preserves valid activity timestamps",
+      () => {
+        const base =
+          createDocument();
+
+        const document =
+          createLiveRoomPersistenceDocument({
+            room:
+              base.room,
+
+            mode:
+              base.mode,
+
+            adjudication:
+              base.adjudication,
+
+            absenceResolutions:
+              base.absenceResolutions,
+
+            seatControls:
+              base.seatControls,
+
+            createdAtMs:
+              1_000,
+
+            lastActivityAtMs:
+              2_500,
+          });
+
+        const parsed =
+          parseLiveRoomPersistenceDocument(
+            serializeLiveRoomPersistenceDocument(
+              document,
+            ),
+          );
+
+        expect(
+          parsed.createdAtMs,
+        ).toBe(
+          1_000,
+        );
+
+        expect(
+          parsed.lastActivityAtMs,
+        ).toBe(
+          2_500,
+        );
+
+        expect(
+          parsed,
+        ).toEqual(
+          document,
+        );
+      },
+    );
+
+    it(
+      "rejects activity timestamps where last activity precedes creation",
+      () => {
+        const base =
+          createDocument();
+
+        expect(
+          () =>
+            createLiveRoomPersistenceDocument({
+              room:
+                base.room,
+
+              mode:
+                base.mode,
+
+              adjudication:
+                base.adjudication,
+
+              absenceResolutions:
+                base.absenceResolutions,
+
+              seatControls:
+                base.seatControls,
+
+              createdAtMs:
+                5_000,
+
+              lastActivityAtMs:
+                4_999,
+            }),
+        ).toThrow(
+          "Persisted live room lastActivityAtMs cannot be earlier than createdAtMs.",
+        );
+      },
+    );
+
+    it(
       "returns frozen document arrays",
       () => {
         const document =

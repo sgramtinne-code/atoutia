@@ -103,8 +103,19 @@ export interface LiveRoomStoreOptions {
   readonly now?:
     () => number;
 
+  readonly activityNow?:
+    () => number;
+
   readonly repository?:
     LiveRoomRepository;
+}
+
+export interface LiveRoomActivityTimestamps {
+  readonly createdAtMs:
+    number;
+
+  readonly lastActivityAtMs:
+    number;
 }
 
 export interface CreateLiveRoomOptions {
@@ -358,6 +369,12 @@ export class LiveRoomStore {
       >
     >();
 
+  readonly #activityTimestamps =
+    new Map<
+      string,
+      LiveRoomActivityTimestamps
+    >();
+
   readonly #listeners =
     new Set<
       LiveRoomStoreListener
@@ -371,6 +388,9 @@ export class LiveRoomStore {
   readonly #now:
     () => number;
 
+  readonly #activityNow:
+    () => number;
+
   readonly #repository:
     | LiveRoomRepository
     | undefined;
@@ -381,6 +401,10 @@ export class LiveRoomStore {
   ) {
     this.#now =
       options.now ??
+      Date.now;
+
+    this.#activityNow =
+      options.activityNow ??
       Date.now;
 
     this.#repository =
@@ -412,6 +436,9 @@ export class LiveRoomStore {
     const mode =
       options.mode ??
       "CASUAL";
+
+    const createdAtMs =
+      this.#activityNow();
 
     this.#rooms.set(
       sessionId,
@@ -459,8 +486,19 @@ export class LiveRoomStore {
       seatControls,
     );
 
+    this.#activityTimestamps.set(
+      sessionId,
+      Object.freeze({
+        createdAtMs,
+
+        lastActivityAtMs:
+          createdAtMs,
+      }),
+    );
+
     this.#persistSession(
       sessionId,
+      false,
     );
 
     return room;
@@ -484,6 +522,19 @@ export class LiveRoomStore {
     | MatchMode
     | undefined {
     return this.#modes.get(
+      sessionId,
+    );
+  }
+
+  public getActivityTimestamps(
+    sessionId:
+      string,
+  ): LiveRoomActivityTimestamps {
+    this.#requireRoom(
+      sessionId,
+    );
+
+    return this.#requireActivityTimestamps(
       sessionId,
     );
   }
@@ -1264,6 +1315,10 @@ export class LiveRoomStore {
       sessionId,
     )
 
+    this.#activityTimestamps.delete(
+      sessionId,
+    )
+
     return true
   }
 
@@ -1351,16 +1406,79 @@ export class LiveRoomStore {
         sessionId,
         controls,
       );
+
+      const legacyActivity =
+        document.createdAtMs ===
+          null;
+
+      const createdAtMs =
+        document.createdAtMs ??
+        this.#activityNow();
+
+      const lastActivityAtMs =
+        document.lastActivityAtMs ??
+        createdAtMs;
+
+      this.#activityTimestamps.set(
+        sessionId,
+        Object.freeze({
+          createdAtMs,
+
+          lastActivityAtMs,
+        }),
+      );
+
+      if (
+        legacyActivity
+      ) {
+        this.#persistSession(
+          sessionId,
+          false,
+        );
+      }
     }
   }
 
   #persistSession(
     sessionId:
       string,
+
+    updateLastActivity:
+      boolean =
+        true,
   ): void {
+    const currentActivity =
+      this.#requireActivityTimestamps(
+        sessionId,
+      );
+
+    const activity =
+      updateLastActivity
+        ? Object.freeze({
+            createdAtMs:
+              currentActivity.createdAtMs,
+
+            lastActivityAtMs:
+              Math.max(
+                currentActivity.lastActivityAtMs,
+                this.#activityNow(),
+              ),
+          })
+        : currentActivity;
+
+    if (
+      activity !==
+        currentActivity
+    ) {
+      this.#activityTimestamps.set(
+        sessionId,
+        activity,
+      );
+    }
+
     if (
       this.#repository ===
-      undefined
+        undefined
     ) {
       return;
     }
@@ -1391,6 +1509,12 @@ export class LiveRoomStore {
           this.listSeatControls(
             sessionId,
           ),
+
+        createdAtMs:
+          activity.createdAtMs,
+
+        lastActivityAtMs:
+          activity.lastActivityAtMs,
       });
 
     this.#repository.save(
@@ -1523,6 +1647,27 @@ export class LiveRoomStore {
         sessionId,
       );
     }
+  }
+
+  #requireActivityTimestamps(
+    sessionId:
+      string,
+  ): LiveRoomActivityTimestamps {
+    const activity =
+      this.#activityTimestamps.get(
+        sessionId,
+      );
+
+    if (
+      activity ===
+        undefined
+    ) {
+      throw new Error(
+        `Live room activity timestamps not found: ${sessionId}`,
+      );
+    }
+
+    return activity;
   }
 
   #requireAbsenceResolutionMap(

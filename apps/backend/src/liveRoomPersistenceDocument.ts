@@ -44,6 +44,12 @@ export interface LiveRoomPersistenceDocument {
 
   readonly seatControls:
     readonly LiveRoomSeatControl[];
+
+  readonly createdAtMs:
+    number | null;
+
+  readonly lastActivityAtMs:
+    number | null;
 }
 
 export interface CreateLiveRoomPersistenceDocumentOptions {
@@ -61,6 +67,12 @@ export interface CreateLiveRoomPersistenceDocumentOptions {
 
   readonly seatControls:
     readonly LiveRoomSeatControl[];
+
+  readonly createdAtMs?:
+    number | null;
+
+  readonly lastActivityAtMs?:
+    number | null;
 }
 
 function assertValidSessionId(
@@ -129,6 +141,73 @@ function assertValidSeatControls(
   }
 }
 
+function assertValidActivityTimestamp(
+  value:
+    number | null,
+
+  name:
+    string,
+): void {
+  if (
+    value !==
+      null &&
+    (
+      !Number.isSafeInteger(
+        value,
+      ) ||
+      value <
+        0
+    )
+  ) {
+    throw new Error(
+      `Persisted live room ${name} must be a non-negative safe integer or null.`,
+    );
+  }
+}
+
+function assertValidActivityTimestamps(
+  document:
+    LiveRoomPersistenceDocument,
+): void {
+  assertValidActivityTimestamp(
+    document.createdAtMs,
+    "createdAtMs",
+  );
+
+  assertValidActivityTimestamp(
+    document.lastActivityAtMs,
+    "lastActivityAtMs",
+  );
+
+  if (
+    (
+      document.createdAtMs ===
+        null
+    ) !==
+    (
+      document.lastActivityAtMs ===
+        null
+    )
+  ) {
+    throw new Error(
+      "Persisted live room activity timestamps must either both be present or both be null.",
+    );
+  }
+
+  if (
+    document.createdAtMs !==
+      null &&
+    document.lastActivityAtMs !==
+      null &&
+    document.lastActivityAtMs <
+      document.createdAtMs
+  ) {
+    throw new Error(
+      "Persisted live room lastActivityAtMs cannot be earlier than createdAtMs.",
+    );
+  }
+}
+
 function freezeDocument(
   document:
     LiveRoomPersistenceDocument,
@@ -181,6 +260,14 @@ export function createLiveRoomPersistenceDocument(
 
       seatControls:
         options.seatControls,
+
+      createdAtMs:
+        options.createdAtMs ??
+        null,
+
+      lastActivityAtMs:
+        options.lastActivityAtMs ??
+        null,
   };
 
   assertValidSessionId(
@@ -189,6 +276,10 @@ export function createLiveRoomPersistenceDocument(
 
   assertValidSeatControls(
     document.seatControls,
+  );
+
+  assertValidActivityTimestamps(
+    document,
   );
 
   return freezeDocument(
@@ -274,6 +365,39 @@ function parseSeatControl(
     controller:
       value.controller,
   });
+}
+
+function parseActivityTimestamp(
+  value:
+    unknown,
+
+  name:
+    string,
+): number | null {
+  if (
+    value ===
+      undefined ||
+    value ===
+      null
+  ) {
+    return null;
+  }
+
+  if (
+    typeof value !==
+      "number" ||
+    !Number.isSafeInteger(
+      value,
+    ) ||
+    value <
+      0
+  ) {
+    throw new Error(
+      `Persisted live room ${name} must be a non-negative safe integer or null.`,
+    );
+  }
+
+  return value;
 }
 
 export function parseLiveRoomPersistenceDocument(
@@ -388,6 +512,18 @@ export function parseLiveRoomPersistenceDocument(
       absenceResolutions,
 
       seatControls,
+
+      createdAtMs:
+        parseActivityTimestamp(
+          value.createdAtMs,
+          "createdAtMs",
+        ),
+
+      lastActivityAtMs:
+        parseActivityTimestamp(
+          value.lastActivityAtMs,
+          "lastActivityAtMs",
+        ),
   };
 
   assertValidSessionId(
@@ -396,6 +532,10 @@ export function parseLiveRoomPersistenceDocument(
 
   assertValidSeatControls(
     document.seatControls,
+  );
+
+  assertValidActivityTimestamps(
+    document,
   );
 
   return freezeDocument(
