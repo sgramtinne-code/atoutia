@@ -40,7 +40,7 @@ jobs:
             apps/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Install required Android SDK packages
-        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "build-tools;36.0.0"'
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;36.0.0"'
 
       - name: Run Kotlin unit tests
         run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
