@@ -25,10 +25,15 @@ class AtoutiaGameRealtimeClient(
         String,
 
     private val webSocketClient:
-        OkHttpClient =
+        WebSocket.Factory =
         OkHttpClient
             .Builder()
             .build(),
+    private val executorFactory: () -> ScheduledExecutorService = {
+        Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "atoutia-game-realtime").apply { isDaemon = true }
+        }
+    },
 ) {
     private val normalizedBaseUrl =
         normalizeBaseUrl(
@@ -84,6 +89,7 @@ class AtoutiaGameRealtimeClient(
         }
 
         return RealtimeSubscription(
+            executor = executorFactory(),
             webSocketClient =
                 webSocketClient,
 
@@ -114,8 +120,9 @@ class AtoutiaGameRealtimeClient(
     }
 
     private class RealtimeSubscription(
+        private val executor: ScheduledExecutorService,
         private val webSocketClient:
-            OkHttpClient,
+            WebSocket.Factory,
 
         private val webSocketUrl:
             String,
@@ -153,20 +160,6 @@ class AtoutiaGameRealtimeClient(
             AtomicBoolean(
                 false,
             )
-
-        private val executor:
-            ScheduledExecutorService =
-            Executors
-                .newSingleThreadScheduledExecutor {
-                    runnable ->
-                    Thread(
-                        runnable,
-                        "atoutia-game-realtime",
-                    ).apply {
-                        isDaemon =
-                            true
-                    }
-                }
 
         private var webSocket:
             WebSocket? =

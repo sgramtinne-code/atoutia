@@ -15,8 +15,11 @@ class AtoutiaRealtimeClient(
     baseUrl: String,
     private val parser: RealtimeMessageParser =
         RealtimeMessageParser(),
-    private val httpClient: OkHttpClient =
+    private val httpClient: WebSocket.Factory =
         OkHttpClient(),
+    private val schedulerFactory: () -> ScheduledExecutorService = {
+        Executors.newSingleThreadScheduledExecutor()
+    },
 ) : AtoutiaRealtimeApi {
     private val webSocketBaseUrl =
         normalizeWebSocketBaseUrl(
@@ -49,9 +52,7 @@ class AtoutiaRealtimeClient(
                 )
                 .build()
 
-        val scheduler =
-            Executors
-                .newSingleThreadScheduledExecutor()
+        val scheduler = schedulerFactory()
 
         val socketListener =
             SocketListener(

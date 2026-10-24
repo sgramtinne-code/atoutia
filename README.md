@@ -365,3 +365,7 @@ Les validations nécessaires à cette livraison sont reçues : **192 tests JVM A
 Code Kotlin : `46163ef`. Support du lanceur : `09cee69`, tests intégrés dans `6669443`. Dernier point de contrôle avant clôture documentaire : `4701e96`, runs moteur/backend `40105927418` et Android `40105927594` réussis. Vérifier les contrôles du dernier commit documentaire puis l’intégration de la PR nº 7 ; après fusion, récupérer main. Aucune nouvelle validation WSL de ce code inchangé n’est nécessaire.
 
 La prochaine étape est une revue séparée du cycle de vie WebSocket puis des points UI et de sauvegarde déjà documentés. La release n’est pas prête pour production et les avertissements lint restent visibles. Les instructions historiques « en attente » ci-dessus décrivent les étapes précédentes ; la présente clôture définit l’état courant.
+
+## Revue WebSocket Android en cours
+
+Main `82b0937` et la PR nº 7 sont intégrés et récupérés par le développeur. La branche `fix/android-websocket-lifecycle` ajoute 17 tests déterministes de fermeture/heartbeat : ordonnanceur arrêté, callbacks tardifs, fermeture pendant obtention du token/création du socket et acknowledge concurrent. Les dépendances WebSocket/ordonnanceur sont injectables sans changer leur comportement par défaut à cette première étape. Les tests sont ajoutés avant correction ; leurs résultats restent à obtenir. Voir [le suivi WebSocket](docs/ANDROID_WEBSOCKETS.md).
