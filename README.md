@@ -502,3 +502,12 @@ Premier démarrage Android UI CI sur `478948b` : échec de démarrage AVD avant 
 
 
 Le journal CI `40126231565` / job `120969283848` identifie l’échec de démarrage : **Unknown AVD name**, le créateur et l’émulateur ne retrouvent pas le même répertoire par défaut. Ce n’est pas un échec des quatre fixtures, qui ont été ignorées. Le workflow fixe désormais ANDROID_USER_HOME et ANDROID_AVD_HOME dans le dossier temporaire du runner pour les deux outils, vérifie le fichier ini et liste l’AVD avant démarrage. Il détecte aussi l’arrêt du processus immédiatement, borne le boot et l’instrumentation, et laisse l’annulation interrompre le diagnostic. Les fixtures et la géométrie restent inchangées pour obtenir la reproduction initiale. CI Kotlin `40126231523` : 209 JVM, deux APK, lint réussi (12 avertissements et une suggestion) ; moteur/backend `40126231537` réussi.
+
+
+## Cause paysage reproduite et correction du seuil
+
+La CI UI isolée sur **`9a2b367`**, run **`40126996955`**, job **`120970453257`**, démarre réellement son AVD, construit/installe les deux APK puis reproduit **un test réussi/trois échecs**, comme le PC. Les diagnostics indiquent `landscape=0 stacked=1` dans la zone 640 × 320 dp ; les marges système réduisent le contenu à environ 588 × 268 dp. Le seuil 600 dp évalué après padding choisissait la disposition empilée : la main démarrait vers 699 dp, et plus bas encore aux enchères, hors des 320 dp visibles. Ce résultat est synthétique et ne contient aucune donnée de partie réelle.
+
+Correction : évaluer la largeur et le rapport largeur/hauteur sur les bornes allouées à GameScreen **avant** les marges, puis appliquer innerPadding à chacune des dispositions. Les barres système gardent leur espace et la main reste hors du défilement ; aucun seuil supprimé ni assertion affaiblie. La règle de test passe à l’import officiel `junit4.v2.createAndroidComposeRule` pour retirer l’avertissement de dépréciation, sans changer les quatre scénarios. La CI doit maintenant démontrer quatre réussites sur le correctif, puis le PC confirmer le rendu réel ciblé avant fusion de la PR nº 9. Les acquis des PR nº 7/8 et la vraie base ne sont pas concernés.
+
+Sur le jalon de reproduction `9a2b367`, Kotlin CI `40126996950` et moteur/backend `40126996996` réussissent. Le job UI est volontairement rouge sur les assertions réelles ; sa compilation et son démarrage AVD réussissent. Les premières tentatives CI échouaient avant les fixtures sur un chemin AVD divergent ; `9a2b367` fixe ce chemin et les attentes bornées. Ne pas confondre ces deux causes.
