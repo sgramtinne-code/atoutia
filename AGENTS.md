@@ -85,3 +85,5 @@ Test réel par défaut : un client Android tenu par le développeur en `PLAYER_0
 ## Revue Android en cours
 
 La branche `fix/android-shared-auth-session`, issue de `main` `5e267e3`, examine le client Kotlin. Les validations moteur/backend ne prouvent pas une validation Android. Le workflow `.github/workflows/android.yml` prépare compilation debug, compilation des tests instrumentés, tests JVM et lint ; vérifier ses résultats réels avant de les annoncer réussis. Les tests instrumentés ne sont pas exécutés par ce job. La PR reste en brouillon jusqu’aux validations nécessaires.
+
+La coordination Android des tokens doit utiliser `AuthTokenStore.sessionLock` pour toute transaction lecture/réseau/écriture ; les stockages Android d’un même processus exposent le même moniteur. Ne pas réintroduire de verrou par coordinateur pour refresh/logout/Google. Reproduction JVM réelle avant correction : run `40087526338`, commit `2e707ad`, 192 tests dont les trois nouveaux tests de concurrence en échec (les 189 autres réussis). Correctif et nouvelle CI en cours ; voir `docs/ANDROID_REVIEW.md`.

@@ -7,11 +7,10 @@ class GoogleAuthCoordinator(
     private val tokenStore:
         AuthTokenStore,
 ) {
-    @Synchronized
     fun authenticate(
         idToken:
             String,
-    ): GoogleAuthResult {
+    ): GoogleAuthResult = synchronized(tokenStore.sessionLock) {
         val result =
             googleAuthApi.authenticate(
                 idToken,
@@ -21,6 +20,6 @@ class GoogleAuthCoordinator(
             result.session,
         )
 
-        return result
+        result
     }
 }

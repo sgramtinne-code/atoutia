@@ -45,7 +45,7 @@ class AuthSessionConcurrencyTest {
             googleAuthApi = object : GoogleAuthApi {
                 override fun authenticate(idToken: String) = GoogleAuthResult(signedIn, false)
             },
-            tokenStore = fixture.store,
+            tokenStore = fixture.separateStore(),
         )
 
         fixture.duringRefresh { google.authenticate("synthetic-google-id-token") }
@@ -70,7 +70,12 @@ class AuthSessionConcurrencyTest {
         )
         val api = BlockingSessionApi(rotated)
 
-        fun coordinator() = AuthSessionCoordinator(store, api) { 10_000L }
+        // Like Android, independent store objects refer to one persisted session.
+        fun separateStore(): AuthTokenStore = object : AuthTokenStore by store {
+            override val sessionLock: Any = store.sessionLock
+        }
+
+        fun coordinator() = AuthSessionCoordinator(separateStore(), api) { 10_000L }
 
         fun <T> duringRefresh(operation: () -> T): T {
             val first = FutureTask<String?> { coordinator().accessTokenOrRefresh() }
