@@ -26,6 +26,10 @@ La PR documentaire nº 1 a été fusionnée le 24 octobre 2026 : `main` a été 
 
 La [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche **`feat/live-room-expiration-dry-run`**, est fusionnée dans `deea680a45b9942d624f970d19c2c9e9218e8f2b`. Ce `main` a aussi été récupéré sur le PC du développeur. La PR documentaire nº 3 a ensuite été fusionnée dans `b79a114c0d7b161141720ffdc10d4b3448da9841`, également récupéré sur son PC. La validation WSL et le diagnostic d’une copie isolée ont été reçus et réussis. Vérifier le dernier `main` avant une reprise ; ne pas revenir à `db0d727` et ne pas recréer l’implémentation existante.
 
+La PR nº 5 (`audit:rooms`) a été fusionnée dans `abeff8011fbc6f61e5e6af8c9de13264e17760bd`, récupéré sur le PC. Le code applicatif `3eff899` est validé à distance et sous WSL : 74 tests ciblés, 583 moteur, 599 backend, typechecks/builds et scénarios CLI réussis.
+
+Travail actuel : branche **`ci/engine-backend-validation`**, depuis ce `main`, pour ajouter la première validation automatique GitHub moteur/backend. Le workflow `.github/workflows/ci.yml` est préparé et vérifié statiquement ; son exécution réelle reste à confirmer avant fusion. Ne pas redemander les anciens audits SQLite ni réimplémenter les commandes existantes.
+
 Lis d'abord ces documents, puis `docs/GAME_RULES.md` et `docs/RULES_VALIDATION.md`. La spécification canonique du dépôt est en version documentaire **0.1.2**, plus récente que le texte initial 0.1.0 joint à l'ancien chat. Elle définit notamment `PLAYER_0` à `PLAYER_3`, `TEAM_0` / `TEAM_1`, la prise en compte de la Belote dans le contrat et le traitement de deux litiges consécutifs. Ne remplace pas cette spécification par le document initial. Signale les contradictions sans réécrire silencieusement les règles.
 
 Le code, la spécification validée et les résultats réellement obtenus doivent guider le travail. Ce prompt ne prouve ni la présence de nouveaux commits, ni le fonctionnement actuel de mon backend, ni l'état actuel de ma base.
@@ -164,6 +168,16 @@ Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests cibl
 
 Validation WSL transmise par le développeur le 24 octobre 2026 pour le code applicatif `3eff899` : **74/74 tests ciblés**, **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis, `git diff --check` propre. Le scénario se termine avec `Synthetic aggregate room audit passed.`, `databaseUnchanged: true` et `Synthetic expiration preview passed.`. pnpm 12.3.4 est confirmé dans le journal. Cette exécution utilise des fixtures synthétiques, pas la vraie base ni Android.
 
+## 8 ter. Validation automatique GitHub en cours
+
+La branche `ci/engine-backend-validation` ajoute `.github/workflows/ci.yml` : workflow **Engine and backend CI**, job **Engine and backend**, sur PR, push dans `main` et déclenchement manuel. Runner Ubuntu 24.04, Node.js 24.22.1, pnpm issu du `packageManager` racine (12.3.4). Installation au lockfile, typechecks/tests/builds moteur puis backend, scénario CLI SQLite synthétique, vérification du diff du commit et absence de modifications suivies générées par les builds.
+
+Actions épinglées à des commits de releases officielles vérifiées le 24 octobre 2026 : checkout v7.0.1, setup-node v7.1.0, pnpm/action-setup v6.1.0 (support pnpm 12). Cache pnpm indexé sur le lockfile. Permissions `contents: read`, credentials Git non persistés, aucun secret applicatif ni déploiement. Les tests utilisent leurs données synthétiques et loopback ; aucun démarrage du backend de développement ou manipulation de la vraie base.
+
+Validation locale de configuration : YAML/triggers/permissions/SHA vérifiés et `actionlint` 1.7.12 réussi. Première exécution réelle GitHub encore attendue. Reprendre par la PR et ses runs Actions ; analyser les logs et corriger sur la branche si nécessaire. Fusionner seulement après réussite du contrôle réel sur le dernier commit. La CI n’active pas une protection de branche obligatoire et ne remplace pas Android/ADB quand ils sont nécessaires.
+
+La modification ne change pas le code applicatif validé. Aucun nouveau test WSL requis uniquement pour l’ajout de ce workflow si les commandes restent inchangées et les runs GitHub réussissent. Après fusion, donner la procédure complète pour récupérer `main` et vérifier le run de push.
+
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
 Ne me donne pas uniquement l'étape suivante : fournis le scénario complet adapté au changement, depuis la récupération de branche jusqu'à la validation, sans me renvoyer aux messages anciens.
@@ -187,6 +201,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Vérifie GitHub, le dernier `main` et la PR de `feat/read-only-room-audit-cli`. La première classification, les tests WSL et l’audit structurel réel sont déjà validés et clôturés. La nouvelle commande synthétique `audit:rooms`, code `3eff899`, est également validée à distance et sous WSL. Vérifier la fusion réelle de la PR nº 5, puis repartir du dernier `main` et poursuivre le prochain objectif demandé. Les commits documentaires suivants ne changent pas le code testé ; ne pas redemander ses tests ni un audit de la vraie base sans raison.
+Vérifie le dernier `main`, la branche et la PR de `ci/engine-backend-validation`. L’audit SQLite et `audit:rooms` sont déjà validés et intégrés par les PR nº 2 à 5. La reprise porte sur l’exécution réelle du workflow GitHub : retrouve ses runs, vérifie leurs commits et résultats, corrige les échecs si nécessaire et fusionne seulement quand les contrôles requis réussissent. Si le workflow est déjà intégré et vert, poursuivre le prochain objectif demandé.
 
-Ne recrée pas ce qui existe, ne redemande pas l’ancien audit réel et ne purge aucun salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.
+Ne recrée pas ce qui existe, ne redemande pas les anciens audits réels et ne purge aucun salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.
