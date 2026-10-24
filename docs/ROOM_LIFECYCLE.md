@@ -124,7 +124,7 @@ pnpm --filter @atoutia/backend preview:expiration
 
 Le rapport contient des identifiants de salons mais aucune main, seed, identité de participant ou token. Garder ce rapport local ou l'anonymiser avant transmission. Les messages d'erreur n'incluent pas le contenu des documents.
 
-Ne pas lancer de suppression ni choisir la base habituelle par habitude. La validation WSL du développeur, prérequis de fusion, a été reçue et réussie le 24 octobre 2026. Le premier diagnostic d’une copie de sa base réelle a également été transmis ; son audit structurel reste à compléter. Les résultats distants et les résultats historiques du 7 octobre doivent rester distincts.
+Ne pas lancer de suppression ni choisir la base habituelle par habitude. La validation WSL du développeur, prérequis de fusion, a été reçue et réussie le 24 octobre 2026. Le premier diagnostic d’une copie de sa base réelle a également été transmis ; son audit structurel a été reçu et clôt cette première étape en lecture seule. Les résultats distants et les résultats historiques du 7 octobre doivent rester distincts.
 
 
 ## Procédure de copie isolée, déjà exécutée
@@ -163,11 +163,13 @@ PYTHON
 La copie temporaire est conservée pour l’analyse locale et ne doit pas être publiée. Transmettre le résumé du diagnostic dans le chat privé, sans tokens ni mains. Ne pas en déduire que les salons occupés sont abandonnés ; leur présence reste inconnue hors ligne. Le premier résultat a été reçu ; ne le confondre ni avec les fixtures synthétiques ni avec l’état courant du serveur.
 
 
-## Observation reçue et audit restant
+## Observations reçues et première étape terminée
 
 Diagnostic sur copie isolée transmis le 24 octobre 2026 : le développeur a récupéré `main` `deea680`, construit le moteur/backend, créé un instantané par l’API de sauvegarde SQLite avec source en lecture seule, puis exécuté la CLI. Le journal se termine par « Copie inchangée après diagnostic. » : l’empreinte de la copie est identique avant/après. Le rapport contient des salons vides au-delà du seuil, des protections pour résolutions en attente et des présences inconnues. Les effectifs, identifiants et chemins temporaires restent dans le contexte privé. Aucun salon n’a été supprimé par ce diagnostic.
 
-Prochaine action : sur la même copie isolée, obtenir un résumé par mode, phase, nombre de places occupées et adjudication, puis les types de résolutions en attente et le nombre de résultats durables. Le premier rapport ne donne pas ces répartitions ni le décompte actuel des résultats ; ne pas reprendre les anciens inventaires comme preuve. Garder toutes les protections et ne pas lancer de suppression.
+Audit structurel reçu le 24 octobre 2026 après récupération de `main` `b79a114` : tous les salons de l’instantané sont PRIVATE avec adjudication ACTIVE ; les parties en cours ont leurs quatre places occupées et les salons en attente ont des places vides ou partiellement occupées. Les entrées d’absence en attente sont exclusivement `MANUAL_ONLY`, cohérentes avec ce mode. Le comptage de `match_results` a été obtenu sur la même copie et `snapshotUnchanged: true` est confirmé. Les effectifs précis, identifiants et chemins restent privés. Ce comptage ne constitue pas une validation du contenu de tous les résultats, des index d’historique ou de la présence actuelle.
+
+La première livraison de classification en lecture seule et son audit local sur copie sont terminés. Aucun contrôle supplémentaire n’est requis pour clôturer ce périmètre ; ne pas redemander ces audits sans changement, anomalie ou besoin d’un nouvel instantané. Prochaine action à la reprise : vérifier le dernier `main` et repartir de ce bilan pour le prochain objectif demandé. Une éventuelle suppression est une évolution distincte, à définir et autoriser explicitement ; aucune suppression, purge au démarrage ou levée des protections n’est livrée.
 
 Une résolution en attente persistée ne prouve pas que son handler s’exécute, que le joueur est absent ou que la place est occupée. La CLI retourne une raison principale ; d’autres protections peuvent coexister. Une empreinte de copie inchangée prouve sa conservation pendant l’observation ; elle ne constitue pas à elle seule un nouveau décompte des résultats durables ou une validation Android.
 
@@ -212,4 +214,4 @@ print(json.dumps(report, indent=2))
 AUDIT
 ```
 
-L’absence de la copie doit interrompre cette observation ; ne pas substituer silencieusement la base principale. Le nombre de lignes de `match_results` est un inventaire, pas un contrôle complet de validité des scores, des participants ou des index d’historique. Les résultats de cet audit sont encore attendus du développeur.
+L’absence de la copie doit interrompre cette observation ; ne pas substituer silencieusement la base principale. Le nombre de lignes de `match_results` est un inventaire, pas un contrôle complet de validité des scores, des participants ou des index d’historique. Les résultats de cet audit ont été reçus du développeur le 24 octobre 2026, avec `snapshotUnchanged: true`. La procédure est conservée comme référence ; elle n’est pas à réexécuter pour clôturer cette étape.
