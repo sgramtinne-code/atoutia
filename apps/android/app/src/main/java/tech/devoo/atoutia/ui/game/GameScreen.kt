@@ -412,7 +412,7 @@ fun GameScreen(
             val landscapeLayout = maxWidth > maxHeight && maxWidth >= 600.dp
             if (landscapeLayout) {
                 Column(
-                    Modifier.fillMaxSize().padding(8.dp),
+                    Modifier.fillMaxSize().padding(8.dp).testTag("game-landscape-layout"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(
@@ -461,7 +461,7 @@ fun GameScreen(
                     }
                 }
             } else {
-                Column(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize().testTag("game-stacked-layout")) {
                     Box(Modifier.padding(horizontal = 12.dp)) { returnHomeContent() }
                     Column(
                         Modifier.weight(1f).fillMaxWidth()

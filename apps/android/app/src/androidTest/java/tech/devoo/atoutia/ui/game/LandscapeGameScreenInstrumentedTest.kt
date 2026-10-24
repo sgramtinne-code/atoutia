@@ -15,6 +15,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -105,8 +108,19 @@ class LandscapeGameScreenInstrumentedTest {
     )
 
     private fun assertHandVisible(session: PlayerGameSession) {
-        compose.onNodeWithTag("player-hand").assertIsDisplayed()
         val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
+        val hand = compose.onNodeWithTag("player-hand")
+        try {
+            hand.assertIsDisplayed()
+        } catch (failure: AssertionError) {
+            val landscape = compose.onAllNodesWithTag("game-landscape-layout").fetchSemanticsNodes().size
+            val stacked = compose.onAllNodesWithTag("game-stacked-layout").fetchSemanticsNodes().size
+            throw AssertionError(
+                "viewport=$viewport hand=${hand.getUnclippedBoundsInRoot()} " +
+                    "landscape=$landscape stacked=$stacked\n" +
+                    compose.onRoot(useUnmergedTree = true).printToString(), failure,
+            )
+        }
         for (card in session.document.snapshot.match.hand) {
             val node = cardNode(card).assertIsDisplayed()
             val bounds = node.getUnclippedBoundsInRoot()
