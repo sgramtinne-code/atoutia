@@ -67,7 +67,7 @@ cd "$HOME/projects/atoutia"
 node apps/backend/scripts/dev-android-room.mjs
 ```
 
-Répondre **N pour PLAYER_0 automatique et N pour les PNJ**. Attendre ATTENTE DU NOUVEAU SALON, puis Jouer → Créer une partie. À la détection, le script s’arrête sans PNJ. Attendre « Temps réel : connecté », utiliser Quitter le salon ; créer un second salon, vérifier encore la connexion, puis quitter. Attendu : retour sans plantage, pas de message provenant de l’ancien salon. Aucun match à terminer dans cet essai.
+Répondre **N pour PLAYER_0 automatique et N pour les PNJ**. Le lanceur compile et installe le nouvel APK ; git pull seul ne le remplace pas sur l’émulateur. Attendre ATTENTE DU NOUVEAU SALON. Si une ancienne partie est restaurée, utiliser **Retour à l’accueil**, visible au-dessus du contenu (ou le geste Retour Android), puis Jouer → Créer une partie. Ce retour conserve la référence de reprise et ne termine pas la partie serveur. Ne pas essayer de jouer à la place d’un participant absent. À la détection, le script s’arrête sans PNJ. Attendre « Temps réel : connecté », utiliser Quitter le salon ; créer un second salon, vérifier encore la connexion, puis quitter. Attendu : retour sans plantage, pas de message provenant de l’ancien salon. Aucun match à terminer dans cet essai.
 
 ## Partie et véritable coupure de transport Android
 
@@ -86,7 +86,7 @@ Le relais écoute uniquement sur 127.0.0.1:3001, configure reverse 3000 → 3001
 
 Ne pas utiliser la seule suppression du mapping reverse comme preuve de coupure : les flux existants pourraient subsister. Le relais détruit explicitement les sockets et ses tests couvrent le rétablissement.
 
-Quand le réseau est rétabli et la partie avance, saisir **q puis Entrée**. Le relais ferme ses flux et restaure reverse 3000 → 3000 ; attendre la reconnexion. Dans ce même terminal 3 :
+Quand le réseau est rétabli et la partie avance, saisir **q puis Entrée**. Le relais ferme ses flux et restaure reverse 3000 → 3000 ; attendre la reconnexion. Attendre ensuite un tour de PLAYER_0 et ne pas jouer sa carte. Dans ce même terminal 3 :
 
 ```bash
 "$ADB" shell am force-stop tech.devoo.atoutia &&
@@ -104,3 +104,14 @@ Si le relais est tué brutalement, ou si sa restauration échoue :
 Le relais ne lit ni n’enregistre les messages/tokens et ne touche pas SQLite. Ses cinq tests locaux utilisent des sockets loopback et un ADB simulé pour le parcours CLI ; la validation WSL/émulateur réelle reste à recevoir. Rapporter simplement les étapes réussies et les erreurs éventuelles, sans données privées du match. Ne pas fusionner avant les CI du dernier commit et les résultats ciblés nécessaires.
 
 Contrôle local de l’outil réseau : suite backend complète **72 fichiers, 610 tests réussis** ; cinq nouveaux tests de relais/CLI compris. Syntaxe des deux scripts et diff vérifiés. Le commit **`94dcf75`**, outil réseau compris, est maintenant confirmé vert dans les deux CI : moteur/backend `40108570218` (job `120915296625`) et Android `40108570232` (job `120915296646`). Android : 209/209 JVM, APK debug/instrumenté et lint réussis, 12 avertissements et une suggestion. Backend : 610 tests, moteur : 583, typechecks/builds et CLI synthétiques réussis. Test local supplémentaire de SIGINT avec ADB simulé : sortie 0 et reverse restauré. Les liens locaux et blocs bash de la documentation sont vérifiés. Le Kotlin reste `0afd032`, l’outil réseau `94dcf75`. Vérifier aussi les contrôles du dernier commit documentaire sur la PR ; les seuls résultats fonctionnels encore attendus sont les essais ciblés WSL/émulateur décrits ci-dessus. PR nº 8 en brouillon, aucune fusion annoncée.
+
+
+## Déblocage du parcours depuis une ancienne partie restaurée
+
+Le développeur a récupéré `8a5adee` et confirmé health OK, puis signale être bloqué dans une ancienne partie en cours. La capture privée montre les autres participants absents et le tour d’un autre joueur : aucune carte locale ne doit être forcée. Le retour à l’accueil était limité aux parties terminées ; la procédure précédente ne couvrait pas cet état initial. Ce retour n’atteste pas encore les nouveaux essais salon/réseau de la PR nº 8.
+
+Correction sur la même branche/PR : bouton **Retour à l’accueil** toujours accessible au-dessus du contenu d’une partie en cours et geste Retour Android équivalent, désactivés pendant une soumission de carte/enchère. Callback dédié `onReturnToHome`, distinct des actions de fin : conserve l’authentification et la référence de reprise, sans clearActiveRoomSession, leaveRoom, abandon, forfait ou suppression SQLite. La sortie d’écran dispose l’abonnement temps réel existant. La partie reste en cours côté serveur ; une nouvelle création enregistrera sa propre référence selon le parcours normal. Ne pas présenter ce retour comme la clôture de la partie.
+
+Le dernier état CI antérieur est `8a5adee` : moteur/backend `40108828266` et Android `40108828264` réussis, 209 JVM ; ce dernier lint contient dix avertissements et une suggestion, les deux avis de versions OkHttp étant absents par rapport au run `94dcf75` sans changement de dépendances. Ces résultats ne valident pas encore le nouveau bouton. Compiler/tester/linter le nouveau commit, puis recevoir le retour WSL/émulateur avant fusion. Pas de SDK local assistant, ni nouvelle validation sur appareil annoncée.
+
+Reprise adaptée : récupérer la branche, vérifier health/ADB puis lancer dev-android-room.mjs avec N/N pour installer le nouvel APK. Attendre ATTENTE DU NOUVEAU SALON ; si l’ancienne partie revient, toucher Retour à l’accueil, puis Jouer/Créer une partie. Quitter/recréer/quitter le salon seul ; ensuite scénario N/O avec relais réseau avant création. Git pull seul ne réinstalle pas Android. Aucun ID à copier, aucune purge ou suppression des données Android. La PR nº 8 reste en brouillon. Procédure complète dans docs/ANDROID_WEBSOCKETS.md.
