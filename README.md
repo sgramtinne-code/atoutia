@@ -4,6 +4,8 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
+**Jalon Android validé** : sessions Kotlin, CI Android, lanceur automatique WSL/ADB Windows, partie avec trois PNJ, restauration après fermeture et historique. La [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7) porte cette livraison ; son statut GitHub et ses derniers contrôles font foi pour l’intégration dans main. Les essais requis sont reçus ; voir la clôture ci-dessous. La revue exhaustive de l’application reste une suite distincte.
+
 Test multijoueur actuel : utiliser **`node apps/backend/scripts/dev-android-room.mjs`**, avec N pour autoplay PLAYER_0 puis O pour les PNJ. Le lanceur détecte le nouveau salon : **aucun identifiant à copier**. Attendre son message avant de créer le salon. Sa conversion du chemin APK pour ADB Windows est corrigée dans `09cee69` ; validation WSL du lanceur reçue et réussie, partie terminée et résultat retrouvé dans l’historique.
 
 Travail actuel : [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7), revue Android et correction de la concurrence des sessions, depuis `main` `5e267e3`. Voir [le bilan Android et ses limites](docs/ANDROID_REVIEW.md). Les livraisons SQLite et la CI moteur/backend ci-dessous sont acquises ; elles ne prouvent pas une validation Android.
@@ -353,3 +355,13 @@ Journal développeur reçu le 24 octobre 2026 après récupération explicite de
 Les captures montrent la partie en cours, le résultat final et l’historique chargé avec le même résultat. Cela valide le lanceur corrigé et une partie complète sur l’émulateur du développeur ; aucune nouvelle exécution de ce scénario n’est demandée sans changement concerné. Les données de match et le log brut restent privés.
 
 La restauration après fermeture en cours de cette partie reste à confirmer simplement : les vues de jeu ne montrent pas la même révision/main avant et après, et le journal fourni concerne le lanceur, pas le troisième terminal ADB. Ne pas conclure à un échec et ne pas faire rejouer ce match pour obtenir une réponse factuelle. Les boutons de fin sont visibles et l’historique est chargé ; le clic sur Rejouer n’est pas directement montré. La PR nº 7 reste en brouillon en attendant la validation manquante.
+
+## Clôture des validations Android de la PR nº 7
+
+Le développeur a relancé le lanceur automatique avec PLAYER_0 manuel et trois PNJ, puis confirme explicitement la restauration en cours de partie par « oui c’est ok ». Deux captures montrent le même état de jeu et la même main ; la partie revient sans nouvelle connexion Google. Ce retour complète le match déjà terminé et son résultat cohérent dans l’historique. Une nouvelle fin de partie n’est pas requise pour cette seconde exécution centrée sur la restauration.
+
+Les validations nécessaires à cette livraison sont reçues : **192 tests JVM Android**, **583 moteur**, **605 backend dont six helpers**, builds et lint en CI ; **trois tests Keystore sur émulateur**, parcours Google avec retour positif, lanceur WSL/ADB Windows réellement exécuté, partie complète, résultat/historique et restauration confirmée par le développeur. Les résultats restent distincts d’un test sur téléphone physique, d’une trace réseau des tokens et d’une validation exhaustive des composants Compose.
+
+Code Kotlin : `46163ef`. Support du lanceur : `09cee69`, tests intégrés dans `6669443`. Dernier point de contrôle avant clôture documentaire : `4701e96`, runs moteur/backend `40105927418` et Android `40105927594` réussis. Vérifier les contrôles du dernier commit documentaire puis l’intégration de la PR nº 7 ; après fusion, récupérer main. Aucune nouvelle validation WSL de ce code inchangé n’est nécessaire.
+
+La prochaine étape est une revue séparée du cycle de vie WebSocket puis des points UI et de sauvegarde déjà documentés. La release n’est pas prête pour production et les avertissements lint restent visibles. Les instructions historiques « en attente » ci-dessus décrivent les étapes précédentes ; la présente clôture définit l’état courant.

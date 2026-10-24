@@ -2,7 +2,7 @@
 
 ## Portée et statut
 
-Branche `fix/android-shared-auth-session`, depuis `main` `5e267e3`, [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7) en brouillon. Les résultats moteur/backend acquis ne valident pas le client Android. Cette revue est en cours ; aucune certification générale de l’application n’est annoncée.
+Livraison `fix/android-shared-auth-session`, depuis `main` `5e267e3`, portée par la [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7). Les validations du périmètre sessions/CI/lanceur et restauration sont reçues ; vérifier le statut GitHub de la PR et les contrôles du dernier commit pour l’intégration. Les résultats moteur/backend acquis ne valident pas le client Android. Cette revue est en cours ; aucune certification générale de l’application n’est annoncée.
 
 Lecture des coordinateurs de session/connexion Google, stockage des tokens, restauration, salons, partie et historique, clients WebSocket et configuration Android. Lecture ciblée de leurs appels dans `MainActivity` et `RoomLobbyScreen`. Les parseurs HTTP de partie/historique et l’ensemble des composants Compose ne font pas encore l’objet d’une revue exhaustive. La compilation et les tests ont une portée distincte de cette lecture.
 
@@ -110,3 +110,11 @@ Le développeur a récupéré explicitement `6669443` puis exécuté `dev-androi
 La correction de chemin Windows du lanceur est ainsi validée sur le PC du développeur, au-delà des six tests de helper. La CI de `6669443` est réussie : moteur/backend `40105070817` (583 moteur, 605 backend dont six helpers, typechecks/builds et CLI) et Android `40105070837`.
 
 Point restant : confirmation factuelle du force-stop/relancement en cours de CETTE partie avec récupération de la même partie/main sans nouvelle connexion Google. Les deux états de jeu transmis ne sont pas une comparaison avant/après et le journal n’inclut pas le troisième terminal ADB. Demander seulement cette confirmation, sans faire rejouer le match. Les boutons finaux sont visibles et l’historique est chargé ; le clic Rejouer n’est pas directement observé. PR nº 7 en brouillon jusqu’aux validations nécessaires, sans changement applicatif dans ce point documentaire.
+
+## Clôture du périmètre sessions, lanceur et restauration
+
+La confirmation explicite « oui c’est ok » du développeur et deux captures du même état de partie/main complètent la restauration après fermeture/relancement, sans nouvelle connexion Google. Un nouveau journal confirme le lanceur avec N/O, build/installation, détection et PNJ ; cette exécution sert à la restauration, tandis que la première partie complète et son historique sont déjà acquis. Aucune répétition de ces essais n’est nécessaire sans changement concerné.
+
+Ce périmètre est validé : 192 JVM Android, APK/lint, 583 moteur, 605 backend dont six helpers, typechecks/builds/CLI en CI ; Keystore trois tests sur émulateur, Google avec retour positif, automatisation WSL/ADB Windows, partie complète, résultat/historique cohérents et restauration confirmée. Les données locales restent privées. Le dernier point CI avant clôture documentaire est `4701e96`, runs `40105927418` et `40105927594`, tous deux réussis. L’intégration doit être vérifiée sur le dernier commit et dans le statut réel de la PR nº 7.
+
+La revue exhaustive reste ouverte : cycle de vie WebSocket, callbacks Compose, parseurs et avertissements lint/DataExtractionRules/grands écrans, puis configuration release. Cette clôture n’est pas une validation production ni une exécution sur téléphone physique ou de toute la suite instrumentée. Repartir du main intégré pour les corrections suivantes et ne pas rouvrir les tests de ce jalon sans raison concrète.
