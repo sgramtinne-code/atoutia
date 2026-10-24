@@ -47,6 +47,10 @@ jobs:
 
       - name: Install emulator and Android SDK packages
         run: |
+          export ANDROID_USER_HOME="$RUNNER_TEMP/atoutia-android"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          echo "ANDROID_USER_HOME=$ANDROID_USER_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
             "platforms;android-37.0" "build-tools;36.0.0" \
             "emulator" "system-images;android-36;google_apis;x86_64"
@@ -54,23 +58,37 @@ jobs:
           test -e /dev/kvm
           sudo chown "$(id -u):$(id -g)" /dev/kvm
           sudo chmod 660 /dev/kvm
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
-            --name atoutia-ui --package "system-images;android-36;google_apis;x86_64" --device pixel_7
+            --name atoutia-ui --package "system-images;android-36;google_apis;x86_64" --device pixel_7 \
+            --path "$ANDROID_AVD_HOME/atoutia-ui.avd"
+          test -f "$ANDROID_AVD_HOME/atoutia-ui.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
 
       - name: Start isolated emulator
         timeout-minutes: 6
         run: |
+          trap 'tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true' ERR
+          adb start-server
           nohup "$ANDROID_HOME/emulator/emulator" -avd atoutia-ui -port 5554 \
             -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader -cores 2 -memory 2048 \
             > "$RUNNER_TEMP/atoutia-emulator.log" 2>&1 &
-          timeout 180s adb -s emulator-5554 wait-for-device
-          for attempt in $(seq 1 90); do
-            if [[ "$(timeout 10s adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; then
+          emulator_pid=$!
+          booted=false
+          boot_deadline=$((SECONDS + 240))
+          while (( SECONDS < boot_deadline )); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Emulator process stopped before boot completed."
+              false
+            fi
+            boot_state="$(timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [[ "$boot_state" == "1" ]]; then
+              booted=true
               break
             fi
             sleep 2
           done
-          [[ "$(timeout 10s adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]
+          [[ "$booted" == "true" ]]
           adb -s emulator-5554 shell settings put global window_animation_scale 0
           adb -s emulator-5554 shell settings put global transition_animation_scale 0
           adb -s emulator-5554 shell settings put global animator_duration_scale 0
@@ -80,10 +98,11 @@ jobs:
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug :app:assembleDebugAndroidTest -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
 
       - name: Run only isolated landscape UI tests
+        timeout-minutes: 6
         run: |
           adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
           adb -s emulator-5554 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-          adb -s emulator-5554 shell am instrument -w \
+          timeout 300s adb -s emulator-5554 shell am instrument -w \
             -e class tech.devoo.atoutia.ui.game.LandscapeGameScreenInstrumentedTest \
             tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-ui-result.txt"
           python3 - <<'PY'
@@ -99,7 +118,7 @@ jobs:
 
       - name: Report failures and stop emulator
         timeout-minutes: 1
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           if [[ "${{ job.status }}" != "success" ]]; then
             tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true

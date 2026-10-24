@@ -14,7 +14,9 @@ Dépôt : `https://github.com/sgramtinne-code/atoutia`.
 
 Branche stable : `main`.
 
-Dernier code **applicatif** validé à distance et sous WSL le 24 octobre 2026 :
+État courant prioritaire : main **`81b4f2d`**, PR nº 7 et nº 8 intégrées et validées pour leur périmètre. Poursuivre la **PR nº 9 en brouillon**, branche `fix/android-landscape-hand-visibility`. Le développeur a exécuté quatre tests UI sur `8b68a8e` : un passe, trois échouent sur la main non affichée. Diagnostic automatisé en cours ; consulter le dernier bilan de ce document et `docs/ANDROID_LANDSCAPE.md` avant toute nouvelle action. Ne pas fusionner ni redemander les anciennes validations d’authentification/réseau. Les références plus anciennes qui suivent décrivent l’historique.
+
+Code applicatif de l’audit SQLite, validé historiquement à distance et sous WSL le 24 octobre 2026 :
 
 `3eff899e567004346297c142afa791e17fc5fb9f` — `feat: add read-only aggregate room audit command`.
 
@@ -28,7 +30,7 @@ La [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche **`fea
 
 La PR nº 5 (`audit:rooms`) a été fusionnée dans `abeff8011fbc6f61e5e6af8c9de13264e17760bd`, récupéré sur le PC. Le code applicatif `3eff899` est validé à distance et sous WSL : 74 tests ciblés, 583 moteur, 599 backend, typechecks/builds et scénarios CLI réussis.
 
-Travail actuel : branche **`ci/engine-backend-validation`**, depuis ce `main`, pour ajouter la première validation automatique GitHub moteur/backend. Le workflow `.github/workflows/ci.yml` est vérifié statiquement et sa première exécution GitHub est réussie (run `40086371702`, commit `3e306cc`). Vérifier la PR nº 6 et le résultat CI de son dernier commit avant la fusion. Ne pas redemander les anciens audits SQLite ni réimplémenter les commandes existantes.
+Étape historique : branche **`ci/engine-backend-validation`**, depuis ce `main`, pour ajouter la première validation automatique GitHub moteur/backend. Le workflow `.github/workflows/ci.yml` est vérifié statiquement et sa première exécution GitHub est réussie (run `40086371702`, commit `3e306cc`). Vérifier la PR nº 6 et le résultat CI de son dernier commit avant la fusion. Ne pas redemander les anciens audits SQLite ni réimplémenter les commandes existantes.
 
 Lis d'abord ces documents, puis `docs/GAME_RULES.md` et `docs/RULES_VALIDATION.md`. La spécification canonique du dépôt est en version documentaire **0.1.2**, plus récente que le texte initial 0.1.0 joint à l'ancien chat. Elle définit notamment `PLAYER_0` à `PLAYER_3`, `TEAM_0` / `TEAM_1`, la prise en compte de la Belote dans le contrat et le traitement de deux litiges consécutifs. Ne remplace pas cette spécification par le document initial. Signale les contradictions sans réécrire silencieusement les règles.
 
@@ -410,3 +412,6 @@ Ce point n’altère pas le placement : seuls des tags de diagnostic sont ajout�
 
 
 Premier démarrage Android UI CI sur `478948b` : échec de démarrage AVD avant build et instrumentation ; aucun résultat de fixture à en déduire. Le diagnostic de fin pouvait lui-même attendre ADB sans limite. Les commandes ADB de diagnostic/arrêt et lecture du boot sont maintenant bornées ; récupérer le journal terminé pour corriger le démarrage avant de conclure sur le placement. Android Kotlin CI `40125782719` et moteur/backend CI `40125782681` réussies pour ce commit. Toujours un test UI réussi/trois échoués sur le PC, PR nº 9 en brouillon.
+
+
+Le journal CI `40126231565` / job `120969283848` identifie l’échec de démarrage : **Unknown AVD name**, le créateur et l’émulateur ne retrouvent pas le même répertoire par défaut. Ce n’est pas un échec des quatre fixtures, qui ont été ignorées. Le workflow fixe désormais ANDROID_USER_HOME et ANDROID_AVD_HOME dans le dossier temporaire du runner pour les deux outils, vérifie le fichier ini et liste l’AVD avant démarrage. Il détecte aussi l’arrêt du processus immédiatement, borne le boot et l’instrumentation, et laisse l’annulation interrompre le diagnostic. Les fixtures et la géométrie restent inchangées pour obtenir la reproduction initiale. CI Kotlin `40126231523` : 209 JVM, deux APK, lint réussi (12 avertissements et une suggestion) ; moteur/backend `40126231537` réussi.
