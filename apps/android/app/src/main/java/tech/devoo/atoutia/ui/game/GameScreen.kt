@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -357,6 +358,12 @@ fun GameScreen(
             }
         }
 
+    val secondaryScrollState = rememberScrollState()
+    LaunchedEffect(syncState.canRetry) {
+        // Reveal incidents and recovery without scrolling the fixed hand.
+        secondaryScrollState.scrollTo(0)
+    }
+
     val syncContent: @Composable () -> Unit = {
         if (!isMatchCompleted) GameSyncPanel(
             state = syncState,
@@ -434,7 +441,7 @@ fun GameScreen(
                             Column(
                                 Modifier.weight(1f).fillMaxWidth()
                                     .testTag("game-secondary-controls")
-                                    .verticalScroll(rememberScrollState()),
+                                    .verticalScroll(secondaryScrollState),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 syncContent()

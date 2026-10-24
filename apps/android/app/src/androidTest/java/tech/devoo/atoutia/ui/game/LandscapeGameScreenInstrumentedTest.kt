@@ -138,11 +138,12 @@ class LandscapeGameScreenInstrumentedTest {
     }
 
     @Test fun reconnectAndRecoveryKeepTheHandInItsFixedArea() {
-        val session = fixture()
-        sync.value = GameSyncState(connection = GameRealtimeStatus.RECONNECTING)
+        val session = fixture(PlayerActionMode.BID)
         show(session)
-        compose.onNodeWithText("Reconnexion…").assertIsDisplayed()
         val before = compose.onNodeWithTag("player-hand").getUnclippedBoundsInRoot()
+        compose.onNodeWithText("Passer").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { sync.value = GameSyncState(connection = GameRealtimeStatus.RECONNECTING) }
+        compose.onNodeWithText("Reconnexion…").assertIsDisplayed()
         compose.onNodeWithText("Réessayer").performScrollTo().assertIsDisplayed()
         assertHandVisible(session)
         compose.runOnIdle { sync.value = GameSyncState(connection = GameRealtimeStatus.CONNECTED) }
