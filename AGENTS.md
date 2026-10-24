@@ -58,6 +58,8 @@ Le diagnostic doit rester séparé de `index.ts`, des timers et des routes. Ne p
 
 Ne pas supprimer de salons abandonnés dans cette première étape, ne pas activer de purge au démarrage, ne pas ajouter de route publique de diagnostic exposant des informations privées. Préserver les règles de forfait RANKED et les résultats nécessaires avant toute suppression future.
 
+Un rapport `PENDING_ABSENCE_RESOLUTION` signale une protection persistée, pas une résolution nécessairement en cours d’exécution ni une preuve d’absence actuelle. Ne pas effacer ces résolutions pour rendre un salon éligible. Le premier diagnostic de copie isolée a été reçu ; poursuivre l’audit sur cette même copie avant toute nouvelle politique. Distinguer l’empreinte inchangée de la copie, les comptages de résultats et l’observation de la présence : ce sont des preuves différentes. Les effectifs et identifiants locaux restent privés.
+
 Les anciens salons ont reçu leurs timestamps lors d'une migration le 7 octobre 2026. Ce ne sont pas des preuves de leur dernière activité réelle. Leur ancienneté apparente ne justifie aucune purge immédiate au déploiement.
 
 ## Validation adaptée

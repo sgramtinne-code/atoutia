@@ -1,6 +1,6 @@
 # Diagnostic du cycle de vie des salons
 
-Livraison par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche `feat/live-room-expiration-dry-run`, depuis `main` `4109cec`. Code applicatif `a2258b0` validé à distance et sous WSL ; consulter le statut réel de la PR avant récupération.
+Livraison par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche `feat/live-room-expiration-dry-run`, depuis `main` `4109cec`. Fusion vérifiée dans `deea680`, également récupéré sur le PC. Code applicatif `a2258b0` validé à distance et sous WSL ; vérifier le dernier `main` avant récupération.
 
 ## Périmètre
 
@@ -124,10 +124,10 @@ pnpm --filter @atoutia/backend preview:expiration
 
 Le rapport contient des identifiants de salons mais aucune main, seed, identité de participant ou token. Garder ce rapport local ou l'anonymiser avant transmission. Les messages d'erreur n'incluent pas le contenu des documents.
 
-Ne pas lancer de suppression ni choisir la base habituelle par habitude. La validation WSL du développeur, prérequis de fusion, a été reçue et réussie le 24 octobre 2026. Le diagnostic d’une copie de sa base réelle reste à réaliser. Les résultats distants et les résultats historiques du 7 octobre doivent rester distincts.
+Ne pas lancer de suppression ni choisir la base habituelle par habitude. La validation WSL du développeur, prérequis de fusion, a été reçue et réussie le 24 octobre 2026. Le premier diagnostic d’une copie de sa base réelle a également été transmis ; son audit structurel reste à compléter. Les résultats distants et les résultats historiques du 7 octobre doivent rester distincts.
 
 
-## Prochaine observation : copie isolée de la base locale
+## Procédure de copie isolée, déjà exécutée
 
 Après récupération de `main` et build moteur/backend, préparer une copie via l’API de sauvegarde SQLite. La source est ouverte avec `mode=ro` ; le diagnostic porte uniquement sur la copie. Cette méthode prend aussi en compte les transactions validées présentes dans le WAL, contrairement à une simple copie du fichier principal.
 
@@ -160,4 +160,56 @@ print("Copie inchangée après diagnostic.")
 PYTHON
 ```
 
-La copie temporaire est conservée pour l’analyse locale et ne doit pas être publiée. Transmettre le résumé du diagnostic dans le chat privé, sans tokens ni mains. Ne pas en déduire que les salons occupés sont abandonnés ; leur présence reste inconnue hors ligne. L’inventaire réel est en attente de ce résultat, pas déjà validé par les tests synthétiques.
+La copie temporaire est conservée pour l’analyse locale et ne doit pas être publiée. Transmettre le résumé du diagnostic dans le chat privé, sans tokens ni mains. Ne pas en déduire que les salons occupés sont abandonnés ; leur présence reste inconnue hors ligne. Le premier résultat a été reçu ; ne le confondre ni avec les fixtures synthétiques ni avec l’état courant du serveur.
+
+
+## Observation reçue et audit restant
+
+Diagnostic sur copie isolée transmis le 24 octobre 2026 : le développeur a récupéré `main` `deea680`, construit le moteur/backend, créé un instantané par l’API de sauvegarde SQLite avec source en lecture seule, puis exécuté la CLI. Le journal se termine par « Copie inchangée après diagnostic. » : l’empreinte de la copie est identique avant/après. Le rapport contient des salons vides au-delà du seuil, des protections pour résolutions en attente et des présences inconnues. Les effectifs, identifiants et chemins temporaires restent dans le contexte privé. Aucun salon n’a été supprimé par ce diagnostic.
+
+Prochaine action : sur la même copie isolée, obtenir un résumé par mode, phase, nombre de places occupées et adjudication, puis les types de résolutions en attente et le nombre de résultats durables. Le premier rapport ne donne pas ces répartitions ni le décompte actuel des résultats ; ne pas reprendre les anciens inventaires comme preuve. Garder toutes les protections et ne pas lancer de suppression.
+
+Une résolution en attente persistée ne prouve pas que son handler s’exécute, que le joueur est absent ou que la place est occupée. La CLI retourne une raison principale ; d’autres protections peuvent coexister. Une empreinte de copie inchangée prouve sa conservation pendant l’observation ; elle ne constitue pas à elle seule un nouveau décompte des résultats durables ou une validation Android.
+
+Pour obtenir un résumé structurel **sur la copie existante seulement**, adapter le chemin absolu ci-dessous à celui indiqué dans le journal privé. Le programme ouvre SQLite en lecture seule, ne crée pas de fichier absent, utilise une transaction cohérente et ne produit aucune identité de joueur ou de salon. `pendingResolutionEntries` compte des entrées de résolution, pas des salons distincts.
+
+```bash
+python3 - <<'AUDIT'
+from collections import Counter
+from contextlib import closing
+from hashlib import sha256
+from pathlib import Path
+import json
+import sqlite3
+
+snapshot = Path("/chemin/absolu/vers/copie.sqlite")
+before = sha256(snapshot.read_bytes()).hexdigest()
+rooms, pending = Counter(), Counter()
+with closing(sqlite3.connect(snapshot.as_uri() + "?mode=ro", uri=True)) as db:
+    db.execute("PRAGMA query_only = ON")
+    db.execute("BEGIN")
+    for (raw,) in db.execute("SELECT document_json FROM live_rooms"):
+        doc = json.loads(raw)
+        managed = doc["room"]["managedRoom"]
+        occupied = sum(v is not None for v in managed["room"]["seats"]["assignments"].values())
+        key = (doc["mode"], managed["phase"], occupied, doc["adjudication"]["status"])
+        rooms[key] += 1
+        for entry in doc["absenceResolutions"]:
+            if entry["status"] == "PENDING":
+                pending[(*key, entry["action"])] += 1
+    results = db.execute("SELECT COUNT(*) FROM match_results").fetchone()[0]
+report = {
+    "roomsByState": [dict(mode=m, phase=p, occupiedSeats=o, adjudication=a, rooms=n)
+                     for (m, p, o, a), n in sorted(rooms.items())],
+    "pendingResolutions": [dict(mode=m, phase=p, occupiedSeats=o, adjudication=a,
+                               action=x, pendingResolutionEntries=n)
+                           for (m, p, o, a, x), n in sorted(pending.items())],
+    "durableResultRows": results,
+    "snapshotUnchanged": sha256(snapshot.read_bytes()).hexdigest() == before,
+}
+assert report["snapshotUnchanged"], "La copie a changé."
+print(json.dumps(report, indent=2))
+AUDIT
+```
+
+L’absence de la copie doit interrompre cette observation ; ne pas substituer silencieusement la base principale. Le nombre de lignes de `match_results` est un inventaire, pas un contrôle complet de validité des scores, des participants ou des index d’historique. Les résultats de cet audit sont encore attendus du développeur.

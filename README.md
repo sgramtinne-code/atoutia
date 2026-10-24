@@ -4,7 +4,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
-Le diagnostic d'expiration en lecture seule est livré par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), depuis `main` `4109cec`, sur la branche `feat/live-room-expiration-dry-run`. Son code applicatif est au commit [`a2258b0`](https://github.com/sgramtinne-code/atoutia/commit/a2258b0e09a825ef5a0728b5e0995b8ad664b552) ; les changements suivants de cette PR consignent la validation et la reprise. Vérifier le statut GitHub de la PR et le dernier `main` avant une reprise.
+Le diagnostic d'expiration en lecture seule est livré par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), fusionnée dans `deea680`, depuis `main` `4109cec`, sur la branche `feat/live-room-expiration-dry-run`. Son code applicatif est au commit [`a2258b0`](https://github.com/sgramtinne-code/atoutia/commit/a2258b0e09a825ef5a0728b5e0995b8ad664b552) ; les changements suivants de cette PR consignent la validation et la reprise. Vérifier le statut GitHub de la PR et le dernier `main` avant une reprise.
 
 L'étape précédente était `db0d727`, `feat: track live room activity timestamps` (7 octobre 2026), puis la PR documentaire nº 1 fusionnée dans `4109cec`.
 
@@ -16,13 +16,15 @@ Validation historique transmise par le développeur pour `db0d727` : 67 fichiers
 
 Fonctionnalité validée : **classification prudente et en lecture seule des salons potentiellement abandonnés**. Le diagnostic SQLite est une commande manuelle séparée ; il ne démarre pas le backend, ne migre aucun timestamp et ne supprime rien. Les places occupées sont protégées si leur présence est inconnue. Aucune expiration automatique n'est activée. Ne pas purger la base réelle.
 
-Voir [le diagnostic et sa validation sur données synthétiques](docs/ROOM_LIFECYCLE.md). Les validations distante et WSL sont réussies. Aucun diagnostic sur une copie de la base réelle n’a encore été transmis ; cet inventaire reste la prochaine étape, sans suppression.
+Voir [le diagnostic et sa validation sur données synthétiques](docs/ROOM_LIFECYCLE.md). Les validations distante et WSL sont réussies. Le diagnostic d’une copie isolée a maintenant été transmis et sa conservation vérifiée. Les détails de la base locale restent privés ; le résumé structurel des protections et des résultats durables est encore attendu.
 
 Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur.
 
 Validation WSL transmise par le développeur le 24 octobre 2026 pour le code `a2258b0` : **55/55 tests ciblés**, **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, typechecks et builds des deux paquets réussis, `git diff --check` propre, puis scénario CLI terminé avec `databaseUnchanged: true` et `Synthetic expiration preview passed`. Le journal transmis confirme pnpm 12.3.4. La base réelle et Android ne font pas partie de ce scénario.
 
-Prochaine action : récupérer `main` après fusion de la PR nº 2, puis préparer un diagnostic sur une copie SQLite cohérente et isolée de la base locale. Ne pas copier seulement le fichier principal si une base active utilise le WAL ; utiliser l'API de sauvegarde SQLite. Aucun abandon d'un salon occupé ne peut être prouvé par la CLI hors ligne. Aucune suppression n'est autorisée par cette livraison.
+Diagnostic sur copie isolée transmis le 24 octobre 2026 : le développeur a récupéré `main` `deea680`, construit le moteur/backend, créé un instantané par l’API de sauvegarde SQLite avec source en lecture seule, puis exécuté la CLI. Le journal se termine par « Copie inchangée après diagnostic. » : l’empreinte de la copie est identique avant/après. Le rapport contient des salons vides au-delà du seuil, des protections pour résolutions en attente et des présences inconnues. Les effectifs, identifiants et chemins temporaires restent dans le contexte privé. Aucun salon n’a été supprimé par ce diagnostic.
+
+Prochaine action : sur la même copie isolée, obtenir un résumé par mode, phase, nombre de places occupées et adjudication, puis les types de résolutions en attente et le nombre de résultats durables. Le premier rapport ne donne pas ces répartitions ni le décompte actuel des résultats ; ne pas reprendre les anciens inventaires comme preuve. Garder toutes les protections et ne pas lancer de suppression.
 
 La consigne de continuité est durable : à chaque étape importante, actualiser et pousser `AGENTS.md`, ce README et `docs/REPRISE.md` avec les validations et la prochaine action.
 
