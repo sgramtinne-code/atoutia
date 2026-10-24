@@ -30,6 +30,16 @@ Les deux premières tentatives de préparation CI n’ont exécuté aucun test :
 
 Reproduction réelle avant correction : commit `2e707ad`, [run `40087526338`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087526338), job `120853393837`. Compilation Kotlin et exécution de **192 tests JVM : 189 réussis et trois échecs**, exactement les nouveaux cas `separateCoordinatorsRefreshTheStoredSessionOnlyOnce`, `logoutWaitsForRefreshAndRevokesTheRotatedCredential` et `googleSignInCannotBeOverwrittenByAnOlderRefresh`. Les logs confirment respectivement le rejet du double refresh, le mauvais token de logout et le remplacement de la nouvelle session Google par l’ancienne session rafraîchie. Les APK et le lint étaient ensuite ignorés à cause de cet échec attendu. Après correction applicative **`46163ef`** : [run `40087752809`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752809), job `120854042192`, **20 rapports / 192 tests JVM, zéro échec, erreur ou test ignoré**. APK debug et APK instrumenté compilés ; lint et contrôles Git réussis. Le [run moteur/backend `40087752798`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752798) est également réussi. Ces résultats sont ceux du runner GitHub, pas du PC ou de l’appareil du développeur. Les ajustements suivants de documentation et de résumé lint ne changent pas le code applicatif.
 
+## Validation WSL et Keystore sur émulateur reçue
+
+Journal développeur du 24 octobre 2026, après récupération de la branche `fix/android-shared-auth-session` :
+
+- Build debug et instrumenté avec `--no-daemon --max-workers=2`, autoplay désactivé : **BUILD SUCCESSFUL** en 20 secondes.
+- Émulateur passé de `offline` à `device` avant installation ; deux APK installés par ADB Windows avec chemins `wslpath -w`, deux **Success**.
+- Exécution de `AndroidSecureAuthTokenStoreInstrumentedTest` : **OK (3 tests)** en 0,088 seconde. Persistance/relecture via Keystore, effacement et identité du verrou entre deux stockages sont vérifiés.
+
+Ces résultats proviennent du PC et de l’émulateur du développeur, pas du runner GitHub. Aucun téléphone physique, compte Google réel ou scénario multijoueur n’est validé par ces trois tests. Le journal n’affiche pas de SHA local ; la tête de branche distante vérifiée avant l’enregistrement est `80dcab4`, avec correctif applicatif `46163ef` inchangé. Les runs de cette tête, Android `40088256774` et moteur/backend `40088256766`, sont tous deux réussis. Ne pas répéter le Keystore sans changement concerné ; poursuivre les essais fonctionnels du README.
+
 ## Avertissements lint observés
 
 Contrôle du commit `f0adaad` : [run Android `40088059834`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059834), job `120854929369`, réussi avec **192/192 tests JVM**, les deux APK et le lint. Le [run moteur/backend `40088059833`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059833) est également réussi. Le correctif applicatif reste `46163ef`.
@@ -51,10 +61,12 @@ Ces signaux ne sont pas corrigés ni supprimés par une baseline lint. Ils reste
 
 ## Vérifications encore nécessaires
 
-- Vérifier les contrôles réels du dernier commit de la PR. La reproduction et la correction JVM ci-dessus sont acquises ; les résultats appareil ne le sont pas. Un lint réussi peut comporter des avertissements : consulter le résumé dans les logs.
-- Sur appareil : exécuter le test Keystore, connexion Google, déconnexion, redémarrage/restauration, partie avec trois PNJ, reconnexion et historique. Suivre la procédure complète du README. Ne pas utiliser les tests HTTP instrumentés qui dépendent d’un backend sans préparer leur environnement.
+- Vérifier les contrôles réels du dernier commit de la PR. La reproduction, la correction JVM et les trois tests Keystore sur émulateur sont acquis ; les résultats fonctionnels Google/multijoueur restent à recevoir. Un lint réussi peut comporter des avertissements : consulter le résumé dans les logs.
+- Sur appareil : connexion Google, déconnexion, redémarrage/restauration, refresh réel, partie avec trois PNJ, reconnexion et historique. Le test Keystore ciblé est déjà réussi sur émulateur. Suivre la procédure complète du README. Ne pas utiliser les tests HTTP instrumentés qui dépendent d’un backend sans préparer leur environnement.
 - Revue du cycle de vie temps réel : le client de salon programme son heartbeat après `onConnected` sans arbitrage avec une fermeture concurrente, et ses callbacks terminaux annulent le heartbeat sans fermer l’exécuteur. Reproduire avec un test dédié avant correction. Le client de partie possède une gestion différente ; vérifier aussi la course entre `acknowledgeRevision` et `close`.
 - Revue Compose/navigation : callbacks HTTP tardifs, annulation des effets, transitions salon/partie et restauration après destruction d’activité. Les coordinateurs déjà testés ne couvrent pas automatiquement ces interactions d’écran.
 - Préparation d’une release publique : `ATOUTIA_API_BASE_URL` release est encore vide, donc une compilation release ne démontrerait pas une application connectable en production. Le HTTP clair est réservé au manifest debug, les sauvegardes sont désactivées et l’orientation `sensorLandscape` doit rester conservée. Aucune publication ni migration de cible SDK n’est incluse dans ce correctif.
 
 La correction des WebSockets, l’audit complet de l’UI et une livraison production ne sont pas présentés comme terminés par cette PR.
+
+Outils de test à examiner séparément : `dev-android-room.mjs` passe le chemin Linux de l’APK directement à adb.exe ; la variante en cours utilise l’installation `wslpath -w` explicitement validée, puis le script PNJ existant. `dev-autoplay-room.mjs` ne renouvelle pas ses access tokens ; effectuer l’attente de 16 minutes pour le refresh Android sur l’accueil avant leur création. Aucun de ces scripts n’est modifié ou présenté comme corrigé ici.
