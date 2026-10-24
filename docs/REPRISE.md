@@ -20,7 +20,9 @@ Dernier commit **applicatif** stable confirmé et retrouvé sur GitHub le 24 oct
 
 Commits précédents : `efe9224` — nettoyage des salons terminés au démarrage ; `7aa7b27` — navigation après partie.
 
-Une mise à jour documentaire a été préparée depuis `db0d727` sur **`docs/atoutia-handoff-2026-10-24`**, avec `AGENTS.md`, `README.md` et `docs/REPRISE.md`. Vérifie si sa PR est ouverte ou fusionnée. Si elle est ouverte, lis ces trois fichiers sur cette branche ; ne suppose pas qu'ils sont déjà dans `main`. Si elle est fusionnée, pars du nouveau `main`, sans revenir à l'ancien commit.
+La PR documentaire nº 1 a été fusionnée le 24 octobre 2026 : `main` a été vérifié à `4109cecad6e903236a7d13f77dda926c87bc6493`.
+
+La branche **`feat/live-room-expiration-dry-run`** propose maintenant le diagnostic d'expiration en lecture seule. Vérifier son dernier commit et sa PR avant toute reprise. Sa fusion attend la validation WSL du développeur. Ne pas revenir à `db0d727` et ne pas recréer l'implémentation existante.
 
 Lis d'abord ces documents, puis `docs/GAME_RULES.md` et `docs/RULES_VALIDATION.md`. La spécification canonique du dépôt est en version documentaire **0.1.2**, plus récente que le texte initial 0.1.0 joint à l'ancien chat. Elle définit notamment `PLAYER_0` à `PLAYER_3`, `TEAM_0` / `TEAM_1`, la prise en compte de la Belote dans le contrat et le traitement de deux litiges consécutifs. Ne remplace pas cette spécification par le document initial. Signale les contradictions sans réécrire silencieusement les règles.
 
@@ -28,10 +30,10 @@ Le code, la spécification validée et les résultats réellement obtenus doiven
 
 ## 2. Workflow GitHub obligatoire
 
-J'ai autorisé le travail direct sur mon dépôt GitHub. La lecture et la création d'une branche documentaire ont fonctionné dans le chat précédent ; les métadonnées du dépôt annonçaient les droits de lecture, écriture et administration. Vérifie les capacités disponibles dans ce nouveau chat et les résultats de chaque opération ; ne promets pas une écriture ou une fusion sur la seule base d'un outil affiché.
+J'ai autorisé le travail direct sur mon dépôt GitHub. La lecture, l'écriture sur branche, les commits et la PR documentaire fusionnée nº 1 ont réellement fonctionné dans les échanges précédents. Vérifie les capacités disponibles dans ce nouveau chat et les résultats de chaque opération ; ne promets pas une écriture ou une fusion sur la seule base d'un outil affiché.
 
 1. Vérifie `main`, les branches et les PR ouvertes. Lis les fichiers complets concernés et les directives applicables avant de modifier.
-2. Travaille sur une branche dédiée depuis le dernier `main` vérifié, ou continue une branche pertinente après inspection. Nom proposé pour la prochaine fonctionnalité : `feat/live-room-expiration-dry-run` ; ne prétends pas qu'elle existe déjà.
+2. Travaille sur une branche dédiée depuis le dernier `main` vérifié, ou continue une branche pertinente après inspection. La branche du diagnostic est `feat/live-room-expiration-dry-run` ; vérifier son dernier état et poursuivre la branche pertinente sans écraser les commits existants.
 3. Modifie directement sur GitHub ou dans un checkout isolé synchronisé avec GitHub. Ne modifie jamais directement `main`.
 4. Mets toujours à jour les directives `AGENTS.md` et le `README.md` avec les évolutions pertinentes ; actualise aussi `docs/REPRISE.md` aux étapes importantes.
 5. Fournis les commandes courtes pour récupérer la branche et effectuer les validations locales nécessaires. Ne me redemande pas des fichiers accessibles dans le dépôt.
@@ -116,28 +118,25 @@ Compatibilité : `formatVersion: 1` conservé ; documents anciens sans timestamp
 
 Validation historique rapportée pour `db0d727` : **67 fichiers de tests, 525/525 tests**, typecheck backend, builds moteur/backend et `git diff --check` réussis ; migration SQLite et conservation des résultats vérifiées localement. Ne les présente pas comme des tests que tu viens d'exécuter.
 
-## 8. Objectif immédiat : expiration prudente, première étape sans suppression
+## 8. Diagnostic d'expiration implémenté, validation locale à terminer
 
-Conçois et implémente une **classification ou simulation en lecture seule** des salons potentiellement abandonnés, fondée sur `lastActivityAtMs` et les protections nécessaires. Aucune purge dans cette étape, aucune nouvelle suppression de salon au démarrage et aucune activation implicite sur ma vraie base.
+Lire `docs/ROOM_LIFECYCLE.md` et les fichiers complets de la branche :
 
-Distingue salon vide en attente, salon en attente avec participants, partie momentanément interrompue, véritable abandon et partie terminée. L'absence de mutation n'est pas l'absence de joueurs. Une place occupée n'est pas non plus une preuve de connexion.
+- `apps/backend/src/liveRoomExpiration.ts` : classification pure, durées configurables, horloge injectée, raisons explicites.
+- `apps/backend/src/sqliteLiveRoomExpirationPreview.ts` : lecture SQLite `readOnly: true`, transaction de lecture cohérente, aucune hydratation du store ni création de schéma.
+- `apps/backend/src/previewLiveRoomExpiration.ts` : commande manuelle `preview:expiration`, chemin absolu `ATOUTIA_DATABASE_PATH` obligatoire, aucune base choisie implicitement.
+- `apps/backend/tests/liveRoomExpiration.test.ts` et `sqliteLiveRoomExpirationPreview.test.ts` : temps, présence, modes, bots, adjudication, résultats, documents anciens/invalides et conservation SQLite.
+- `apps/backend/scripts/dev-expiration-preview.mjs` : validation de la vraie commande CLI sur base temporaire synthétique, puis retrait des fixtures.
 
-Prends en compte la présence WebSocket, les délais de grâce, la reconnexion, la restauration Android, les bots, les règles PRIVATE/CASUAL/RANKED, l'adjudication et le résultat durable. Après redémarrage serveur, une présence inconnue doit rester protégée ; ne pas inventer une absence ancienne.
+Aucune suppression, migration, route, intégration au démarrage ou activation sur la base réelle. `index.ts`, le store, les repositories existants et Android ne sont pas modifiés.
 
-Durées configurables, horloge injectée, raisons de classification explicites, comportement conservateur si des informations manquent. Ne publie pas un diagnostic privé dans une route publique. Toute future suppression devra réévaluer la situation au moment d'agir et préserver les résultats, les actions concurrentes et les règles de forfait RANKED.
+Le diagnostic hors ligne ne lit pas la présence WebSocket. Tout salon occupé sans observation serveur reste protégé. Un `ABSENT` sans timestamps (notamment après redémarrage) reste une présence inconnue. Le classificateur pur accepte une observation serveur synchrone liée à la session et à la révision, jamais une absence reconstruite depuis les places SQLite. Les bots et résolutions en attente protègent le salon ; les parties CASUAL/RANKED en cours restent réservées à leurs mécanismes d'absence/adjudication.
 
-Avant de choisir l'API, lis les fichiers concernés :
+`ABANDONMENT_CANDIDATE` décrit un seuil diagnostique, ne prouve pas un abandon définitif et n'autorise jamais une suppression. Les timestamps migrés ne permettent pas de reconstituer l'activité historique. Ne pas développer de suppression sans nouvelle étape autorisée, réévaluation concurrente et protection des résultats.
 
-- `apps/backend/src/liveRoomStore.ts`, `liveRoomPersistenceDocument.ts`, `liveRoomRepository.ts`, `sqliteLiveRoomRepository.ts`.
-- `apps/backend/src/realtime.ts` et les composants de présence et de reconnexion qu'il utilise.
-- `apps/backend/src/absencePolicy.ts`, `absenceResolution.ts`, `absenceResolutionCoordinator.ts`, `absenceResolutionExecutor.ts`.
-- `apps/backend/src/liveRoomAbsenceResolution.ts`, `liveRoomAdjudication.ts`, `liveRoomSeatControl.ts`.
-- `apps/backend/src/completedLiveRoomCleanup.ts`, `matchResultRecorder.ts`, `config.ts`, `index.ts`.
-- Les tests correspondants et les composants Android de restauration si le changement les affecte.
+Reprendre par les résultats WSL du développeur, corriger la branche si nécessaire et fusionner seulement après les validations requises. Les tests Android ne sont pas requis pour cette commande détachée du serveur ; ils le deviendraient si une intégration modifiait le multijoueur.
 
-Ajoute des tests utiles : seuil juste avant/à/après expiration, joueur connecté mais inactif, reconnexion, présence inconnue après redémarrage, salon vide ou occupé, partie en cours, bots, modes, résultat absent ou présent, timestamps anciens/absents/incohérents/futurs et absence totale de mutation/suppression par le diagnostic.
-
-Valide d'abord sur données synthétiques ou base de test isolée. Une lecture via le store peut provoquer une migration ou une écriture : vérifie le chemin réel avant de déclarer un diagnostic « sans écriture ». L'application ultérieure d'une politique de suppression sur ma vraie base sera une étape distincte, après résultats du diagnostic et validation explicite.
+Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur. Validation WSL toujours attendue avant fusion.
 
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
@@ -162,6 +161,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Confirme brièvement le point de reprise, puis **agis** : vérifie GitHub, retrouve l'état courant de `main`, inspecte la PR documentaire et les directives, lis le code nécessaire, puis prépare la branche de classification en lecture seule. Fais les choix techniques adaptés, implémente cette première étape et ses tests, et fournis les commandes de validation que je dois exécuter.
+Vérifie GitHub, le dernier `main`, la branche et la PR de diagnostic. Lis les directives et `docs/ROOM_LIFECYCLE.md`. Vérifie les résultats actuels au lieu de reprendre les anciens décomptes comme une nouvelle validation. Termine les validations WSL manquantes et corrige directement sur la branche. Fusionne seulement lorsque les contrôles requis ont réussi, puis donne les commandes complètes pour récupérer `main`.
 
-Ne réimplémente pas ce qui fonctionne. Ne purge aucun ancien salon. Tiens les directives, le README et l'état de reprise à jour pour que le chat suivant puisse continuer sans perdre le contexte.
+Ne recrée pas le diagnostic. Ne purge aucun ancien salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.

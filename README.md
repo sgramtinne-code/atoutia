@@ -4,7 +4,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
-Le dernier commit applicatif stable vérifié sur `main` est [`db0d727`](https://github.com/sgramtinne-code/atoutia/commit/db0d727a37bff7d37a40fe65a9e36e108161964a), `feat: track live room activity timestamps` (7 octobre 2026). La présente mise à jour porte uniquement sur la documentation.
+Le dernier commit applicatif stable vérifié sur `main` est [`db0d727`](https://github.com/sgramtinne-code/atoutia/commit/db0d727a37bff7d37a40fe65a9e36e108161964a), `feat: track live room activity timestamps` (7 octobre 2026). La PR documentaire nº 1 a ensuite été fusionnée dans `4109cec`. La branche `feat/live-room-expiration-dry-run` propose maintenant le diagnostic décrit ci-dessous, sans modifier le démarrage du serveur.
 
 Fonctionnalités déjà développées : authentification Google et sessions, salons et placement des joueurs, enchères, jeu des cartes, table Compose paysage, présence WebSocket et reconnexion, gestion des absences selon le mode, bots de test, persistance SQLite, résultats durables, historique, restauration Android et navigation après partie.
 
@@ -12,7 +12,11 @@ Le nettoyage au démarrage des salons terminés conserve leurs résultats durabl
 
 Validation historique transmise par le développeur pour `db0d727` : 67 fichiers de tests réussis, 525 tests réussis sur 525, typecheck backend, builds moteur et backend, et `git diff --check` propres. Ces contrôles ne sont pas une nouvelle exécution au 24 octobre.
 
-Prochaine étape : **classification prudente et en lecture seule des salons potentiellement abandonnés**. Aucune expiration automatique de ces salons n'est livrée par cette mise à jour documentaire. Ne pas purger la base réelle.
+Nouvelle étape proposée : **classification prudente et en lecture seule des salons potentiellement abandonnés**. Le diagnostic SQLite est une commande manuelle séparée ; il ne démarre pas le backend, ne migre aucun timestamp et ne supprime rien. Les places occupées sont protégées si leur présence est inconnue. Aucune expiration automatique n'est activée. Ne pas purger la base réelle.
+
+Voir [le diagnostic et sa validation sur données synthétiques](docs/ROOM_LIFECYCLE.md). La validation WSL du développeur reste nécessaire avant fusion de cette branche ; Android et la base réelle n'ont pas été testés à distance.
+
+Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur. Validation WSL toujours attendue avant fusion.
 
 ## Documents de référence
 
@@ -20,6 +24,7 @@ Prochaine étape : **classification prudente et en lecture seule des salons pote
 - [Prompt complet pour reprendre dans un nouveau chat](docs/REPRISE.md)
 - [Règles canoniques du moteur — version documentaire 0.1.2](docs/GAME_RULES.md)
 - [Validation des règles MVP](docs/RULES_VALIDATION.md)
+- [Diagnostic du cycle de vie des salons](docs/ROOM_LIFECYCLE.md)
 
 Le document initial de règles 0.1.0 est historique. Les noms des joueurs, les règles détaillées de score et de litige doivent suivre la spécification actuelle du dépôt.
 
@@ -83,6 +88,35 @@ git diff --check
 ```
 
 Adapter les validations Android au changement. Aucun code en échec ne doit être fusionné dans `main`.
+
+## Diagnostic d'expiration sur données synthétiques
+
+Sur la branche `feat/live-room-expiration-dry-run`, après récupération et installation, exécuter dans l'ordre et s'arrêter au premier échec :
+
+```bash
+cd $HOME/projects/atoutia
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/backend exec vitest run tests/liveRoomExpiration.test.ts tests/sqliteLiveRoomExpirationPreview.test.ts
+```
+
+Exécuter ensuite les validations complètes moteur/backend ci-dessus, puis :
+
+```bash
+node apps/backend/scripts/dev-expiration-preview.mjs
+```
+
+Le script crée sa propre base temporaire synthétique, teste la vraie commande CLI, vérifie l'empreinte SQLite et retire ses fixtures. Il ignore le chemin `ATOUTIA_DATABASE_PATH` du shell. Résultats attendus : salon vide ancien candidat, salon occupé protégé (`UNKNOWN_PRESENCE`), ancien document protégé (`MISSING_ACTIVITY_TIMESTAMPS`), `databaseUnchanged: true`.
+
+Pour un diagnostic manuel distinct, **uniquement sur une base isolée choisie explicitement** après build :
+
+```bash
+ATOUTIA_DATABASE_PATH="/chemin/absolu/vers/base-isolee.sqlite" \
+pnpm --filter @atoutia/backend preview:expiration
+```
+
+Le chemin n'a aucune valeur par défaut. La commande ouvre la base existante en lecture seule ; elle ne passe ni par les repositories qui créent le schéma, ni par le store qui migre les anciens documents. Elle n'observe pas les WebSockets : elle ne prouve donc aucun abandon d'un salon occupé. Le rapport local contient des identifiants de salons ; ne pas le publier sans anonymisation.
+
+Cette livraison n'appelle aucun changement Android et n'est branchée sur aucun timer, route ou démarrage serveur. Sa validation utilise d'abord SQLite synthétique ; le test Android ci-dessous reste destiné aux changements du fonctionnement multijoueur.
 
 ## Test réel local : Android PLAYER_0 et trois PNJ
 
