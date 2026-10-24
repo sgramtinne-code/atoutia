@@ -4,7 +4,9 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
-Le dernier commit applicatif stable vérifié sur `main` est [`db0d727`](https://github.com/sgramtinne-code/atoutia/commit/db0d727a37bff7d37a40fe65a9e36e108161964a), `feat: track live room activity timestamps` (7 octobre 2026). La PR documentaire nº 1 a ensuite été fusionnée dans `4109cec`. La branche `feat/live-room-expiration-dry-run` propose maintenant le diagnostic décrit ci-dessous, sans modifier le démarrage du serveur.
+Le diagnostic d'expiration en lecture seule est livré par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), depuis `main` `4109cec`, sur la branche `feat/live-room-expiration-dry-run`. Son code applicatif est au commit [`a2258b0`](https://github.com/sgramtinne-code/atoutia/commit/a2258b0e09a825ef5a0728b5e0995b8ad664b552) ; les changements suivants de cette PR consignent la validation et la reprise. Vérifier le statut GitHub de la PR et le dernier `main` avant une reprise.
+
+L'étape précédente était `db0d727`, `feat: track live room activity timestamps` (7 octobre 2026), puis la PR documentaire nº 1 fusionnée dans `4109cec`.
 
 Fonctionnalités déjà développées : authentification Google et sessions, salons et placement des joueurs, enchères, jeu des cartes, table Compose paysage, présence WebSocket et reconnexion, gestion des absences selon le mode, bots de test, persistance SQLite, résultats durables, historique, restauration Android et navigation après partie.
 
@@ -12,11 +14,17 @@ Le nettoyage au démarrage des salons terminés conserve leurs résultats durabl
 
 Validation historique transmise par le développeur pour `db0d727` : 67 fichiers de tests réussis, 525 tests réussis sur 525, typecheck backend, builds moteur et backend, et `git diff --check` propres. Ces contrôles ne sont pas une nouvelle exécution au 24 octobre.
 
-Nouvelle étape proposée : **classification prudente et en lecture seule des salons potentiellement abandonnés**. Le diagnostic SQLite est une commande manuelle séparée ; il ne démarre pas le backend, ne migre aucun timestamp et ne supprime rien. Les places occupées sont protégées si leur présence est inconnue. Aucune expiration automatique n'est activée. Ne pas purger la base réelle.
+Fonctionnalité validée : **classification prudente et en lecture seule des salons potentiellement abandonnés**. Le diagnostic SQLite est une commande manuelle séparée ; il ne démarre pas le backend, ne migre aucun timestamp et ne supprime rien. Les places occupées sont protégées si leur présence est inconnue. Aucune expiration automatique n'est activée. Ne pas purger la base réelle.
 
-Voir [le diagnostic et sa validation sur données synthétiques](docs/ROOM_LIFECYCLE.md). La validation WSL du développeur reste nécessaire avant fusion de cette branche ; Android et la base réelle n'ont pas été testés à distance.
+Voir [le diagnostic et sa validation sur données synthétiques](docs/ROOM_LIFECYCLE.md). Les validations distante et WSL sont réussies. Aucun diagnostic sur une copie de la base réelle n’a encore été transmis ; cet inventaire reste la prochaine étape, sans suppression.
 
-Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur. Validation WSL toujours attendue avant fusion.
+Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur.
+
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code `a2258b0` : **55/55 tests ciblés**, **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, typechecks et builds des deux paquets réussis, `git diff --check` propre, puis scénario CLI terminé avec `databaseUnchanged: true` et `Synthetic expiration preview passed`. Le journal transmis confirme pnpm 12.3.4. La base réelle et Android ne font pas partie de ce scénario.
+
+Prochaine action : récupérer `main` après fusion de la PR nº 2, puis préparer un diagnostic sur une copie SQLite cohérente et isolée de la base locale. Ne pas copier seulement le fichier principal si une base active utilise le WAL ; utiliser l'API de sauvegarde SQLite. Aucun abandon d'un salon occupé ne peut être prouvé par la CLI hors ligne. Aucune suppression n'est autorisée par cette livraison.
+
+La consigne de continuité est durable : à chaque étape importante, actualiser et pousser `AGENTS.md`, ce README et `docs/REPRISE.md` avec les validations et la prochaine action.
 
 ## Documents de référence
 
@@ -91,7 +99,7 @@ Adapter les validations Android au changement. Aucun code en échec ne doit êtr
 
 ## Diagnostic d'expiration sur données synthétiques
 
-Sur la branche `feat/live-room-expiration-dry-run`, après récupération et installation, exécuter dans l'ordre et s'arrêter au premier échec :
+Sur `main` après fusion de la PR nº 2 (ou sur sa branche avant fusion), après récupération et installation, exécuter dans l'ordre et s'arrêter au premier échec :
 
 ```bash
 cd $HOME/projects/atoutia

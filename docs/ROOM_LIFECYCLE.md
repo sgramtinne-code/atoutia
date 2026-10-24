@@ -1,6 +1,6 @@
 # Diagnostic du cycle de vie des salons
 
-Livraison proposée sur `feat/live-room-expiration-dry-run`, depuis `main` `4109cec`.
+Livraison par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche `feat/live-room-expiration-dry-run`, depuis `main` `4109cec`. Code applicatif `a2258b0` validé à distance et sous WSL ; consulter le statut réel de la PR avant récupération.
 
 ## Périmètre
 
@@ -67,7 +67,11 @@ Un `ABSENT` avec dates nulles, comme après redémarrage du serveur dans le prot
 
 ## Résultats distants
 
-Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur. Validation WSL toujours attendue avant fusion.
+Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur.
+
+## Résultats WSL transmis
+
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code `a2258b0` : **55/55 tests ciblés**, **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, typechecks et builds des deux paquets réussis, `git diff --check` propre, puis scénario CLI terminé avec `databaseUnchanged: true` et `Synthetic expiration preview passed`. Le journal transmis confirme pnpm 12.3.4. La base réelle et Android ne font pas partie de ce scénario.
 
 ## Validation locale complète
 
@@ -78,12 +82,12 @@ cd $HOME/projects/atoutia
 git status --short --branch
 ```
 
-Si le checkout est propre, récupérer la branche sans écraser de modifications :
+Après fusion de la PR nº 2, si le checkout est propre, récupérer `main` sans écraser de modifications :
 
 ```bash
 git fetch origin &&
-git switch feat/live-room-expiration-dry-run &&
-git pull --ff-only origin feat/live-room-expiration-dry-run &&
+git switch main &&
+git pull --ff-only origin main &&
 pnpm install --frozen-lockfile
 ```
 
@@ -120,4 +124,40 @@ pnpm --filter @atoutia/backend preview:expiration
 
 Le rapport contient des identifiants de salons mais aucune main, seed, identité de participant ou token. Garder ce rapport local ou l'anonymiser avant transmission. Les messages d'erreur n'incluent pas le contenu des documents.
 
-Ne pas lancer de suppression ni choisir la base habituelle par habitude. La validation WSL du développeur est un prérequis de fusion. Les résultats distants et les résultats historiques du 7 octobre doivent rester distincts.
+Ne pas lancer de suppression ni choisir la base habituelle par habitude. La validation WSL du développeur, prérequis de fusion, a été reçue et réussie le 24 octobre 2026. Le diagnostic d’une copie de sa base réelle reste à réaliser. Les résultats distants et les résultats historiques du 7 octobre doivent rester distincts.
+
+
+## Prochaine observation : copie isolée de la base locale
+
+Après récupération de `main` et build moteur/backend, préparer une copie via l’API de sauvegarde SQLite. La source est ouverte avec `mode=ro` ; le diagnostic porte uniquement sur la copie. Cette méthode prend aussi en compte les transactions validées présentes dans le WAL, contrairement à une simple copie du fichier principal.
+
+Depuis la racine du dépôt dans WSL :
+
+```bash
+python3 - <<'PYTHON'
+from contextlib import closing
+from hashlib import sha256
+from pathlib import Path
+import os
+import sqlite3
+import subprocess
+import tempfile
+
+source = Path.cwd() / "apps/backend/data/atoutia.sqlite"
+target = Path(tempfile.mkdtemp(prefix="atoutia-diagnostic-")) / "copie.sqlite"
+with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as src:
+    with closing(sqlite3.connect(target)) as dst:
+        src.backup(dst)
+print("Copie isolée :", target, flush=True)
+before = sha256(target.read_bytes()).hexdigest()
+subprocess.run(
+    ["node", "apps/backend/dist/previewLiveRoomExpiration.js"],
+    env={**os.environ, "ATOUTIA_DATABASE_PATH": str(target)},
+    check=True,
+)
+assert sha256(target.read_bytes()).hexdigest() == before, "La copie a changé."
+print("Copie inchangée après diagnostic.")
+PYTHON
+```
+
+La copie temporaire est conservée pour l’analyse locale et ne doit pas être publiée. Transmettre le résumé du diagnostic dans le chat privé, sans tokens ni mains. Ne pas en déduire que les salons occupés sont abandonnés ; leur présence reste inconnue hors ligne. L’inventaire réel est en attente de ce résultat, pas déjà validé par les tests synthétiques.

@@ -14,15 +14,17 @@ Dépôt : `https://github.com/sgramtinne-code/atoutia`.
 
 Branche stable : `main`.
 
-Dernier commit **applicatif** stable confirmé et retrouvé sur GitHub le 24 octobre 2026 :
+Dernier code **applicatif** validé à distance et sous WSL le 24 octobre 2026 :
 
-`db0d727a37bff7d37a40fe65a9e36e108161964a` — `feat: track live room activity timestamps`.
+`a2258b0e09a825ef5a0728b5e0995b8ad664b552` — `feat: preview live room expiration without mutations`.
+
+Référence applicative précédente : `db0d727a37bff7d37a40fe65a9e36e108161964a` — timestamps d’activité.
 
 Commits précédents : `efe9224` — nettoyage des salons terminés au démarrage ; `7aa7b27` — navigation après partie.
 
 La PR documentaire nº 1 a été fusionnée le 24 octobre 2026 : `main` a été vérifié à `4109cecad6e903236a7d13f77dda926c87bc6493`.
 
-La branche **`feat/live-room-expiration-dry-run`** propose maintenant le diagnostic d'expiration en lecture seule. Vérifier son dernier commit et sa PR avant toute reprise. Sa fusion attend la validation WSL du développeur. Ne pas revenir à `db0d727` et ne pas recréer l'implémentation existante.
+La branche **`feat/live-room-expiration-dry-run`**, [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), livre le diagnostic d’expiration en lecture seule. La validation WSL a été reçue et réussie ; les commits documentaires suivants consignent cet état sans changer le code testé. Vérifier le statut réel de la PR : si elle est fusionnée, repartir du dernier `main` qui l’inclut ; sinon terminer sa fusion après les contrôles GitHub. Ne pas revenir à `db0d727` et ne pas recréer l’implémentation existante.
 
 Lis d'abord ces documents, puis `docs/GAME_RULES.md` et `docs/RULES_VALIDATION.md`. La spécification canonique du dépôt est en version documentaire **0.1.2**, plus récente que le texte initial 0.1.0 joint à l'ancien chat. Elle définit notamment `PLAYER_0` à `PLAYER_3`, `TEAM_0` / `TEAM_1`, la prise en compte de la Belote dans le contrat et le traitement de deux litiges consécutifs. Ne remplace pas cette spécification par le document initial. Signale les contradictions sans réécrire silencieusement les règles.
 
@@ -35,7 +37,7 @@ J'ai autorisé le travail direct sur mon dépôt GitHub. La lecture, l'écriture
 1. Vérifie `main`, les branches et les PR ouvertes. Lis les fichiers complets concernés et les directives applicables avant de modifier.
 2. Travaille sur une branche dédiée depuis le dernier `main` vérifié, ou continue une branche pertinente après inspection. La branche du diagnostic est `feat/live-room-expiration-dry-run` ; vérifier son dernier état et poursuivre la branche pertinente sans écraser les commits existants.
 3. Modifie directement sur GitHub ou dans un checkout isolé synchronisé avec GitHub. Ne modifie jamais directement `main`.
-4. Mets toujours à jour les directives `AGENTS.md` et le `README.md` avec les évolutions pertinentes ; actualise aussi `docs/REPRISE.md` aux étapes importantes.
+4. À chaque étape importante, mets à jour et pousse `AGENTS.md`, `README.md` et `docs/REPRISE.md` : avancement, commit/PR, validations et provenance, limites, prochaine action. Cette consigne explicite du développeur doit rester applicable dans chaque nouveau chat.
 5. Fournis les commandes courtes pour récupérer la branche et effectuer les validations locales nécessaires. Ne me redemande pas des fichiers accessibles dans le dépôt.
 6. Corrige sur la branche à partir des résultats. Les commits de travail sont autorisés ; aucune fusion ni déclaration de stabilité avec des tests en échec ou des contrôles nécessaires manquants.
 7. Ouvre une PR claire ; fusionne lorsque toutes les validations requises sont réussies. Ne confonds pas PR créée et PR fusionnée.
@@ -118,7 +120,7 @@ Compatibilité : `formatVersion: 1` conservé ; documents anciens sans timestamp
 
 Validation historique rapportée pour `db0d727` : **67 fichiers de tests, 525/525 tests**, typecheck backend, builds moteur/backend et `git diff --check` réussis ; migration SQLite et conservation des résultats vérifiées localement. Ne les présente pas comme des tests que tu viens d'exécuter.
 
-## 8. Diagnostic d'expiration implémenté, validation locale à terminer
+## 8. Diagnostic d'expiration implémenté et validé
 
 Lire `docs/ROOM_LIFECYCLE.md` et les fichiers complets de la branche :
 
@@ -134,9 +136,13 @@ Le diagnostic hors ligne ne lit pas la présence WebSocket. Tout salon occupé s
 
 `ABANDONMENT_CANDIDATE` décrit un seuil diagnostique, ne prouve pas un abandon définitif et n'autorise jamais une suppression. Les timestamps migrés ne permettent pas de reconstituer l'activité historique. Ne pas développer de suppression sans nouvelle étape autorisée, réévaluation concurrente et protection des résultats.
 
-Reprendre par les résultats WSL du développeur, corriger la branche si nécessaire et fusionner seulement après les validations requises. Les tests Android ne sont pas requis pour cette commande détachée du serveur ; ils le deviendraient si une intégration modifiait le multijoueur.
+Les résultats WSL ont été reçus et sont réussis ; ne pas les redemander sans nouveau changement applicatif ou anomalie. Vérifier la fusion de la PR nº 2 avant de repartir de `main`. Les tests Android ne sont pas requis pour cette commande détachée du serveur ; ils le deviendraient si une intégration modifiait le multijoueur.
 
-Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur. Validation WSL toujours attendue avant fusion.
+Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, dont **55 nouveaux tests ciblés** ; typechecks et builds des deux paquets réussis, scénario CLI synthétique réussi avec empreinte SQLite inchangée, `git diff --check` propre. Ces résultats concernent l’environnement distant, pas le PC du développeur.
+
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code `a2258b0` : **55/55 tests ciblés**, **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, typechecks et builds des deux paquets réussis, `git diff --check` propre, puis scénario CLI terminé avec `databaseUnchanged: true` et `Synthetic expiration preview passed`. Le journal transmis confirme pnpm 12.3.4. La base réelle et Android ne font pas partie de ce scénario.
+
+Prochaine étape : diagnostic sur une copie cohérente et isolée de la base locale, via l’API de sauvegarde SQLite si le serveur peut écrire simultanément. Le diagnostic sur cette copie n’a pas encore été transmis. Ne pas confondre les fixtures synthétiques validées avec l’inventaire de la vraie base, qui reste inconnu aujourd’hui. Ne pas démarrer le backend pour effectuer ce diagnostic. Aucune suppression.
 
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
@@ -161,6 +167,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Vérifie GitHub, le dernier `main`, la branche et la PR de diagnostic. Lis les directives et `docs/ROOM_LIFECYCLE.md`. Vérifie les résultats actuels au lieu de reprendre les anciens décomptes comme une nouvelle validation. Termine les validations WSL manquantes et corrige directement sur la branche. Fusionne seulement lorsque les contrôles requis ont réussi, puis donne les commandes complètes pour récupérer `main`.
+Vérifie GitHub, le dernier `main`, la branche et la PR de diagnostic. Lis les directives et `docs/ROOM_LIFECYCLE.md`. Vérifie les résultats actuels au lieu de reprendre les anciens décomptes comme une nouvelle validation. La validation WSL est déjà réussie pour `a2258b0`. Vérifie que la PR nº 2 est fusionnée, puis donne les commandes complètes pour récupérer `main`. Poursuis avec le diagnostic d’une copie SQLite cohérente et isolée, sans suppression. Ne déduis pas l’inventaire de la base réelle du scénario synthétique.
 
 Ne recrée pas le diagnostic. Ne purge aucun ancien salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.
