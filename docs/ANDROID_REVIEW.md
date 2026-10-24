@@ -40,6 +40,14 @@ Journal développeur du 24 octobre 2026, après récupération de la branche `fi
 
 Ces résultats proviennent du PC et de l’émulateur du développeur, pas du runner GitHub. Aucun téléphone physique, compte Google réel ou scénario multijoueur n’est validé par ces trois tests. Le journal n’affiche pas de SHA local ; la tête de branche distante vérifiée avant l’enregistrement est `80dcab4`, avec correctif applicatif `46163ef` inchangé. Les runs de cette tête, Android `40088256774` et moteur/backend `40088256766`, sont tous deux réussis. Ne pas répéter le Keystore sans changement concerné ; poursuivre les essais fonctionnels du README.
 
+## Connexion Google observée sur l’émulateur
+
+Le 24 octobre 2026, après récupération explicite de `13be59e`, le développeur transmet deux builds debug avec Client ID Google et autoplay false réussis, installation ADB Windows et lancement réussis. Le backend annonce loopback HTTP/WebSocket et Google/bootstrap activés. Le curl en échec dans le journal précède son démarrage, sans nouvel échec réseau transmis ensuite.
+
+Les captures montrent le sélecteur Google puis l’accueil authentifié en paysage : l’aboutissement de ce parcours est observé visuellement. Aucune réponse HTTP précise, révocation après déconnexion, durée de session ou restauration de partie n’est déduite de ces images. Les comptes et images restent hors de GitHub.
+
+Le cadrage initial de l’accueil ne montre pas les actions du bas. Le fichier `AuthenticatedHomeScreen.kt` a été relu en entier et possède déjà un défilement vertical. Guider un glissement vers le haut pour atteindre Historique et Se déconnecter ; ce cadrage seul ne prouve pas un défaut de mise en page. La prochaine validation est déconnexion → redémarrage encore déconnecté → reconnexion Google → attente de 16 minutes sur l’accueil → Historique sans nouvel écran Google, avant les essais avec trois PNJ. L’APK actuel suffit ; aucun changement applicatif n’est livré ici.
+
 ## Avertissements lint observés
 
 Contrôle du commit `f0adaad` : [run Android `40088059834`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059834), job `120854929369`, réussi avec **192/192 tests JVM**, les deux APK et le lint. Le [run moteur/backend `40088059833`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059833) est également réussi. Le correctif applicatif reste `46163ef`.
@@ -61,7 +69,7 @@ Ces signaux ne sont pas corrigés ni supprimés par une baseline lint. Ils reste
 
 ## Vérifications encore nécessaires
 
-- Vérifier les contrôles réels du dernier commit de la PR. La reproduction, la correction JVM et les trois tests Keystore sur émulateur sont acquis ; les résultats fonctionnels Google/multijoueur restent à recevoir. Un lint réussi peut comporter des avertissements : consulter le résumé dans les logs.
+- Vérifier les contrôles réels du dernier commit de la PR. La reproduction, la correction JVM et les trois tests Keystore sur émulateur sont acquis ; l’arrivée à l’accueil après sélection Google est observée, mais déconnexion, refresh réel et multijoueur restent à recevoir. Un lint réussi peut comporter des avertissements : consulter le résumé dans les logs.
 - Sur appareil : connexion Google, déconnexion, redémarrage/restauration, refresh réel, partie avec trois PNJ, reconnexion et historique. Le test Keystore ciblé est déjà réussi sur émulateur. Suivre la procédure complète du README. Ne pas utiliser les tests HTTP instrumentés qui dépendent d’un backend sans préparer leur environnement.
 - Revue du cycle de vie temps réel : le client de salon programme son heartbeat après `onConnected` sans arbitrage avec une fermeture concurrente, et ses callbacks terminaux annulent le heartbeat sans fermer l’exécuteur. Reproduire avec un test dédié avant correction. Le client de partie possède une gestion différente ; vérifier aussi la course entre `acknowledgeRevision` et `close`.
 - Revue Compose/navigation : callbacks HTTP tardifs, annulation des effets, transitions salon/partie et restauration après destruction d’activité. Les coordinateurs déjà testés ne couvrent pas automatiquement ces interactions d’écran.
@@ -70,3 +78,5 @@ Ces signaux ne sont pas corrigés ni supprimés par une baseline lint. Ils reste
 La correction des WebSockets, l’audit complet de l’UI et une livraison production ne sont pas présentés comme terminés par cette PR.
 
 Outils de test à examiner séparément : `dev-android-room.mjs` passe le chemin Linux de l’APK directement à adb.exe ; la variante en cours utilise l’installation `wslpath -w` explicitement validée, puis le script PNJ existant. `dev-autoplay-room.mjs` ne renouvelle pas ses access tokens ; effectuer l’attente de 16 minutes pour le refresh Android sur l’accueil avant leur création. Aucun de ces scripts n’est modifié ou présenté comme corrigé ici.
+
+La capture suivante confirme le défilement de l’accueil : Historique, Paramètres et Se déconnecter sont visibles. Le message « Le profil joueur arrive prochainement. » correspond à l’action de profil encore prévue ; ce n’est pas une erreur d’authentification. Aucun résultat de clic sur Se déconnecter ou sur Historique après expiration n’est encore reçu.
