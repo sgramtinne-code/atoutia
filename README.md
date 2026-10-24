@@ -4,7 +4,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
-Test multijoueur actuel : utiliser **`node apps/backend/scripts/dev-android-room.mjs`**, avec N pour autoplay PLAYER_0 puis O pour les PNJ. Le lanceur détecte le nouveau salon : **aucun identifiant à copier**. Attendre son message avant de créer le salon. Sa conversion du chemin APK pour ADB Windows est corrigée dans `09cee69` ; validation complète WSL du lanceur encore attendue.
+Test multijoueur actuel : utiliser **`node apps/backend/scripts/dev-android-room.mjs`**, avec N pour autoplay PLAYER_0 puis O pour les PNJ. Le lanceur détecte le nouveau salon : **aucun identifiant à copier**. Attendre son message avant de créer le salon. Sa conversion du chemin APK pour ADB Windows est corrigée dans `09cee69` ; validation WSL du lanceur reçue et réussie, partie terminée et résultat retrouvé dans l’historique.
 
 Travail actuel : [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7), revue Android et correction de la concurrence des sessions, depuis `main` `5e267e3`. Voir [le bilan Android et ses limites](docs/ANDROID_REVIEW.md). Les livraisons SQLite et la CI moteur/backend ci-dessous sont acquises ; elles ne prouvent pas une validation Android.
 
@@ -342,6 +342,14 @@ Le développeur ne peut pas copier l’identifiant et demande le lanceur déjà 
 
 Correctif de support **`09cee69`** : lors d’un lancement sous Linux/WSL avec adb.exe, le chemin de l’APK est converti par `wslpath -w` avant installation. L’appel passe ses arguments directement sans shell et ne revient pas au chemin Linux si la conversion échoue. ADB natif Linux et l’hôte Windows conservent leur chemin. Helper `dev-adb.mjs` et six tests Vitest, exécutés aussi par la CI moteur/backend.
 
-Validation locale de l’assistant : **6/6 tests Vitest**, syntaxe du lanceur, actionlint et diff réussis. Aucun SDK/émulateur Windows n’est exécuté ici ; la validation complète du lanceur reste celle demandée au développeur. Aucun changement Kotlin ou de détection SQLite/PNJ dans ce correctif. Le code Kotlin reste `46163ef`, la PR nº 7 reste en brouillon jusqu’aux résultats nécessaires.
+Validation locale de l’assistant : **6/6 tests Vitest**, syntaxe du lanceur, actionlint et diff réussis. Aucun SDK/émulateur Windows n’est exécuté ici par l’assistant ; le journal développeur reçu valide maintenant le lanceur complet jusqu’à la fin de partie et l’historique. Aucun changement Kotlin ou de détection SQLite/PNJ dans ce correctif. Le code Kotlin reste `46163ef`, la PR nº 7 reste en brouillon jusqu’aux résultats nécessaires.
 
 Intégration des tests du lanceur : le run `40104824613` a signalé un conflit de collecte, car Vitest chargeait le fichier utilisant node:test. Le test utilise maintenant Vitest, comme la suite backend ; les six cas ciblés sont réussis localement. Le job backend existant les exécute directement, sans étape Node distincte. Vérifier le run du dernier commit avant d’annoncer la CI réussie ; aucune fusion sur cet échec intermédiaire.
+
+### Lanceur automatique et partie complète validés sous WSL
+
+Journal développeur reçu le 24 octobre 2026 après récupération explicite de **`6669443`** : backend sain, un émulateur prêt, réponses N/O, build debug réussi, autoplay PLAYER_0 OFF, installation ADB Windows réussie, application lancée, nouveau salon détecté automatiquement sans copier son identifiant. Les trois PNJ remplissent les places et jouent uniquement PLAYER_1 à PLAYER_3 ; PLAYER_0 démarre et joue manuellement. Le script termine normalement avec **FINISHED**, **Test terminé** et retour au terminal.
+
+Les captures montrent la partie en cours, le résultat final et l’historique chargé avec le même résultat. Cela valide le lanceur corrigé et une partie complète sur l’émulateur du développeur ; aucune nouvelle exécution de ce scénario n’est demandée sans changement concerné. Les données de match et le log brut restent privés.
+
+La restauration après fermeture en cours de cette partie reste à confirmer simplement : les vues de jeu ne montrent pas la même révision/main avant et après, et le journal fourni concerne le lanceur, pas le troisième terminal ADB. Ne pas conclure à un échec et ne pas faire rejouer ce match pour obtenir une réponse factuelle. Les boutons de fin sont visibles et l’historique est chargé ; le clic sur Rejouer n’est pas directement montré. La PR nº 7 reste en brouillon en attendant la validation manquante.
