@@ -14,11 +14,17 @@ Avant correction, les cinq nouveaux tests moteur donnent quatre échecs et un su
 
 Après correction : **588/588 moteur** (60 fichiers), **618/618 backend** (73 fichiers), typechecks/builds moteur/backend et CLI SQLite synthétiques réussis. Les cas suivent les mains des quatre joueurs pendant les 32 coups, la fin, la nouvelle donne, l’immuabilité, le JSON v1, les réponses HTTP commande et snapshot authentifiées et la main du joueur suivant. Aucun compte ni stockage réel utilisé.
 
-Le parseur Android accepte une liste de taille variable et vérifie que les cartes légales sont dans la main ; le coordinateur utilise ces listes serveur. Compose affiche cette main. Aucun changement Kotlin de production nécessaire. Une huitième fixture instrumentée fournit le snapshot suivant à la même composition et vérifie disparition de la carte, visibilité des cartes restantes et sélection légale. Elle ne prouve pas à elle seule une communication serveur : cette frontière est couverte séparément par le test HTTP. Le workflow exige **OK (8 tests)**. Résultats CI de cette branche encore à vérifier ; aucun test Android local de l’assistant revendiqué.
+Le parseur Android accepte une liste de taille variable et vérifie que les cartes légales sont dans la main ; le coordinateur utilise ces listes serveur. Compose affiche cette main. Aucun changement Kotlin de production nécessaire. Une huitième fixture instrumentée fournit le snapshot suivant à la même composition et vérifie disparition de la carte, visibilité des cartes restantes et sélection légale. Elle ne prouve pas à elle seule une communication serveur : cette frontière est couverte séparément par le test HTTP. Le workflow exige **OK (8 tests)**. Les résultats CI de ce code sont acquis dans le bilan suivant ; aucun test Android local de l’assistant revendiqué.
+
+## Validation GitHub du code
+
+La [PR nº 11](https://github.com/sgramtinne-code/atoutia/pull/11) porte le code **`8f87f21`**. Ses trois CI sont réellement réussies : [moteur/backend `40132855394`](https://github.com/sgramtinne-code/atoutia/actions/runs/40132855394), job `120988100760`, **588 moteur / 618 backend**, typechecks/builds/CLI synthétiques ; [Android Kotlin `40132855436`](https://github.com/sgramtinne-code/atoutia/actions/runs/40132855436), job `120988100769`, **220/220 JVM**, deux APK et lint (**12 avertissements, une suggestion**) ; [Android UI `40132855362`](https://github.com/sgramtinne-code/atoutia/actions/runs/40132855362), job `120988100603`, **OK (8 tests)** sur AVD CI. Le nouveau cas retire une carte du snapshot dans la même composition, vérifie sa disparition puis une sélection légale restante. Aucun SDK/émulateur local de l’assistant ni donnée réelle utilisé.
+
+Reste avant fusion : vérifier les contrôles du commit documentaire de bilan, puis recevoir l’essai PC ciblé décrit ci-dessous (backend reconstruit/redémarré, lanceur N/O, carte retirée et progression PNJ). La PR reste en brouillon ; aucun nouveau match complet, Keystore/Google, réseau ou diagnostic de vraie base requis.
 
 ## Essai PC ciblé avant fusion
 
-Attendre les CI du dernier commit de la PR. Arrêter l’ancien lanceur PNJ par Ctrl-C ; si le relais réseau tourne encore, q restaure sa connexion directe. Arrêter l’ancien backend par Ctrl-C dans son terminal, puis récupérer la branche et reconstruire le moteur/backend. Ne pas supprimer de données.
+Vérifier les CI du dernier commit documentaire ; le code `8f87f21` a déjà ses trois validations CI. Arrêter l’ancien lanceur PNJ par Ctrl-C ; si le relais réseau tourne encore, q restaure sa connexion directe. Arrêter l’ancien backend par Ctrl-C dans son terminal, puis récupérer la branche et reconstruire le moteur/backend. Ne pas supprimer de données.
 
 Terminal backend, depuis la racine du dépôt récupéré : remplacer la valeur de Client ID par celle déjà validée pour ce poste.
 
