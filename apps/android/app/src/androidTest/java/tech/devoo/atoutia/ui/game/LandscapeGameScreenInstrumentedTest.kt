@@ -45,6 +45,7 @@ class LandscapeGameScreenInstrumentedTest {
     private var replays = 0
     private var retries = 0
     private val sync = mutableStateOf(GameSyncState(connection = GameRealtimeStatus.CONNECTED))
+    private val displayedSession = mutableStateOf<PlayerGameSession?>(null)
 
     @Before fun landscapeHost() {
         compose.runOnUiThread {
@@ -80,6 +81,30 @@ class LandscapeGameScreenInstrumentedTest {
         cardNode(legal).assertHasNoClickAction()
         compose.onNodeWithText("Retour à l’accueil").assertIsNotEnabled()
         assertHandVisible(session)
+    }
+
+    @Test fun updatedSnapshotRemovesPlayedCardAndKeepsRemainingCardsPlayable() {
+        val initial = fixture()
+        val played = initial.document.snapshot.actions.legalCards.first()
+        val snapshot = initial.document.snapshot
+        val remaining = snapshot.match.hand.filter { it != played }
+        val legal = snapshot.actions.legalCards.filter { it != played }
+        // Next local turn after the other three players: the server supplies seven cards.
+        val next = initial.copy(revision = initial.revision + 4, document = initial.document.copy(
+            snapshot = snapshot.copy(
+                match = snapshot.match.copy(hand = remaining, legalCards = legal,
+                    publicMatch = snapshot.match.publicMatch.copy(currentTrick =
+                        PublicCurrentTrickSnapshot(initial.player, emptyList()))),
+                actions = snapshot.actions.copy(legalCards = legal),
+            ),
+        ))
+        show(initial)
+        cardNode(played).performClick()
+        compose.runOnIdle { displayedSession.value = next }
+        cardNode(played).assertDoesNotExist()
+        assertHandVisible(next)
+        cardNode(legal.first()).performClick()
+        compose.runOnIdle { assertEquals(listOf(played, legal.first()), selected) }
     }
 
     @Test fun scrollingBidsDoesNotMoveTheHandAndPassRemainsReachable() {
@@ -179,13 +204,14 @@ class LandscapeGameScreenInstrumentedTest {
     }
 
     private fun show(session: PlayerGameSession, fontScale: Float = 1f) {
+        displayedSession.value = session
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 AtoutiaTheme {
                     Box(Modifier.requiredSize(640.dp, 320.dp).testTag("test-viewport")) {
                         GameScreen(
-                            session = session,
+                            session = requireNotNull(displayedSession.value),
                             playCardState = submitted.value,
                             onPlayCard = { selected.add(it) },
                             onBiddingAction = { bids.add(it) },
