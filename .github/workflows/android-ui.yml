@@ -109,11 +109,11 @@ jobs:
           import os, re
           from pathlib import Path
           result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-ui-result.txt").read_text()
-          passed = bool(re.search(r"^OK \(4 tests\)\s*$", result, re.MULTILINE))
+          passed = bool(re.search(r"^OK \(7 tests\)\s*$", result, re.MULTILINE))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Isolated landscape instrumentation: " + ("4/4 passed" if passed else "FAILED") + "\n")
+              summary.write("Isolated landscape instrumentation: " + ("7/7 passed" if passed else "FAILED") + "\n")
           if not passed:
-              raise SystemExit("The four landscape UI tests did not all pass.")
+              raise SystemExit("The seven landscape UI tests did not all pass.")
           PY
 
       - name: Report failures and stop emulator

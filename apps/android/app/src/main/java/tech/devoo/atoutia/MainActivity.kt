@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +51,9 @@ import tech.devoo.atoutia.network.BackendHealth
 import tech.devoo.atoutia.network.game.AtoutiaGameApiException
 import tech.devoo.atoutia.network.game.AtoutiaGameRealtimeClient
 import tech.devoo.atoutia.network.game.AtoutiaGameRealtimeSubscription
+import tech.devoo.atoutia.network.game.GameRealtimeStatus
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
+import tech.devoo.atoutia.network.game.GameRealtimeAdjudication
 import tech.devoo.atoutia.network.game.GameRealtimeAdjudicationEvent
 import tech.devoo.atoutia.network.game.GameRealtimePresence
 import tech.devoo.atoutia.network.game.HttpAtoutiaGameApi
@@ -75,6 +78,8 @@ import tech.devoo.atoutia.network.room.PlayerPosition
 import tech.devoo.atoutia.ui.game.GameBiddingUiState
 import tech.devoo.atoutia.ui.game.GamePlayCardUiState
 import tech.devoo.atoutia.ui.game.GameScreen
+import tech.devoo.atoutia.ui.game.GameSyncState
+import tech.devoo.atoutia.ui.game.GameRefreshGate
 import tech.devoo.atoutia.ui.history.MatchHistoryScreen
 import tech.devoo.atoutia.ui.history.MatchHistoryUiState
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
@@ -1362,6 +1367,7 @@ class MainActivity :
             (
                 GameRealtimeAdjudicationEvent,
             ) -> Unit,
+        onConnectionState: (GameRealtimeStatus) -> Unit,
     ): AtoutiaGameRealtimeSubscription? {
         val apiBaseUrl =
             BuildConfig
@@ -1370,6 +1376,7 @@ class MainActivity :
         if (
             apiBaseUrl.isBlank()
         ) {
+            onConnectionState(GameRealtimeStatus.ERROR)
             return null
         }
 
@@ -1439,8 +1446,8 @@ class MainActivity :
                     }
                 },
 
-                onConnectionIssue = {
-                    // Le polling HTTP reste le filet de sécurité.
+                onConnectionState = { state ->
+                    lifecycleScope.launch { onConnectionState(state) }
                 },
             )
     }
@@ -2508,6 +2515,7 @@ private fun AtoutiaApp(
             (
                 GameRealtimeAdjudicationEvent,
             ) -> Unit,
+            (GameRealtimeStatus) -> Unit,
         ) -> AtoutiaGameRealtimeSubscription?,
 
     submitBiddingAction:
@@ -3504,258 +3512,111 @@ private fun AtoutiaApp(
                             )
                         }
 
-                    fun applyRefreshedGameSession(
-                        refreshedSession:
-                            PlayerGameSession,
-                    ) {
-                        realtimeSubscription
-                            ?.acknowledgeRevision(
-                                refreshedSession.revision,
-                            )
+                    var gameSyncState by remember(gameSession.sessionId, gameSession.player) {
+                        mutableStateOf(GameSyncState())
+                    }
+                    val refreshGate = remember(gameSession.sessionId, gameSession.player) { GameRefreshGate() }
 
-                        val activeDestination =
-                            destination
-
-                        if (
-                            activeDestination !is
-                                AuthenticatedDestination.Game ||
-                            activeDestination
-                                .session
-                                .sessionId !=
-                                refreshedSession.sessionId ||
-                            refreshedSession.revision <
-                                activeDestination
-                                    .session
-                                    .revision
-                        ) {
-                            return
+                    fun currentGame(): AuthenticatedDestination.Game? =
+                        (destination as? AuthenticatedDestination.Game)?.takeIf {
+                            refreshGate.active && it.session.sessionId == gameSession.sessionId &&
+                                it.session.player == gameSession.player
                         }
 
-                        gameBiddingState =
-                            GameBiddingUiState.Idle
+                    fun commandInFlight(): Boolean =
+                        gameBiddingState is GameBiddingUiState.Submitting ||
+                            gamePlayCardState is GamePlayCardUiState.Submitting
 
-                        gamePlayCardState =
-                            GamePlayCardUiState.Idle
-
-                        destination =
-                            AuthenticatedDestination.Game(
-                                session =
-                                    refreshedSession,
-                            )
+                    fun applyRefreshedGameSession(refreshedSession: PlayerGameSession) {
+                        val current = currentGame() ?: return
+                        if (refreshedSession.sessionId != current.session.sessionId ||
+                            refreshedSession.player != current.session.player ||
+                            refreshedSession.revision < current.session.revision || commandInFlight()) return
+                        realtimeSubscription?.acknowledgeRevision(refreshedSession.revision)
+                        gameBiddingState = GameBiddingUiState.Idle
+                        gamePlayCardState = GamePlayCardUiState.Idle
+                        destination = AuthenticatedDestination.Game(refreshedSession)
                     }
 
-                    DisposableEffect(
-                        gameSession.sessionId,
-                        gameSession.player,
-                    ) {
-                        val subscription =
-                            subscribeGameRealtime(
-                                gameSession,
-
-                                {
-                                    revision ->
-                                    if (
-                                        revision >
-                                            realtimeRevision
-                                    ) {
-                                        realtimeRevision =
-                                            revision
-                                    }
-                                },
-
-                                {
-                                    presence ->
-                                    gameRealtimePresence =
-                                        presence
-                                },
-
-                                {
-                                    adjudication ->
-                                    gameRealtimeAdjudication =
-                                        adjudication
-                                },
-                            )
-
-                        realtimeSubscription =
-                            subscription
-
-                        onDispose {
-                            if (
-                                realtimeSubscription ===
-                                subscription
-                            ) {
-                                realtimeSubscription =
-                                    null
-                            }
-
-                            subscription
-                                ?.close()
-                        }
-                    }
-
-                    LaunchedEffect(
-                        gameSession.sessionId,
-                        gameSession.revision,
-                        realtimeRevision,
-                    ) {
-                        if (
-                            realtimeRevision <=
-                                gameSession.revision
-                        ) {
-                            realtimeSubscription
-                                ?.acknowledgeRevision(
-                                    gameSession.revision,
-                                )
-
-                            return@LaunchedEffect
-                        }
-
-                        refreshGameSession(
-                            gameSession,
-                        ) {
-                            result ->
-                            when (
-                                result
-                            ) {
+                    // One refresh lane for revision hints, fallback polling and manual retry.
+                    fun requestGameSync() {
+                        val current = currentGame() ?: return
+                        if (commandInFlight()) return
+                        val ticket = refreshGate.begin() ?: return
+                        gameSyncState = gameSyncState.copy(refreshing = true)
+                        refreshGameSession(current.session) onResult@ { result ->
+                            if (!refreshGate.complete(ticket) || currentGame() == null) return@onResult
+                            gameSyncState = gameSyncState.copy(refreshing = false)
+                            when (result) {
                                 is RefreshGameSessionResult.Refreshed -> {
-                                    applyRefreshedGameSession(
-                                        result.session,
-                                    )
+                                    gameSyncState = gameSyncState.copy(refreshFailed = false)
+                                    // Remember an observed newer revision even if a command started meanwhile.
+                                    realtimeRevision = maxOf(realtimeRevision, result.session.revision)
+                                    applyRefreshedGameSession(result.session)
                                 }
-
-                                is RefreshGameSessionResult.SessionExpired -> {
-                                    authState =
-                                        AuthStartupState.SignedOut
-
-                                    destination =
-                                        AuthenticatedDestination.Home
-
-                                    roomActionState =
-                                        RoomActionUiState.Idle
-
-                                    leaveState =
-                                        RoomLobbyLeaveUiState.Idle
-
-                                    startState =
-                                        RoomLobbyStartUiState.Idle
-
-                                    gameBiddingState =
-                                        GameBiddingUiState.Idle
-
-                                    gamePlayCardState =
-                                        GamePlayCardUiState.Idle
-
-                                    joinSessionId =
-                                        ""
-
-                                    googleSignInState =
-                                        GoogleSignInUiState.Idle
-
-                                    notice =
-                                        result.message
-                                }
-
                                 is RefreshGameSessionResult.Failed -> {
-                                    // Le polling HTTP prendra le relais.
+                                    gameSyncState = gameSyncState.copy(refreshFailed = true)
+                                }
+                                is RefreshGameSessionResult.SessionExpired -> {
+                                    authState = AuthStartupState.SignedOut
+                                    destination = AuthenticatedDestination.Home
+                                    roomActionState = RoomActionUiState.Idle
+                                    leaveState = RoomLobbyLeaveUiState.Idle
+                                    startState = RoomLobbyStartUiState.Idle
+                                    gameBiddingState = GameBiddingUiState.Idle
+                                    gamePlayCardState = GamePlayCardUiState.Idle
+                                    joinSessionId = ""
+                                    googleSignInState = GoogleSignInUiState.Idle
+                                    notice = result.message
                                 }
                             }
                         }
                     }
 
-                    LaunchedEffect(
-                        gameSession.sessionId,
-                        gameSession.revision,
-                        gameActions.mode,
-                    ) {
-                        if (
-                            gameActions.mode ==
-                                PlayerActionMode.WAIT
-                        ) {
-                            var requestInFlight =
-                                false
+                    DisposableEffect(gameSession.sessionId, gameSession.player) {
+                        val subscription = subscribeGameRealtime(
+                            gameSession,
+                            { revision ->
+                                if (currentGame() != null) realtimeRevision = maxOf(realtimeRevision, revision)
+                            },
+                            { presence -> if (currentGame() != null) gameRealtimePresence = presence },
+                            { adjudication -> if (currentGame() != null) gameRealtimeAdjudication = adjudication },
+                            { state ->
+                                if (currentGame() != null) gameSyncState = gameSyncState.copy(connection = state)
+                            },
+                        )
+                        realtimeSubscription = subscription
+                        onDispose {
+                            refreshGate.close()
+                            if (realtimeSubscription === subscription) realtimeSubscription = null
+                            subscription?.close()
+                        }
+                    }
 
-                            var nextDelayMs =
-                                GAME_AUTO_REFRESH_INTERVAL_MS
+                    val displayedSyncState = gameSyncState.copy(
+                        revisionBehind = realtimeRevision > gameSession.revision,
+                    )
+                    val gameCompleted = gameSession.document.snapshot.match.publicMatch.score.completed ||
+                        gameRealtimeAdjudication?.adjudication is GameRealtimeAdjudication.Forfeit
+                    val pollNeeded by rememberUpdatedState(
+                        displayedSyncState.needsPolling(gameActions.mode, gameCompleted),
+                    )
+                    val refreshFailed by rememberUpdatedState(gameSyncState.refreshFailed)
+                    val latestRequestSync by rememberUpdatedState({ requestGameSync() })
 
-                            while (
-                                true
-                            ) {
-                                delay(
-                                    nextDelayMs,
-                                )
+                    LaunchedEffect(gameSession.sessionId, gameSession.revision, realtimeRevision) {
+                        if (realtimeRevision > gameSession.revision) requestGameSync()
+                        else realtimeSubscription?.acknowledgeRevision(gameSession.revision)
+                    }
 
-                                if (
-                                    requestInFlight
-                                ) {
-                                    continue
-                                }
-
-                                requestInFlight =
-                                    true
-
-                                refreshGameSession(
-                                    gameSession,
-                                ) {
-                                    result ->
-                                    requestInFlight =
-                                        false
-
-                                    when (
-                                        result
-                                    ) {
-                                        is RefreshGameSessionResult.Refreshed -> {
-                                            nextDelayMs =
-                                                GAME_AUTO_REFRESH_INTERVAL_MS
-
-                                            applyRefreshedGameSession(
-                                                result.session,
-                                            )
-                                        }
-
-                                        is RefreshGameSessionResult.SessionExpired -> {
-                                            authState =
-                                                AuthStartupState.SignedOut
-
-                                            destination =
-                                                AuthenticatedDestination.Home
-
-                                            roomActionState =
-                                                RoomActionUiState.Idle
-
-                                            leaveState =
-                                                RoomLobbyLeaveUiState.Idle
-
-                                            startState =
-                                                RoomLobbyStartUiState.Idle
-
-                                            gameBiddingState =
-                                                GameBiddingUiState.Idle
-
-                                            gamePlayCardState =
-                                                GamePlayCardUiState.Idle
-
-                                            joinSessionId =
-                                                ""
-
-                                            googleSignInState =
-                                                GoogleSignInUiState.Idle
-
-                                            notice =
-                                                result.message
-                                        }
-
-                                        is RefreshGameSessionResult.Failed -> {
-                                            nextDelayMs =
-                                                (
-                                                    nextDelayMs *
-                                                        2
-                                                ).coerceAtMost(
-                                                    GAME_AUTO_REFRESH_MAX_INTERVAL_MS,
-                                                )
-                                        }
-                                    }
-                                }
-                            }
+                    LaunchedEffect(gameSession.sessionId, gameSession.player) {
+                        var nextDelayMs = GAME_AUTO_REFRESH_INTERVAL_MS
+                        while (true) {
+                            delay(nextDelayMs)
+                            if (pollNeeded) latestRequestSync()
+                            nextDelayMs = if (refreshFailed) (nextDelayMs * 2)
+                                .coerceAtMost(GAME_AUTO_REFRESH_MAX_INTERVAL_MS)
+                            else GAME_AUTO_REFRESH_INTERVAL_MS
                         }
                     }
 
@@ -4195,71 +4056,8 @@ private fun AtoutiaApp(
                             }
                         },
 
-                        onRefresh = {
-                            refreshGameSession(
-                                gameSession,
-                            ) {
-                                result ->
-                                when (
-                                    result
-                                ) {
-                                    is RefreshGameSessionResult.Refreshed -> {
-                                        applyRefreshedGameSession(
-                                            result.session,
-                                        )
-                                    }
-
-                                    is RefreshGameSessionResult.SessionExpired -> {
-                                        authState =
-                                            AuthStartupState.SignedOut
-
-                                        destination =
-                                            AuthenticatedDestination.Home
-
-                                        roomActionState =
-                                            RoomActionUiState.Idle
-
-                                        leaveState =
-                                            RoomLobbyLeaveUiState.Idle
-
-                                        startState =
-                                            RoomLobbyStartUiState.Idle
-
-                                        gameBiddingState =
-                                            GameBiddingUiState.Idle
-
-                                        gamePlayCardState =
-                                            GamePlayCardUiState.Idle
-
-                                        joinSessionId =
-                                            ""
-
-                                        googleSignInState =
-                                            GoogleSignInUiState.Idle
-
-                                        notice =
-                                            result.message
-                                    }
-
-                                    is RefreshGameSessionResult.Failed -> {
-                                        val message =
-                                            result.message
-
-                                        gameBiddingState =
-                                            GameBiddingUiState.Failed(
-                                                message =
-                                                    message,
-                                            )
-
-                                        gamePlayCardState =
-                                            GamePlayCardUiState.Failed(
-                                                message =
-                                                    message,
-                                            )
-                                    }
-                                }
-                            }
-                        },
+                        syncState = displayedSyncState,
+                        onRefresh = { requestGameSync() },
 
                         onReturnToHome = {
                             // Navigation only: keep the saved membership and authentication.

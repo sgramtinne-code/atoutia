@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -67,6 +68,7 @@ fun GameScreen(
     session: PlayerGameSession,
     biddingState: GameBiddingUiState = GameBiddingUiState.Idle,
     playCardState: GamePlayCardUiState = GamePlayCardUiState.Idle,
+    syncState: GameSyncState = GameSyncState(),
     presence: GameRealtimePresence? = null,
     adjudication: GameRealtimeAdjudicationEvent? = null,
     onBiddingAction: ((BiddingActionSnapshot) -> Unit)? = null,
@@ -356,32 +358,22 @@ fun GameScreen(
             }
         }
 
+    val secondaryScrollState = rememberScrollState()
+    LaunchedEffect(syncState.canRetry) {
+        // Reveal incidents and recovery without scrolling the fixed hand.
+        secondaryScrollState.scrollTo(0)
+    }
+
+    val syncContent: @Composable () -> Unit = {
+        if (!isMatchCompleted) GameSyncPanel(
+            state = syncState,
+            commandSubmitting = isSubmitting,
+            onRetry = onRefresh,
+        )
+    }
+
     val footerContent:
         @Composable () -> Unit = {
-            if (
-                !isMatchCompleted
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        onRefresh
-                            ?.invoke()
-                    },
-
-                    enabled =
-                        onRefresh !=
-                            null &&
-                            !isSubmitting,
-
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text =
-                            "Actualiser la partie",
-                    )
-                }
-            }
-
             Text(
                 text =
                     "Révision serveur ${session.revision} • moteur ${document.engineVersion}",
@@ -449,9 +441,10 @@ fun GameScreen(
                             Column(
                                 Modifier.weight(1f).fillMaxWidth()
                                     .testTag("game-secondary-controls")
-                                    .verticalScroll(rememberScrollState()),
+                                    .verticalScroll(secondaryScrollState),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
+                                syncContent()
                                 if (!isMatchCompleted && match.hand.isNotEmpty()) {
                                     PlayCardFeedback(playCardState)
                                 }
@@ -484,6 +477,7 @@ fun GameScreen(
                                 textAlign = TextAlign.Center,
                             )
                         }
+                        syncContent()
                         hudContent(false)
                         tableContent()
                         controlsContent(true)
