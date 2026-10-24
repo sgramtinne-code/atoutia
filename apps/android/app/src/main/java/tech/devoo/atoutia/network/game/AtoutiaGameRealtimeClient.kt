@@ -8,6 +8,7 @@ import okhttp3.WebSocketListener
 import org.json.JSONObject
 import java.io.Closeable
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,10 +26,15 @@ class AtoutiaGameRealtimeClient(
         String,
 
     private val webSocketClient:
-        OkHttpClient =
+        WebSocket.Factory =
         OkHttpClient
             .Builder()
             .build(),
+    private val executorFactory: () -> ScheduledExecutorService = {
+        Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "atoutia-game-realtime").apply { isDaemon = true }
+        }
+    },
 ) {
     private val normalizedBaseUrl =
         normalizeBaseUrl(
@@ -84,6 +90,7 @@ class AtoutiaGameRealtimeClient(
         }
 
         return RealtimeSubscription(
+            executor = executorFactory(),
             webSocketClient =
                 webSocketClient,
 
@@ -114,8 +121,9 @@ class AtoutiaGameRealtimeClient(
     }
 
     private class RealtimeSubscription(
+        private val executor: ScheduledExecutorService,
         private val webSocketClient:
-            OkHttpClient,
+            WebSocket.Factory,
 
         private val webSocketUrl:
             String,
@@ -154,20 +162,9 @@ class AtoutiaGameRealtimeClient(
                 false,
             )
 
-        private val executor:
-            ScheduledExecutorService =
-            Executors
-                .newSingleThreadScheduledExecutor {
-                    runnable ->
-                    Thread(
-                        runnable,
-                        "atoutia-game-realtime",
-                    ).apply {
-                        isDaemon =
-                            true
-                    }
-                }
+        private val socketLock = Any()
 
+        @Volatile
         private var webSocket:
             WebSocket? =
             null
@@ -188,11 +185,11 @@ class AtoutiaGameRealtimeClient(
             initialRevision
 
         init {
-            executor.execute {
+            executeIfActive {
                 connect()
             }
 
-            executor.scheduleAtFixedRate(
+            executor.scheduleWithFixedDelay(
                 {
                     sendHeartbeat()
                 },
@@ -213,13 +210,7 @@ class AtoutiaGameRealtimeClient(
                 "Atoutia realtime acknowledged revision must not be negative."
             }
 
-            if (
-                closed.get()
-            ) {
-                return
-            }
-
-            executor.execute {
+            executeIfActive {
                 if (
                     revision >
                     knownRevision
@@ -248,16 +239,14 @@ class AtoutiaGameRealtimeClient(
                 return
             }
 
-            webSocket
-                ?.close(
-                    NORMAL_CLOSE_CODE,
-                    NORMAL_CLOSE_REASON,
-                )
-
-            webSocket =
-                null
-
-            executor.shutdownNow()
+            val activeSocket = synchronized(socketLock) {
+                webSocket.also { webSocket = null }
+            }
+            try {
+                activeSocket?.close(NORMAL_CLOSE_CODE, NORMAL_CLOSE_REASON)
+            } finally {
+                executor.shutdownNow()
+            }
         }
 
         private fun connect() {
@@ -299,20 +288,10 @@ class AtoutiaGameRealtimeClient(
                 return
             }
 
-            connecting =
-                true
+            // Token lookup/refresh may have blocked while the screen was closed.
+            if (closed.get()) return
 
-            val request =
-                Request
-                    .Builder()
-                    .url(
-                        webSocketUrl,
-                    )
-                    .header(
-                        "Authorization",
-                        "Bearer $accessToken",
-                    )
-                    .build()
+            connecting = true
 
             val listener =
                 object :
@@ -430,15 +409,26 @@ class AtoutiaGameRealtimeClient(
                     }
                 }
 
-            val createdWebSocket =
-                webSocketClient
-                    .newWebSocket(
-                        request,
-                        listener,
-                    )
-
-            webSocket =
-                createdWebSocket
+            try {
+                val request = Request.Builder()
+                    .url(webSocketUrl)
+                    .header("Authorization", "Bearer $accessToken")
+                    .build()
+                val createdWebSocket = webSocketClient.newWebSocket(request, listener)
+                val retained = synchronized(socketLock) {
+                    if (closed.get()) false else {
+                        webSocket = createdWebSocket
+                        true
+                    }
+                }
+                if (!retained) createdWebSocket.close(NORMAL_CLOSE_CODE, NORMAL_CLOSE_REASON)
+            } catch (error: Exception) {
+                connecting = false
+                if (!closed.get()) {
+                    reportConnectionIssue(error.message ?: "Impossible d’ouvrir le temps réel Atoutia.")
+                    scheduleReconnect()
+                }
+            }
         }
 
         private fun handleServerMessage(
@@ -715,14 +705,11 @@ class AtoutiaGameRealtimeClient(
                 return
             }
 
-            val activeWebSocket =
-                webSocket
-                    ?: return
-
-            val sent =
-                activeWebSocket.send(
-                    HEARTBEAT_MESSAGE,
-                )
+            val (activeWebSocket, sent) = synchronized(socketLock) {
+                if (closed.get()) return
+                val active = webSocket ?: return
+                active to active.send(HEARTBEAT_MESSAGE)
+            }
 
             if (
                 !sent
@@ -794,22 +781,27 @@ class AtoutiaGameRealtimeClient(
                     MAX_RECONNECT_DELAY_MS,
                 )
 
-            executor.schedule(
-                {
-                    reconnectScheduled =
-                        false
-
-                    connect()
-                },
-                delayMs,
-                TimeUnit.MILLISECONDS,
-            )
+            try {
+                executor.schedule(
+                    {
+                        reconnectScheduled = false
+                        connect()
+                    },
+                    delayMs,
+                    TimeUnit.MILLISECONDS,
+                )
+            } catch (error: RejectedExecutionException) {
+                reconnectScheduled = false
+                if (!closed.get()) throw error
+            }
         }
 
         private fun reportConnectionIssue(
             message:
                 String,
         ) {
+            if (closed.get()) return
+
             try {
                 onConnectionIssue(
                     message,
@@ -842,7 +834,7 @@ class AtoutiaGameRealtimeClient(
                 }
             } catch (
                 error:
-                    RuntimeException,
+                    RejectedExecutionException,
             ) {
                 if (
                     !closed.get()

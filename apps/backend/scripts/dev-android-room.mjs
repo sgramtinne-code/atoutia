@@ -25,11 +25,8 @@ import {
   fileURLToPath,
 } from "node:url";
 
-import {
-  DatabaseSync,
-} from "node:sqlite";
-
 import { resolveAdbInstallPath } from "./dev-adb.mjs";
+import { readDevelopmentRoomSessionIds } from "./dev-room-database.mjs";
 
 const DEFAULT_BASE_URL =
   "http://127.0.0.1:3000";
@@ -45,9 +42,6 @@ const POLL_INTERVAL_MS =
 
 const ROOM_WAIT_TIMEOUT_MS =
   10 * 60 * 1000;
-
-const SESSION_ID_PATTERN =
-  /^ms1_[0-9a-f]{32}$/;
 
 const ANDROID_PACKAGE =
   "tech.devoo.atoutia";
@@ -375,44 +369,9 @@ function assertDatabaseExists() {
   }
 }
 
-function listSessionIds() {
+async function listSessionIds() {
   assertDatabaseExists();
-
-  const database =
-    new DatabaseSync(
-      databasePath,
-    );
-
-  try {
-    const rows =
-      database
-        .prepare(`
-          SELECT session_id
-          FROM live_rooms
-          ORDER BY rowid DESC
-        `)
-        .all();
-
-    return rows
-      .map(
-        (
-          row,
-        ) =>
-          row.session_id,
-      )
-      .filter(
-        (
-          sessionId,
-        ) =>
-          typeof sessionId ===
-            "string" &&
-          SESSION_ID_PATTERN.test(
-            sessionId,
-          ),
-      );
-  } finally {
-    database.close();
-  }
+  return readDevelopmentRoomSessionIds(databasePath);
 }
 
 async function getRoom(
@@ -458,7 +417,7 @@ async function waitForNewAndroidRoom(
       deadline
   ) {
     const sessionIds =
-      listSessionIds();
+      await listSessionIds();
 
     for (
       const sessionId
@@ -980,7 +939,7 @@ async function main() {
 
   const existingSessionIds =
     new Set(
-      listSessionIds(),
+      await listSessionIds(),
     );
 
   log(
@@ -1117,10 +1076,6 @@ main()
 
       logError(
         "",
-      );
-
-      logError(
-        "Le backend local doit être lancé avec ATOUTIA_AUTH_BOOTSTRAP_ENABLED=\"true\" pour utiliser les PNJ.",
       );
 
       process.exitCode =

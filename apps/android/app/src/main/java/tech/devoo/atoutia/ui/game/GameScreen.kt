@@ -1,5 +1,6 @@
 package tech.devoo.atoutia.ui.game
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -73,6 +74,7 @@ fun GameScreen(
     onReplay: (() -> Unit)? = null,
     onHistory: (() -> Unit)? = null,
     onHome: (() -> Unit)? = null,
+    onReturnToHome: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val document =
@@ -115,6 +117,10 @@ fun GameScreen(
     val isSubmitting =
         isSubmittingBidding ||
             isSubmittingPlayCard
+
+    BackHandler(enabled = !isMatchCompleted && onReturnToHome != null) {
+        if (!isSubmitting) onReturnToHome?.invoke()
+    }
 
     val currentPlayer =
         if (
@@ -397,67 +403,120 @@ fun GameScreen(
         modifier =
             modifier.fillMaxSize(),
     ) { innerPadding ->
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(
-                        innerPadding,
-                    ),
+        Column(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
         ) {
-            val landscapeLayout =
-                maxWidth >
-                    maxHeight &&
-                    maxWidth >=
-                    600.dp
-
-            if (
-                landscapeLayout
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                10.dp,
-                            ),
-
-                    horizontalArrangement =
-                        Arrangement.spacedBy(
-                            12.dp,
-                        ),
-
-                    verticalAlignment =
-                        Alignment.CenterVertically,
+            if (!isMatchCompleted && onReturnToHome != null) {
+                OutlinedButton(
+                    onClick = onReturnToHome,
+                    enabled = !isSubmitting,
+                    modifier = Modifier.padding(horizontal = 12.dp),
                 ) {
-                    Box(
+                    Text("Retour à l’accueil")
+                }
+            }
+            BoxWithConstraints(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) {
+                val landscapeLayout =
+                    maxWidth >
+                        maxHeight &&
+                        maxWidth >=
+                        600.dp
+
+                if (
+                    landscapeLayout
+                ) {
+                    Row(
                         modifier =
                             Modifier
-                                .weight(
-                                    1.55f,
-                                )
-                                .fillMaxHeight(),
+                                .fillMaxSize()
+                                .padding(
+                                    10.dp,
+                                ),
 
-                        contentAlignment =
-                            Alignment.Center,
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                12.dp,
+                            ),
+
+                        verticalAlignment =
+                            Alignment.CenterVertically,
                     ) {
-                        tableContent()
-                    }
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(
+                                        1.55f,
+                                    )
+                                    .fillMaxHeight(),
 
+                            contentAlignment =
+                                Alignment.Center,
+                        ) {
+                            tableContent()
+                        }
+
+                        Column(
+                            modifier =
+                                Modifier
+                                    .weight(
+                                        1f,
+                                    )
+                                    .fillMaxHeight()
+                                    .verticalScroll(
+                                        rememberScrollState(),
+                                    ),
+
+                            verticalArrangement =
+                                Arrangement.spacedBy(
+                                    10.dp,
+                                ),
+
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text =
+                                    headerText,
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .titleMedium,
+
+                                fontWeight =
+                                    FontWeight.Bold,
+
+                                textAlign =
+                                    TextAlign.Center,
+
+                                modifier =
+                                    Modifier.fillMaxWidth(),
+                            )
+
+                            hudContent()
+
+                            controlsContent()
+
+                            footerContent()
+                        }
+                    }
+                } else {
                     Column(
                         modifier =
                             Modifier
-                                .weight(
-                                    1f,
-                                )
-                                .fillMaxHeight()
+                                .fillMaxSize()
                                 .verticalScroll(
                                     rememberScrollState(),
+                                )
+                                .padding(
+                                    16.dp,
                                 ),
 
                         verticalArrangement =
                             Arrangement.spacedBy(
-                                10.dp,
+                                12.dp,
                             ),
 
                         horizontalAlignment =
@@ -465,94 +524,49 @@ fun GameScreen(
                     ) {
                         Text(
                             text =
-                                headerText,
+                                screenTitle,
 
                             style =
                                 MaterialTheme
                                     .typography
-                                    .titleMedium,
+                                    .headlineMedium,
 
                             fontWeight =
                                 FontWeight.Bold,
 
                             textAlign =
                                 TextAlign.Center,
-
-                            modifier =
-                                Modifier.fillMaxWidth(),
                         )
 
+                        if (
+                            actionStatus !=
+                                screenTitle
+                        ) {
+                            Text(
+                                text =
+                                    actionStatus,
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .titleMedium,
+
+                                fontWeight =
+                                    FontWeight.SemiBold,
+
+                                textAlign =
+                                    TextAlign.Center,
+                            )
+                        }
+
                         hudContent()
+
+                        tableContent()
 
                         controlsContent()
 
                         footerContent()
                     }
-                }
-            } else {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .verticalScroll(
-                                rememberScrollState(),
-                            )
-                            .padding(
-                                16.dp,
-                            ),
-
-                    verticalArrangement =
-                        Arrangement.spacedBy(
-                            12.dp,
-                        ),
-
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text =
-                            screenTitle,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .headlineMedium,
-
-                        fontWeight =
-                            FontWeight.Bold,
-
-                        textAlign =
-                            TextAlign.Center,
-                    )
-
-                    if (
-                        actionStatus !=
-                            screenTitle
-                    ) {
-                        Text(
-                            text =
-                                actionStatus,
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
-
-                            fontWeight =
-                                FontWeight.SemiBold,
-
-                            textAlign =
-                                TextAlign.Center,
-                        )
-                    }
-
-                    hudContent()
-
-                    tableContent()
-
-                    controlsContent()
-
-                    footerContent()
                 }
             }
         }

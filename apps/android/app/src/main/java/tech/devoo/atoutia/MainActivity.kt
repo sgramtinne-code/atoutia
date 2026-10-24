@@ -4261,6 +4261,14 @@ private fun AtoutiaApp(
                             }
                         },
 
+                        onReturnToHome = {
+                            // Navigation only: keep the saved membership and authentication.
+                            gameBiddingState = GameBiddingUiState.Idle
+                            gamePlayCardState = GamePlayCardUiState.Idle
+                            notice = "La partie reste en cours."
+                            destination = AuthenticatedDestination.Home
+                        },
+
                         onReplay = {
                             clearActiveRoomSession()
 
