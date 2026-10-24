@@ -58,18 +58,19 @@ jobs:
             --name atoutia-ui --package "system-images;android-36;google_apis;x86_64" --device pixel_7
 
       - name: Start isolated emulator
+        timeout-minutes: 6
         run: |
           nohup "$ANDROID_HOME/emulator/emulator" -avd atoutia-ui -port 5554 \
             -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader -cores 2 -memory 2048 \
             > "$RUNNER_TEMP/atoutia-emulator.log" 2>&1 &
           timeout 180s adb -s emulator-5554 wait-for-device
           for attempt in $(seq 1 90); do
-            if [[ "$(adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; then
+            if [[ "$(timeout 10s adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; then
               break
             fi
             sleep 2
           done
-          [[ "$(adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]
+          [[ "$(timeout 10s adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]
           adb -s emulator-5554 shell settings put global window_animation_scale 0
           adb -s emulator-5554 shell settings put global transition_animation_scale 0
           adb -s emulator-5554 shell settings put global animator_duration_scale 0
@@ -97,10 +98,11 @@ jobs:
           PY
 
       - name: Report failures and stop emulator
+        timeout-minutes: 1
         if: always()
         run: |
           if [[ "${{ job.status }}" != "success" ]]; then
             tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true
-            adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:E || true
+            timeout 10s adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:E || true
           fi
-          adb -s emulator-5554 emu kill || true
+          timeout 10s adb -s emulator-5554 emu kill || true
