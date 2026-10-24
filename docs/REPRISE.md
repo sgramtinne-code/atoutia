@@ -24,7 +24,7 @@ Commits précédents : `efe9224` — nettoyage des salons terminés au démarrag
 
 La PR documentaire nº 1 a été fusionnée le 24 octobre 2026 : `main` a été vérifié à `4109cecad6e903236a7d13f77dda926c87bc6493`.
 
-La branche **`feat/live-room-expiration-dry-run`**, [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), livre le diagnostic d’expiration en lecture seule. La validation WSL a été reçue et réussie ; les commits documentaires suivants consignent cet état sans changer le code testé. Vérifier le statut réel de la PR : si elle est fusionnée, repartir du dernier `main` qui l’inclut ; sinon terminer sa fusion après les contrôles GitHub. Ne pas revenir à `db0d727` et ne pas recréer l’implémentation existante.
+La [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche **`feat/live-room-expiration-dry-run`**, est fusionnée dans `deea680a45b9942d624f970d19c2c9e9218e8f2b`. Ce `main` a aussi été récupéré sur le PC du développeur. La validation WSL et le diagnostic d’une copie isolée ont été reçus et réussis. Vérifier le dernier `main` avant une reprise ; ne pas revenir à `db0d727` et ne pas recréer l’implémentation existante.
 
 Lis d'abord ces documents, puis `docs/GAME_RULES.md` et `docs/RULES_VALIDATION.md`. La spécification canonique du dépôt est en version documentaire **0.1.2**, plus récente que le texte initial 0.1.0 joint à l'ancien chat. Elle définit notamment `PLAYER_0` à `PLAYER_3`, `TEAM_0` / `TEAM_1`, la prise en compte de la Belote dans le contrat et le traitement de deux litiges consécutifs. Ne remplace pas cette spécification par le document initial. Signale les contradictions sans réécrire silencieusement les règles.
 
@@ -142,7 +142,11 @@ Validation distante du 24 octobre 2026 (Node.js 24.22.1, pnpm 12.3.4) : **59 fic
 
 Validation WSL transmise par le développeur le 24 octobre 2026 pour le code `a2258b0` : **55/55 tests ciblés**, **59 fichiers / 583 tests moteur**, **69 fichiers / 580 tests backend**, typechecks et builds des deux paquets réussis, `git diff --check` propre, puis scénario CLI terminé avec `databaseUnchanged: true` et `Synthetic expiration preview passed`. Le journal transmis confirme pnpm 12.3.4. La base réelle et Android ne font pas partie de ce scénario.
 
-Prochaine étape : diagnostic sur une copie cohérente et isolée de la base locale, via l’API de sauvegarde SQLite si le serveur peut écrire simultanément. Le diagnostic sur cette copie n’a pas encore été transmis. Ne pas confondre les fixtures synthétiques validées avec l’inventaire de la vraie base, qui reste inconnu aujourd’hui. Ne pas démarrer le backend pour effectuer ce diagnostic. Aucune suppression.
+Diagnostic sur copie isolée transmis le 24 octobre 2026 : le développeur a récupéré `main` `deea680`, construit le moteur/backend, créé un instantané par l’API de sauvegarde SQLite avec source en lecture seule, puis exécuté la CLI. Le journal se termine par « Copie inchangée après diagnostic. » : l’empreinte de la copie est identique avant/après. Le rapport contient des salons vides au-delà du seuil, des protections pour résolutions en attente et des présences inconnues. Les effectifs, identifiants et chemins temporaires restent dans le contexte privé. Aucun salon n’a été supprimé par ce diagnostic.
+
+Prochaine action : sur la même copie isolée, obtenir un résumé par mode, phase, nombre de places occupées et adjudication, puis les types de résolutions en attente et le nombre de résultats durables. Le premier rapport ne donne pas ces répartitions ni le décompte actuel des résultats ; ne pas reprendre les anciens inventaires comme preuve. Garder toutes les protections et ne pas lancer de suppression.
+
+Ne pas confondre les tests synthétiques, le rapport reçu sur copie et l’état présent d’un serveur. La copie est un instantané daté, sans observation WebSocket. La documentation publique ne stocke ni son inventaire exact ni son emplacement personnel.
 
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
@@ -167,6 +171,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Vérifie GitHub, le dernier `main`, la branche et la PR de diagnostic. Lis les directives et `docs/ROOM_LIFECYCLE.md`. Vérifie les résultats actuels au lieu de reprendre les anciens décomptes comme une nouvelle validation. La validation WSL est déjà réussie pour `a2258b0`. Vérifie que la PR nº 2 est fusionnée, puis donne les commandes complètes pour récupérer `main`. Poursuis avec le diagnostic d’une copie SQLite cohérente et isolée, sans suppression. Ne déduis pas l’inventaire de la base réelle du scénario synthétique.
+Vérifie GitHub, le dernier `main`, la branche et la PR de diagnostic. Lis les directives et `docs/ROOM_LIFECYCLE.md`. Vérifie les résultats actuels au lieu de reprendre les anciens décomptes comme une nouvelle validation. La validation WSL est déjà réussie pour `a2258b0`. La PR nº 2 est fusionnée dans `deea680`, récupéré sur le PC. Le premier diagnostic de copie isolée a été reçu avec empreinte inchangée. Retrouve le résumé privé si nécessaire, puis poursuis l’audit structurel de la même copie (modes/phases/places/adjudications, résolutions en attente, résultats durables). Ne demande pas de refaire le premier diagnostic sans raison et n’implémente aucune purge.
 
 Ne recrée pas le diagnostic. Ne purge aucun ancien salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.
