@@ -215,3 +215,66 @@ AUDIT
 ```
 
 L’absence de la copie doit interrompre cette observation ; ne pas substituer silencieusement la base principale. Le nombre de lignes de `match_results` est un inventaire, pas un contrôle complet de validité des scores, des participants ou des index d’historique. Les résultats de cet audit ont été reçus du développeur le 24 octobre 2026, avec `snapshotUnchanged: true`. La procédure est conservée comme référence ; elle n’est pas à réexécuter pour clôturer cette étape.
+
+
+## Commande d’audit synthétique versionnée
+
+Livraison par la [PR nº 5](https://github.com/sgramtinne-code/atoutia/pull/5), branche `feat/read-only-room-audit-cli`, depuis `main` `528fa4a`. Code applicatif validé : `3eff899`. Vérifier le statut réel de la PR avant récupération. Elle remplace le bloc Python structurel lors des prochaines observations ; le premier audit sur la copie réelle est déjà validé et n’est pas à refaire pour cette livraison.
+
+- `sqliteLiveRoomAudit.ts` lit une base existante explicitement choisie avec `readOnly: true` et une transaction unique pour les salons et le comptage des résultats.
+- `auditLiveRooms.ts`, commande `pnpm --filter @atoutia/backend audit:rooms`, produit uniquement le résumé JSON.
+- `sqliteLiveRoomAudit.test.ts` et le scénario `dev-expiration-preview.mjs` couvrent la confidentialité, les états, les données anciennes/invalides, l’absence de base/schéma, la lecture WAL et les codes de sortie.
+
+Le rapport contient `readOnly`, `presenceSource: "UNKNOWN_OFFLINE"`, `evaluatedAtMs`, `scanned`, `invalidRoomDocuments`, `roomsByState`, `pendingResolutions`, `durableResultRows` et `resultValidation: "COUNT_ONLY"`. Les champs des groupes sont limités aux valeurs connues ; aucune chaîne brute de document invalide n’est reproduite. Les données de jeu et d’authentification ne sont pas retournées.
+
+Un document invalide est exclu entièrement des groupes, compté dans `invalidRoomDocuments` et ne doit pas faire croire à un inventaire complet. Le nombre de résultats est `null` si la table est absente, distinct de zéro si elle est présente et vide. Une ligne de résultat corrompue est tout de même une ligne : `COUNT_ONLY` ne prétend pas vérifier les résultats. `pendingResolutionEntries` compte les entrées et ne prouve aucune absence ni exécution d’un handler.
+
+Codes de sortie de la CLI : `0` inventaire structurel lu sans exclusion et avec la table des résultats, `2` JSON incomplet, `1` erreur d’exécution. Le code `0` n’autorise aucune suppression et ne valide pas la présence, les règles, les scores ou les historiques. Les erreurs ne reproduisent pas les chemins ou exceptions sensibles.
+
+Cette commande ne fournit pas `snapshotUnchanged` : elle garantit son ouverture SQLite en lecture seule, sans prétendre qu’aucun autre processus ne peut écrire dans la base pendant son exécution. Utiliser une copie isolée pour une observation stable. Les tests vérifient les octets SQLite/WAL inchangés par l’audit.
+
+Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution est également réussie ; les audits réels déjà reçus ne sont pas à refaire.
+
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code applicatif `3eff899` : **74/74 tests ciblés**, **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis, `git diff --check` propre. Le scénario se termine avec `Synthetic aggregate room audit passed.`, `databaseUnchanged: true` et `Synthetic expiration preview passed.`. pnpm 12.3.4 est confirmé dans le journal. Cette exécution utilise des fixtures synthétiques, pas la vraie base ni Android.
+
+### Procédure de validation, déjà réussie dans WSL
+
+```bash
+cd $HOME/projects/atoutia
+git status --short --branch
+```
+
+Après fusion de la PR nº 5, si le dépôt est propre et sans commits non poussés à préserver :
+
+```bash
+git fetch origin &&
+git switch main &&
+git pull --ff-only origin main &&
+pnpm install --frozen-lockfile
+```
+
+Puis, en s’arrêtant au premier échec :
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/backend exec vitest run tests/sqliteLiveRoomAudit.test.ts tests/liveRoomExpiration.test.ts tests/sqliteLiveRoomExpirationPreview.test.ts &&
+pnpm --filter @atoutia/belote-engine typecheck &&
+pnpm --filter @atoutia/belote-engine test &&
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/backend typecheck &&
+pnpm --filter @atoutia/backend test &&
+pnpm --filter @atoutia/backend build &&
+git diff --check &&
+node apps/backend/scripts/dev-expiration-preview.mjs
+```
+
+Le scénario n’utilise que ses propres fixtures temporaires et ignore le chemin SQLite du shell. Il teste la CLI d’expiration existante et la nouvelle CLI synthétique, les codes `0`, `1`, `2` et la conservation des bases isolées. Aucun backend, appareil Android ou nouveau diagnostic de la vraie base n’est nécessaire. La validation WSL de cette évolution est réussie ; les contrôles requis pour cette livraison sont terminés.
+
+Pour une future observation sur une copie isolée explicitement choisie, après build :
+
+```bash
+ATOUTIA_DATABASE_PATH="/chemin/absolu/vers/copie.sqlite" \
+pnpm --filter @atoutia/backend audit:rooms
+```
+
+Le rapport ne comporte pas d’identifiants, mais ses effectifs restent un inventaire privé. Ne pas publier les résultats locaux dans GitHub. L’ancien bloc Python reste documenté comme référence historique ; la commande versionnée évite de le recopier.
