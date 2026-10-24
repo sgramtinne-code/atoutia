@@ -30,6 +30,25 @@ Les deux premières tentatives de préparation CI n’ont exécuté aucun test :
 
 Reproduction réelle avant correction : commit `2e707ad`, [run `40087526338`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087526338), job `120853393837`. Compilation Kotlin et exécution de **192 tests JVM : 189 réussis et trois échecs**, exactement les nouveaux cas `separateCoordinatorsRefreshTheStoredSessionOnlyOnce`, `logoutWaitsForRefreshAndRevokesTheRotatedCredential` et `googleSignInCannotBeOverwrittenByAnOlderRefresh`. Les logs confirment respectivement le rejet du double refresh, le mauvais token de logout et le remplacement de la nouvelle session Google par l’ancienne session rafraîchie. Les APK et le lint étaient ensuite ignorés à cause de cet échec attendu. Après correction applicative **`46163ef`** : [run `40087752809`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752809), job `120854042192`, **20 rapports / 192 tests JVM, zéro échec, erreur ou test ignoré**. APK debug et APK instrumenté compilés ; lint et contrôles Git réussis. Le [run moteur/backend `40087752798`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752798) est également réussi. Ces résultats sont ceux du runner GitHub, pas du PC ou de l’appareil du développeur. Les ajustements suivants de documentation et de résumé lint ne changent pas le code applicatif.
 
+## Avertissements lint observés
+
+Contrôle du commit `f0adaad` : [run Android `40088059834`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059834), job `120854929369`, réussi avec **192/192 tests JVM**, les deux APK et le lint. Le [run moteur/backend `40088059833`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059833) est également réussi. Le correctif applicatif reste `46163ef`.
+
+Le lint n’a aucune erreur bloquante mais conserve **14 avertissements et une suggestion** :
+
+| Signal | Nombre | Suite à donner |
+| --- | ---: | --- |
+| Cible Android, Gradle et versions OkHttp/mockwebserver | 4 | Évaluer les mises à jour et leurs compatibilités ; aucun changement automatique de cible ou de dépendances dans ce correctif. |
+| Position du paramètre Compose `Modifier` | 3 | Amélioration d’API Compose à traiter avec la revue UI. |
+| `scheduleAtFixedRate` des deux clients WebSocket | 2 | Tester reprise/arrière-plan et fermeture ; envisager une cadence sans rattrapage en rafale. |
+| Orientation fixe | 1 | Préserver `sensorLandscape` demandé ; tester les grands écrans où Android peut ignorer cette restriction. |
+| `DataExtractionRules` | 1 | Examiner explicitement sauvegardes et transfert d’appareil sur Android récent avant production ; ne pas déduire toute la politique du seul `allowBackup=false`. |
+| Icône d’application absente | 1 | Préparation visuelle de la livraison. |
+| Extensions KTX pour SharedPreferences | 2 | Suggestion de style ; conserver les garanties de `commit()` et le verrou partagé lors d’une évolution. |
+| `AutoboxingStateCreation` | 1 suggestion | Évaluer `mutableIntStateOf` lors de la revue Compose. |
+
+Ces signaux ne sont pas corrigés ni supprimés par une baseline lint. Ils restent visibles dans les logs CI. Une compilation réussie et un lint sans erreur n’attestent ni un essai sur appareil ni l’absence de défaut fonctionnel.
+
 ## Vérifications encore nécessaires
 
 - Vérifier les contrôles réels du dernier commit de la PR. La reproduction et la correction JVM ci-dessus sont acquises ; les résultats appareil ne le sont pas. Un lint réussi peut comporter des avertissements : consulter le résumé dans les logs.
