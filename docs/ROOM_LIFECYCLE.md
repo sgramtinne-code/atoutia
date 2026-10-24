@@ -219,7 +219,7 @@ L’absence de la copie doit interrompre cette observation ; ne pas substituer s
 
 ## Commande d’audit synthétique versionnée
 
-Évolution sur `feat/read-only-room-audit-cli`, depuis `main` `528fa4a`. Elle remplace le bloc Python structurel lors des prochaines observations ; le premier audit sur la copie réelle est déjà validé et n’est pas à refaire pour cette livraison.
+Livraison par la [PR nº 5](https://github.com/sgramtinne-code/atoutia/pull/5), branche `feat/read-only-room-audit-cli`, depuis `main` `528fa4a`. Code applicatif validé : `3eff899`. Vérifier le statut réel de la PR avant récupération. Elle remplace le bloc Python structurel lors des prochaines observations ; le premier audit sur la copie réelle est déjà validé et n’est pas à refaire pour cette livraison.
 
 - `sqliteLiveRoomAudit.ts` lit une base existante explicitement choisie avec `readOnly: true` et une transaction unique pour les salons et le comptage des résultats.
 - `auditLiveRooms.ts`, commande `pnpm --filter @atoutia/backend audit:rooms`, produit uniquement le résumé JSON.
@@ -233,21 +233,23 @@ Codes de sortie de la CLI : `0` inventaire structurel lu sans exclusion et avec 
 
 Cette commande ne fournit pas `snapshotUnchanged` : elle garantit son ouverture SQLite en lecture seule, sans prétendre qu’aucun autre processus ne peut écrire dans la base pendant son exécution. Utiliser une copie isolée pour une observation stable. Les tests vérifient les octets SQLite/WAL inchangés par l’audit.
 
-Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution reste attendue ; les audits réels déjà reçus ne sont pas à refaire.
+Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution est également réussie ; les audits réels déjà reçus ne sont pas à refaire.
 
-### Validation complète de cette évolution dans WSL
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code applicatif `3eff899` : **74/74 tests ciblés**, **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis, `git diff --check` propre. Le scénario se termine avec `Synthetic aggregate room audit passed.`, `databaseUnchanged: true` et `Synthetic expiration preview passed.`. pnpm 12.3.4 est confirmé dans le journal. Cette exécution utilise des fixtures synthétiques, pas la vraie base ni Android.
+
+### Procédure de validation, déjà réussie dans WSL
 
 ```bash
 cd $HOME/projects/atoutia
 git status --short --branch
 ```
 
-Si le dépôt est propre et sans commits non poussés à préserver :
+Après fusion de la PR nº 5, si le dépôt est propre et sans commits non poussés à préserver :
 
 ```bash
 git fetch origin &&
-git switch feat/read-only-room-audit-cli &&
-git pull --ff-only origin feat/read-only-room-audit-cli &&
+git switch main &&
+git pull --ff-only origin main &&
 pnpm install --frozen-lockfile
 ```
 
@@ -266,7 +268,7 @@ git diff --check &&
 node apps/backend/scripts/dev-expiration-preview.mjs
 ```
 
-Le scénario n’utilise que ses propres fixtures temporaires et ignore le chemin SQLite du shell. Il teste la CLI d’expiration existante et la nouvelle CLI synthétique, les codes `0`, `1`, `2` et la conservation des bases isolées. Aucun backend, appareil Android ou nouveau diagnostic de la vraie base n’est nécessaire. La validation WSL de cette évolution reste attendue avant fusion.
+Le scénario n’utilise que ses propres fixtures temporaires et ignore le chemin SQLite du shell. Il teste la CLI d’expiration existante et la nouvelle CLI synthétique, les codes `0`, `1`, `2` et la conservation des bases isolées. Aucun backend, appareil Android ou nouveau diagnostic de la vraie base n’est nécessaire. La validation WSL de cette évolution est réussie ; les contrôles requis pour cette livraison sont terminés.
 
 Pour une future observation sur une copie isolée explicitement choisie, après build :
 

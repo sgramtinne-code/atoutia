@@ -16,9 +16,9 @@ Branche stable : `main`.
 
 Dernier code **applicatif** validé à distance et sous WSL le 24 octobre 2026 :
 
-`a2258b0e09a825ef5a0728b5e0995b8ad664b552` — `feat: preview live room expiration without mutations`.
+`3eff899e567004346297c142afa791e17fc5fb9f` — `feat: add read-only aggregate room audit command`.
 
-Référence applicative précédente : `db0d727a37bff7d37a40fe65a9e36e108161964a` — timestamps d’activité.
+Références applicatives précédentes : `a2258b0` — classification en lecture seule ; `db0d727` — timestamps d’activité.
 
 Commits précédents : `efe9224` — nettoyage des salons terminés au démarrage ; `7aa7b27` — navigation après partie.
 
@@ -150,17 +150,19 @@ La première livraison de classification en lecture seule et son audit local sur
 
 Ne pas confondre les tests synthétiques, le rapport reçu sur copie et l’état présent d’un serveur. La copie est un instantané daté, sans observation WebSocket. La documentation publique ne stocke ni son inventaire exact ni son emplacement personnel.
 
-## 8 bis. Nouvelle commande d’audit synthétique en cours
+## 8 bis. Commande d’audit synthétique validée
 
-Après clôture de la première livraison dans `main` `528fa4a` (PR nº 4), le développeur a demandé de continuer. Une nouvelle branche `feat/read-only-room-audit-cli` ajoute la commande `audit:rooms` pour remplacer les longs blocs Python lors des prochaines observations. La validation de l’audit réel précédent reste acquise : ne pas la redemander.
+Après clôture de la première livraison dans `main` `528fa4a` (PR nº 4), le développeur a demandé de continuer. La [PR nº 5](https://github.com/sgramtinne-code/atoutia/pull/5), branche `feat/read-only-room-audit-cli`, ajoute la commande `audit:rooms` pour remplacer les longs blocs Python lors des prochaines observations. La validation de l’audit réel précédent reste acquise : ne pas la redemander.
 
 Fichiers : `apps/backend/src/sqliteLiveRoomAudit.ts`, `auditLiveRooms.ts`, `apps/backend/tests/sqliteLiveRoomAudit.test.ts`, script `dev-expiration-preview.mjs` étendu et entrée `audit:rooms` dans le package backend. Le résumé regroupe les modes, phases, places occupées et adjudications, compte les entrées de résolution en attente et les lignes de résultats. Il ne divulgue pas d’identifiants ni de données du jeu.
 
 Chemin SQLite absolu explicite obligatoire via `ATOUTIA_DATABASE_PATH`, ouverture `readOnly: true`, transaction de lecture unique, aucune migration ni création de schéma/copie, aucun store ou backend démarré. Documents invalides exclus des regroupements et comptés séparément ; table des résultats absente représentée par `null`. Le décompte est `COUNT_ONLY`, sans validation des scores/historiques. Codes retour : `0` inventaire structurel lisible, `2` rapport incomplet, `1` échec.
 
-Prochaine action : vérifier la branche et sa PR, recueillir la validation WSL de la nouvelle commande sur fixtures synthétiques, corriger si nécessaire et fusionner quand les contrôles requis réussissent. Aucun nouveau test Android ni lecture de la vraie base n’est nécessaire. Lire la procédure complète dans `docs/ROOM_LIFECYCLE.md`. Ne pas transformer ce travail en suppression.
+La validation WSL de la nouvelle commande a été reçue et réussie. Prochaine action : vérifier la fusion de la PR nº 5, récupérer le dernier `main` et poursuivre le prochain objectif demandé. Ne pas redemander les contrôles déjà reçus sans nouveau changement applicatif ou anomalie. Aucun nouveau test Android ni lecture de la vraie base n’est nécessaire. Lire la procédure complète dans `docs/ROOM_LIFECYCLE.md`. Ne pas transformer ce travail en suppression.
 
-Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution reste attendue ; les audits réels déjà reçus ne sont pas à refaire.
+Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution est également réussie ; les audits réels déjà reçus ne sont pas à refaire.
+
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code applicatif `3eff899` : **74/74 tests ciblés**, **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis, `git diff --check` propre. Le scénario se termine avec `Synthetic aggregate room audit passed.`, `databaseUnchanged: true` et `Synthetic expiration preview passed.`. pnpm 12.3.4 est confirmé dans le journal. Cette exécution utilise des fixtures synthétiques, pas la vraie base ni Android.
 
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
@@ -185,6 +187,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Vérifie GitHub, le dernier `main` et la PR de `feat/read-only-room-audit-cli`. La première classification, les tests WSL et l’audit structurel réel sont déjà validés et clôturés. La reprise porte sur la nouvelle commande synthétique `audit:rooms` : termine les validations encore nécessaires, corrige sur sa branche et fusionne seulement après réussite. Si elle est déjà fusionnée, repartir du dernier `main` et poursuivre le prochain objectif demandé.
+Vérifie GitHub, le dernier `main` et la PR de `feat/read-only-room-audit-cli`. La première classification, les tests WSL et l’audit structurel réel sont déjà validés et clôturés. La nouvelle commande synthétique `audit:rooms`, code `3eff899`, est également validée à distance et sous WSL. Vérifier la fusion réelle de la PR nº 5, puis repartir du dernier `main` et poursuivre le prochain objectif demandé. Les commits documentaires suivants ne changent pas le code testé ; ne pas redemander ses tests ni un audit de la vraie base sans raison.
 
 Ne recrée pas ce qui existe, ne redemande pas l’ancien audit réel et ne purge aucun salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.

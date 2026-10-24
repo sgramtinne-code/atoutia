@@ -30,9 +30,9 @@ La première livraison de classification en lecture seule et son audit local sur
 
 La consigne de continuité est durable : à chaque étape importante, actualiser et pousser `AGENTS.md`, ce README et `docs/REPRISE.md` avec les validations et la prochaine action.
 
-## Évolution en cours : commande d’audit synthétique
+## Commande d’audit synthétique validée
 
-La branche `feat/read-only-room-audit-cli`, créée depuis `main` `528fa4a`, remplace le bloc Python d’audit structurel par une commande versionnée **`audit:rooms`**. La première livraison de classification et ses audits locaux restent validés ; ce travail ne les rouvre pas et ne demande pas de refaire l’inventaire réel.
+La livraison par la [PR nº 5](https://github.com/sgramtinne-code/atoutia/pull/5), branche `feat/read-only-room-audit-cli` depuis `main` `528fa4a`, remplace le bloc Python d’audit structurel par une commande versionnée **`audit:rooms`**. La première livraison de classification et ses audits locaux restent validés ; ce travail ne les rouvre pas et ne demande pas de refaire l’inventaire réel.
 
 La nouvelle commande exige un chemin absolu explicite vers une base isolée existante, ouvre SQLite en lecture seule et lit salons et nombre de résultats dans une même transaction. Elle ne produit aucun identifiant de salon ou de participant, aucune main, seed ou donnée d’authentification. Elle distingue les documents invalides et l’absence de la table des résultats. Le décompte des résultats est marqué `COUNT_ONLY` ; il ne valide pas leur contenu.
 
@@ -45,9 +45,13 @@ pnpm --filter @atoutia/backend audit:rooms
 
 Code retour : `0` si l’inventaire structurel a pu être lu sans document invalide et avec une table des résultats ; `2` si le rapport JSON est incomplet (documents invalides ou table de résultats absente) ; `1` si la commande échoue. Le code `0` n’atteste ni la validité de tous les résultats ni l’absence de joueurs. La commande ne démarre pas le backend et ne crée pas de copie. Le rapport reste un inventaire local à garder privé, même sans identifiants.
 
-Validation de cette évolution : tests ciblés `sqliteLiveRoomAudit.test.ts`, suites moteur/backend, builds, puis `node apps/backend/scripts/dev-expiration-preview.mjs`. Le scénario existant vérifie maintenant les deux CLI sur ses propres fixtures temporaires, leurs codes de retour et la conservation SQLite. La validation WSL de cette nouvelle commande reste attendue avant fusion. Aucun test Android ni nouvel audit de la vraie base n’est requis.
+Validation de cette évolution : tests ciblés `sqliteLiveRoomAudit.test.ts`, suites moteur/backend, builds, puis `node apps/backend/scripts/dev-expiration-preview.mjs`. Le scénario existant vérifie maintenant les deux CLI sur ses propres fixtures temporaires, leurs codes de retour et la conservation SQLite. La validation WSL de cette commande a été reçue et réussie le 24 octobre 2026. Aucun test Android ni nouvel audit de la vraie base n’est requis.
 
-Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution reste attendue ; les audits réels déjà reçus ne sont pas à refaire.
+Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution est également réussie ; les audits réels déjà reçus ne sont pas à refaire.
+
+Validation WSL transmise par le développeur le 24 octobre 2026 pour le code applicatif `3eff899` : **74/74 tests ciblés**, **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis, `git diff --check` propre. Le scénario se termine avec `Synthetic aggregate room audit passed.`, `databaseUnchanged: true` et `Synthetic expiration preview passed.`. pnpm 12.3.4 est confirmé dans le journal. Cette exécution utilise des fixtures synthétiques, pas la vraie base ni Android.
+
+Code applicatif validé : [`3eff899`](https://github.com/sgramtinne-code/atoutia/commit/3eff899e567004346297c142afa791e17fc5fb9f). Les derniers changements de la PR nº 5 consignent seulement la validation et la reprise. Prochaine action : vérifier sa fusion, récupérer le dernier `main`, puis poursuivre le prochain objectif demandé. Aucune nouvelle validation de la copie réelle n’est nécessaire pour cette livraison.
 
 ## Documents de référence
 
