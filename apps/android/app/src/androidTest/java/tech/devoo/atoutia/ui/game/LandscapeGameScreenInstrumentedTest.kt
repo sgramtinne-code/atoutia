@@ -43,6 +43,8 @@ class LandscapeGameScreenInstrumentedTest {
     private val selected = mutableListOf<PlayerCard>()
     private val bids = mutableListOf<BiddingActionSnapshot>()
     private var replays = 0
+    private var retries = 0
+    private val sync = mutableStateOf(GameSyncState(connection = GameRealtimeStatus.CONNECTED))
 
     @Before fun landscapeHost() {
         compose.runOnUiThread {
@@ -103,6 +105,52 @@ class LandscapeGameScreenInstrumentedTest {
         compose.runOnIdle { assertEquals(1, replays) }
     }
 
+    @Test fun healthySyncHasNoPermanentRefreshButton() {
+        val session = fixture()
+        show(session)
+        compose.onNodeWithText("En direct").assertIsDisplayed()
+        compose.onNodeWithText("Actualiser la partie").assertDoesNotExist()
+        compose.onNodeWithText("Réessayer").assertDoesNotExist()
+        assertHandVisible(session)
+    }
+
+    @Test fun retryAppearsOnErrorAndIsDisabledDuringRefreshOrCommand() {
+        val session = fixture()
+        sync.value = GameSyncState(connection = GameRealtimeStatus.CONNECTED, refreshFailed = true)
+        show(session)
+        compose.onNodeWithText("Réessayer").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(1, retries)
+            sync.value = sync.value.copy(refreshing = true)
+        }
+        compose.onNodeWithText("Réessayer").assertIsNotEnabled()
+        compose.runOnIdle {
+            sync.value = sync.value.copy(refreshing = false)
+            submitted.value = GamePlayCardUiState.Submitting
+        }
+        compose.onNodeWithText("Réessayer").assertIsNotEnabled()
+        assertHandVisible(session)
+        compose.runOnIdle {
+            submitted.value = GamePlayCardUiState.Idle
+            sync.value = GameSyncState(connection = GameRealtimeStatus.CONNECTED)
+        }
+        compose.onNodeWithText("Réessayer").assertDoesNotExist()
+    }
+
+    @Test fun reconnectAndRecoveryKeepTheHandInItsFixedArea() {
+        val session = fixture()
+        sync.value = GameSyncState(connection = GameRealtimeStatus.RECONNECTING)
+        show(session)
+        compose.onNodeWithText("Reconnexion…").assertIsDisplayed()
+        val before = compose.onNodeWithTag("player-hand").getUnclippedBoundsInRoot()
+        compose.onNodeWithText("Réessayer").performScrollTo().assertIsDisplayed()
+        assertHandVisible(session)
+        compose.runOnIdle { sync.value = GameSyncState(connection = GameRealtimeStatus.CONNECTED) }
+        compose.onNodeWithText("Réessayer").assertDoesNotExist()
+        compose.onNodeWithText("En direct").assertIsDisplayed()
+        assertEquals(before, compose.onNodeWithTag("player-hand").getUnclippedBoundsInRoot())
+    }
+
     private fun cardNode(card: PlayerCard) = compose.onNodeWithTag(
         "hand-${card.rank.name}-${card.suit.name}", useUnmergedTree = true,
     )
@@ -140,7 +188,8 @@ class LandscapeGameScreenInstrumentedTest {
                             playCardState = submitted.value,
                             onPlayCard = { selected.add(it) },
                             onBiddingAction = { bids.add(it) },
-                            onRefresh = {},
+                            syncState = sync.value,
+                            onRefresh = { retries++ },
                             onReturnToHome = {},
                             onReplay = { replays++ },
                             onHistory = {},

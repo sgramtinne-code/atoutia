@@ -13,6 +13,8 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
+enum class GameRealtimeStatus { CONNECTING, CONNECTED, RECONNECTING, ERROR }
+
 interface AtoutiaGameRealtimeSubscription :
     Closeable {
     fun acknowledgeRevision(
@@ -73,6 +75,7 @@ class AtoutiaGameRealtimeClient(
                 String,
             ) -> Unit =
             {},
+        onConnectionState: (GameRealtimeStatus) -> Unit = {},
     ): AtoutiaGameRealtimeSubscription {
         require(
             SESSION_ID_PATTERN.matches(
@@ -117,6 +120,7 @@ class AtoutiaGameRealtimeClient(
 
             onConnectionIssue =
                 onConnectionIssue,
+            onConnectionState = onConnectionState,
         )
     }
 
@@ -156,6 +160,7 @@ class AtoutiaGameRealtimeClient(
             (
                 String,
             ) -> Unit,
+        private val onConnectionState: (GameRealtimeStatus) -> Unit,
     ) : AtoutiaGameRealtimeSubscription {
         private val closed =
             AtomicBoolean(
@@ -184,8 +189,11 @@ class AtoutiaGameRealtimeClient(
         private var lastSignaledRevision =
             initialRevision
 
+        private var connectionState: GameRealtimeStatus? = null
+
         init {
             executeIfActive {
+                publishConnectionState(GameRealtimeStatus.CONNECTING)
                 connect()
             }
 
@@ -574,6 +582,9 @@ class AtoutiaGameRealtimeClient(
                 return
             }
 
+            publishConnectionState(GameRealtimeStatus.CONNECTED)
+            if (closed.get()) return
+
             if (
                 revision <=
                     knownRevision ||
@@ -767,6 +778,8 @@ class AtoutiaGameRealtimeClient(
                 return
             }
 
+            publishConnectionState(GameRealtimeStatus.RECONNECTING)
+
             reconnectScheduled =
                 true
 
@@ -801,6 +814,7 @@ class AtoutiaGameRealtimeClient(
                 String,
         ) {
             if (closed.get()) return
+            publishConnectionState(GameRealtimeStatus.ERROR)
 
             try {
                 onConnectionIssue(
@@ -812,6 +826,12 @@ class AtoutiaGameRealtimeClient(
             ) {
                 Unit
             }
+        }
+
+        private fun publishConnectionState(state: GameRealtimeStatus) {
+            if (closed.get() || connectionState == state) return
+            connectionState = state
+            try { onConnectionState(state) } catch (_: Exception) { /* UI observers cannot stop reconnect. */ }
         }
 
         private fun executeIfActive(

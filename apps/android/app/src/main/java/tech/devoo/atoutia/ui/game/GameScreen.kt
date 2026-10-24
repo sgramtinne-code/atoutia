@@ -67,6 +67,7 @@ fun GameScreen(
     session: PlayerGameSession,
     biddingState: GameBiddingUiState = GameBiddingUiState.Idle,
     playCardState: GamePlayCardUiState = GamePlayCardUiState.Idle,
+    syncState: GameSyncState = GameSyncState(),
     presence: GameRealtimePresence? = null,
     adjudication: GameRealtimeAdjudicationEvent? = null,
     onBiddingAction: ((BiddingActionSnapshot) -> Unit)? = null,
@@ -356,32 +357,16 @@ fun GameScreen(
             }
         }
 
+    val syncContent: @Composable () -> Unit = {
+        if (!isMatchCompleted) GameSyncPanel(
+            state = syncState,
+            commandSubmitting = isSubmitting,
+            onRetry = onRefresh,
+        )
+    }
+
     val footerContent:
         @Composable () -> Unit = {
-            if (
-                !isMatchCompleted
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        onRefresh
-                            ?.invoke()
-                    },
-
-                    enabled =
-                        onRefresh !=
-                            null &&
-                            !isSubmitting,
-
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text =
-                            "Actualiser la partie",
-                    )
-                }
-            }
-
             Text(
                 text =
                     "Révision serveur ${session.revision} • moteur ${document.engineVersion}",
@@ -452,6 +437,7 @@ fun GameScreen(
                                     .verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
+                                syncContent()
                                 if (!isMatchCompleted && match.hand.isNotEmpty()) {
                                     PlayCardFeedback(playCardState)
                                 }
@@ -484,6 +470,7 @@ fun GameScreen(
                                 textAlign = TextAlign.Center,
                             )
                         }
+                        syncContent()
                         hudContent(false)
                         tableContent()
                         controlsContent(true)
