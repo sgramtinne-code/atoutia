@@ -9,26 +9,35 @@ import { pathToFileURL } from "node:url";
 export async function createAndroidNetworkRelay({ port = 3001, upstreamPort = 3000 } = {}) {
   let disconnected = false;
   const sockets = new Set();
+  const clients = new Set();
+  let acceptedConnections = 0;
+  let rejectedConnections = 0;
+  let upstreamErrors = 0;
   const dropConnections = () => {
     for (const socket of sockets) socket.destroy();
     sockets.clear();
+    clients.clear();
   };
   const server = createServer((client) => {
     if (disconnected) {
+      rejectedConnections++;
       client.destroy();
       return;
     }
+    acceptedConnections++;
+    clients.add(client);
     const upstream = createConnection({ host: "127.0.0.1", port: upstreamPort });
     sockets.add(client);
     sockets.add(upstream);
     const release = () => {
       client.destroy();
       upstream.destroy();
+      clients.delete(client);
       sockets.delete(client);
       sockets.delete(upstream);
     };
     client.on("error", release);
-    upstream.on("error", release);
+    upstream.on("error", () => { upstreamErrors++; release(); });
     client.on("close", release);
     upstream.on("close", release);
     client.pipe(upstream);
@@ -43,7 +52,18 @@ export async function createAndroidNetworkRelay({ port = 3001, upstreamPort = 30
   });
   return {
     port: server.address().port,
-    disconnect() { disconnected = true; dropConnections(); },
+    getStatus() {
+      return Object.freeze({
+        paused: disconnected, activeConnections: clients.size,
+        acceptedConnections, rejectedConnections, upstreamErrors,
+      });
+    },
+    disconnect() {
+      const interrupted = clients.size;
+      disconnected = true;
+      dropConnections();
+      return interrupted;
+    },
     resume() { disconnected = false; },
     async close() {
       disconnected = true;
@@ -76,20 +96,28 @@ async function main() {
     console.log("Relais Android actif : 127.0.0.1:3001 → 127.0.0.1:3000.");
     console.log("Application relancée pour utiliser le relais ; créer maintenant le nouveau salon.");
     console.log("Backend et PNJ restent en connexion directe. Garder ce terminal ouvert.");
-    console.log("c + Entrée : couper Android ; r + Entrée : reprendre ; q + Entrée : terminer.");
+    console.log("c + Entrée : couper Android ; r + Entrée : reprendre ; s + Entrée : état ; q + Entrée : terminer.");
+    const showStatus = () => {
+      const state = relay.getStatus();
+      console.log(`Relais ${state.paused ? "COUPÉ" : "OUVERT"} | TCP actives=${state.activeConnections} acceptées=${state.acceptedConnections} refusées=${state.rejectedConnections} erreurs_backend=${state.upstreamErrors}`);
+    };
     for await (const line of input) {
       if (closing) break;
       const command = line.trim().toLowerCase();
       if (command === "c") {
-        relay.disconnect();
-        console.log("Connexion Android coupée. Reprendre rapidement avec r (avant deux minutes).");
+        const interrupted = relay.disconnect();
+        console.log(`Connexion Android coupée : ${interrupted} connexion(s) TCP fermée(s). Reprendre rapidement avec r (avant deux minutes).`);
+        showStatus();
       } else if (command === "r") {
         relay.resume();
-        console.log("Connexion Android rétablie ; attendre sa reconnexion automatique.");
+        console.log("Relais rouvert ; la reconnexion Android reste à vérifier. Attendre dix secondes puis saisir s.");
+        showStatus();
+      } else if (command === "s") {
+        showStatus();
       } else if (command === "q") {
         break;
       } else {
-        console.log("Commandes : c, r, q.");
+        console.log("Commandes : c, r, s, q.");
       }
     }
   } finally {

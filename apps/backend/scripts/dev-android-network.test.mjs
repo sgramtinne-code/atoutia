@@ -47,15 +47,23 @@ test("cut drops existing streams and rejects new streams while backend stays ava
   const socket = await connect(relay.port);
   await echo(socket, "before");
   const closed = once(socket, "close");
-  relay.disconnect();
+  assert.deepEqual(relay.getStatus(), {
+    paused: false, activeConnections: 1, acceptedConnections: 1, rejectedConnections: 0, upstreamErrors: 0,
+  });
+  assert.equal(relay.disconnect(), 1);
+  assert.equal(relay.getStatus().activeConnections, 0);
   await closed;
   const denied = await connect(relay.port);
   if (!denied.destroyed) await once(denied, "close");
+  assert.equal(relay.getStatus().rejectedConnections, 1);
   const direct = await connect(upstreamPort);
   await echo(direct, "direct PNJ connection unaffected");
   relay.resume();
   const restored = await connect(relay.port);
   await echo(restored, "restored");
+  assert.deepEqual(relay.getStatus(), {
+    paused: false, activeConnections: 1, acceptedConnections: 2, rejectedConnections: 1, upstreamErrors: 0,
+  });
 });
 
 test("closing the relay releases the listener and all connected streams", async () => {
@@ -96,18 +104,30 @@ appendFileSync(${JSON.stringify(calls)}, JSON.stringify(process.argv.slice(2)) +
     output += chunk;
     if (!inputSent && output.includes("c + Entrée")) {
       inputSent = true;
-      child.stdin.end("c\nr\nq\n");
+      child.stdin.end("c\nr\ns\nq\n");
     }
   });
   child.stderr.on("data", (chunk) => { output += chunk; });
   const [code] = await once(child, "exit");
   assert.equal(code, 0, output);
   assert.match(output, /Connexion Android coupée/);
-  assert.match(output, /Connexion Android rétablie/);
+  assert.match(output, /Relais rouvert/);
+  assert.match(output, /TCP actives=0 acceptées=0 refusées=0 erreurs_backend=0/);
   assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n").map(JSON.parse), [
     ["reverse", "tcp:3000", "tcp:3001"],
     ["shell", "am", "force-stop", "tech.devoo.atoutia"],
     ["shell", "am", "start", "-n", "tech.devoo.atoutia/.MainActivity"],
     ["reverse", "tcp:3000", "tcp:3000"],
   ]);
+});
+
+
+test("upstream failures are counted without reporting application data", async () => {
+  const { relay, server } = await fixture();
+  await new Promise((resolve) => server.close(resolve));
+  const socket = await connect(relay.port);
+  if (!socket.destroyed) await once(socket, "close");
+  assert.deepEqual(relay.getStatus(), {
+    paused: false, activeConnections: 0, acceptedConnections: 1, rejectedConnections: 0, upstreamErrors: 1,
+  });
 });
