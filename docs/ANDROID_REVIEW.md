@@ -48,6 +48,14 @@ Les captures montrent le sélecteur Google puis l’accueil authentifié en pays
 
 Le cadrage initial de l’accueil ne montre pas les actions du bas. Le fichier `AuthenticatedHomeScreen.kt` a été relu en entier et possède déjà un défilement vertical. Guider un glissement vers le haut pour atteindre Historique et Se déconnecter ; ce cadrage seul ne prouve pas un défaut de mise en page. La prochaine validation est déconnexion → redémarrage encore déconnecté → reconnexion Google → attente de 16 minutes sur l’accueil → Historique sans nouvel écran Google, avant les essais avec trois PNJ. L’APK actuel suffit ; aucun changement applicatif n’est livré ici.
 
+## Vues déconnectées et accès à l’historique observés
+
+De nouvelles captures de l’émulateur montrent deux vues « Aucune session Atoutia », puis l’accueil authentifié et l’historique chargé avec du contenu persistant. L’accès authentifié à l’historique est observé visuellement ; les données du résultat et les captures restent hors du dépôt.
+
+Ces images ne démontrent pas à elles seules l’exécution du force-stop entre les vues déconnectées, la révocation serveur, ou une attente de 16 minutes depuis la dernière connexion Google. Demander la confirmation du redémarrage et de ce délai avant de valider ces deux points. Une reconnexion Google remet le délai à zéro : un long intervalle depuis un ancien lancement ne suffit pas à prouver un refresh. Si l’attente n’a pas été faite, garder l’accueil et le backend ouverts 16 minutes, puis ouvrir l’historique sans nouvel écran Google. Les essais PNJ et restauration de partie restent à effectuer.
+
+Le libellé « Backend non testé » est associé à `BackendCheckState.Idle` dans MainActivity : il décrit le contrôle manuel de santé non lancé dans cet écran, sans constituer une erreur de connexion. Aucun changement applicatif n’est livré par cet enregistrement.
+
 ## Avertissements lint observés
 
 Contrôle du commit `f0adaad` : [run Android `40088059834`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059834), job `120854929369`, réussi avec **192/192 tests JVM**, les deux APK et le lint. Le [run moteur/backend `40088059833`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059833) est également réussi. Le correctif applicatif reste `46163ef`.
@@ -79,4 +87,4 @@ La correction des WebSockets, l’audit complet de l’UI et une livraison produ
 
 Outils de test à examiner séparément : `dev-android-room.mjs` passe le chemin Linux de l’APK directement à adb.exe ; la variante en cours utilise l’installation `wslpath -w` explicitement validée, puis le script PNJ existant. `dev-autoplay-room.mjs` ne renouvelle pas ses access tokens ; effectuer l’attente de 16 minutes pour le refresh Android sur l’accueil avant leur création. Aucun de ces scripts n’est modifié ou présenté comme corrigé ici.
 
-La capture suivante confirme le défilement de l’accueil : Historique, Paramètres et Se déconnecter sont visibles. Le message « Le profil joueur arrive prochainement. » correspond à l’action de profil encore prévue ; ce n’est pas une erreur d’authentification. Aucun résultat de clic sur Se déconnecter ou sur Historique après expiration n’est encore reçu.
+La capture suivante confirme le défilement de l’accueil : Historique, Paramètres et Se déconnecter sont visibles. Le message « Le profil joueur arrive prochainement. » correspond à l’action de profil encore prévue ; ce n’est pas une erreur d’authentification. Les captures suivantes montrent un écran déconnecté puis l’accueil et l’historique chargé ; le redémarrage entre les deux vues déconnectées et le délai de 16 minutes restent à confirmer.
