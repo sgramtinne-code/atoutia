@@ -251,3 +251,9 @@ Base principale : `$HOME/projects/atoutia/apps/backend/data/atoutia.sqlite`. Ne 
 Le dernier inventaire local doit être revérifié avant toute opération. Les comptages, identifiants de matchs et emplacements personnels de sauvegardes restent dans le contexte privé de travail.
 
 Les timestamps migrés ne prouvent pas une activité réelle à cette date. Une future politique d'expiration doit protéger présence, reconnexion, parties en cours, adjudications RANKED et historique, et commencer par un diagnostic sans suppression.
+
+## Revue Android Kotlin en cours
+
+Branche `fix/android-shared-auth-session` depuis `main` `5e267e3`. La revue des parcours authentifiés a identifié des gestionnaires de session distincts dont les verrous ne coordonnent pas le renouvellement des tokens. Le backend révoque une session lorsqu’un refresh token déjà consommé est réutilisé. Des tests de concurrence reproduisent les chevauchements refresh/refresh, refresh/déconnexion et refresh/connexion Google. Ils sont ajoutés avant le correctif ; aucune réussite Android n’est encore annoncée.
+
+[Android CI](.github/workflows/android.yml) prépare les tests JVM, la compilation debug et du paquet de tests instrumentés, et le lint. Le test sur appareil reste distinct. L’audit complet de l’interface et les essais Google/ADB ne sont pas encore terminés.

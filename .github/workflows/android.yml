@@ -1,0 +1,78 @@
+name: Android CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android Kotlin
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            apps/android/**/*.gradle.kts
+            apps/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Install required Android SDK packages
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+
+      - name: Run Kotlin unit tests
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
+
+      - name: Compile debug and instrumented test APKs
+        run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug :app:assembleDebugAndroidTest -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
+
+      - name: Run Android lint
+        run: ./gradlew --no-daemon --max-workers=2 :app:lintDebug -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
+
+      - name: Summarize JVM test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(Path("app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
+          totals = dict(tests=0, failures=0, errors=0, skipped=0)
+          for report in reports:
+              suite = ET.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(suite.get(key, "0"))
+              for case in suite.findall("testcase"):
+                  for failure in list(case.findall("failure")) + list(case.findall("error")):
+                      print(f"FAILED {case.get('classname')}.{case.get('name')}: {failure.get('message')}")
+          summary = f"JVM reports: {len(reports)}; " + ", ".join(f"{key}={value}" for key, value in totals.items())
+          print(summary)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+              output.write(summary + "\n\nInstrumented APK compilation does not execute device tests.\n")
+          PY
+
+      - name: Check tracked files remain unchanged
+        run: git diff --check HEAD^ HEAD && git diff --exit-code

@@ -81,3 +81,7 @@ Pour ce diagnostic : tests ciblés `liveRoomExpiration.test.ts` / `sqliteLiveRoo
 Pour le code : tests ciblés puis suites concernées, typecheck, builds et validation réelle lorsque nécessaire. Ajouter des tests utiles pour règles métier, présence, persistance, confidentialité et cas limites. Une documentation seule appelle une vérification des liens, commandes, faits et du diff ; ne pas inventer une exécution de tests applicatifs.
 
 Test réel par défaut : un client Android tenu par le développeur en `PLAYER_0` et trois joueurs simulés avec `apps/backend/scripts/dev-android-room.mjs`, backend local en bootstrap de test. Le lanceur construit, installe et démarre Android, attend un **nouveau** salon, puis ajoute les trois PNJ. Le développeur démarre la partie à 4/4. Fournir aussi les étapes de reconnexion, fin de partie et historique si elles concernent le changement.
+
+## Revue Android en cours
+
+La branche `fix/android-shared-auth-session`, issue de `main` `5e267e3`, examine le client Kotlin. Les validations moteur/backend ne prouvent pas une validation Android. Le workflow `.github/workflows/android.yml` prépare compilation debug, compilation des tests instrumentés, tests JVM et lint ; vérifier ses résultats réels avant de les annoncer réussis. Les tests instrumentés ne sont pas exécutés par ce job. La PR reste en brouillon jusqu’aux validations nécessaires.
