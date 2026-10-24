@@ -51,11 +51,12 @@ jobs:
       - name: Run Android lint
         run: ./gradlew --no-daemon --max-workers=2 :app:lintDebug -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
 
-      - name: Summarize JVM test results
+      - name: Summarize Android checks
         if: always()
         run: |
           python3 - <<'PY'
           import os
+          from collections import Counter
           from pathlib import Path
           import xml.etree.ElementTree as ET
 
@@ -72,6 +73,15 @@ jobs:
           print(summary)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
               output.write(summary + "\n\nInstrumented APK compilation does not execute device tests.\n")
+              lint_report = Path("app/build/reports/lint-results-debug.xml")
+              if lint_report.exists():
+                  issues = ET.parse(lint_report).getroot().findall("issue")
+                  counts = dict(Counter(issue.get("severity") for issue in issues))
+                  lint_summary = f"Android lint issues by severity: {counts}"
+                  print(lint_summary)
+                  output.write("\n" + lint_summary + "\n")
+                  for issue in issues:
+                      print(f"LINT {issue.get('severity')} {issue.get('id')}: {issue.get('message')}")
           PY
 
       - name: Check tracked files remain unchanged

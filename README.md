@@ -4,6 +4,8 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
+Travail actuel : [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7), revue Android et correction de la concurrence des sessions, depuis `main` `5e267e3`. Voir [le bilan Android et ses limites](docs/ANDROID_REVIEW.md). Les livraisons SQLite et la CI moteur/backend ci-dessous sont acquises ; elles ne prouvent pas une validation Android.
+
 Le diagnostic d'expiration en lecture seule est livré par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), fusionnée dans `deea680`, depuis `main` `4109cec`, sur la branche `feat/live-room-expiration-dry-run`. Son code applicatif est au commit [`a2258b0`](https://github.com/sgramtinne-code/atoutia/commit/a2258b0e09a825ef5a0728b5e0995b8ad664b552) ; les changements suivants de cette PR consignent la validation et la reprise. Vérifier le statut GitHub de la PR et le dernier `main` avant une reprise.
 
 L'étape précédente était `db0d727`, `feat: track live room activity timestamps` (7 octobre 2026), puis la PR documentaire nº 1 fusionnée dans `4109cec`.
@@ -254,8 +256,40 @@ Les timestamps migrés ne prouvent pas une activité réelle à cette date. Une 
 
 ## Revue Android Kotlin en cours
 
-Branche `fix/android-shared-auth-session` depuis `main` `5e267e3`. La revue des parcours authentifiés a identifié des gestionnaires de session distincts dont les verrous ne coordonnent pas le renouvellement des tokens. Le backend révoque une session lorsqu’un refresh token déjà consommé est réutilisé. Des tests de concurrence reproduisent les chevauchements refresh/refresh, refresh/déconnexion et refresh/connexion Google. Ils sont ajoutés avant le correctif ; aucune réussite Android n’est encore annoncée.
+Branche `fix/android-shared-auth-session` depuis `main` `5e267e3`. La revue des parcours authentifiés a identifié des gestionnaires de session distincts dont les verrous ne coordonnent pas le renouvellement des tokens. Le backend révoque une session lorsqu’un refresh token déjà consommé est réutilisé. Des tests de concurrence reproduisent les chevauchements refresh/refresh, refresh/déconnexion et refresh/connexion Google. Ils ont échoué avant correction puis réussi avec le verrou partagé entre stockages et coordinateurs.
 
-[Android CI](.github/workflows/android.yml) prépare les tests JVM, la compilation debug et du paquet de tests instrumentés, et le lint. Le test sur appareil reste distinct. L’audit complet de l’interface et les essais Google/ADB ne sont pas encore terminés.
+[Android CI](.github/workflows/android.yml) exécute les tests JVM, la compilation debug et du paquet de tests instrumentés, et le lint. Le test sur appareil reste distinct. L’audit complet de l’interface et les essais Google/ADB ne sont pas encore terminés.
 
-La [revue Android détaillée](docs/ANDROID_REVIEW.md) conserve le périmètre et les suites à donner. Reproduction avant correction sur GitHub : [run `40087526338`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087526338), commit `2e707ad` : **192 tests JVM, trois échecs attendus dans les nouveaux tests de concurrence, 189 autres réussis**. Le correctif partage maintenant le verrou entre stockages et coordinateurs ; les résultats après correction, APK et lint restent à vérifier avant toute fusion.
+La [revue Android détaillée](docs/ANDROID_REVIEW.md) conserve le périmètre et les suites à donner. Reproduction avant correction sur GitHub : [run `40087526338`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087526338), commit `2e707ad` : **192 tests JVM, trois échecs attendus dans les nouveaux tests de concurrence, 189 autres réussis**. Après correction applicative **`46163ef`** : [run Android `40087752809`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752809) réussi avec **192/192 tests JVM**, compilation de l’APK debug et de l’APK instrumenté, lint et contrôles Git réussis. Le [run moteur/backend `40087752798`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752798) est aussi réussi. Les tests sur appareil restent à recevoir avant fusion ; la PR nº 7 demeure en brouillon. Les commits documentaires suivants ne changent pas le correctif applicatif.
+
+### Test Keystore sur appareil de test
+
+Cette classe utilise uniquement des tokens synthétiques, sans backend. Elle efface la session de connexion locale de l’application cible : utiliser un appareil de test et se reconnecter ensuite. Elle n’efface pas la base du backend. Ne pas lancer toute la suite instrumentée sans préparer le backend attendu par les autres classes.
+
+Après récupération de la branche et vérification d’un seul appareil ADB en état `device`, construire :
+
+```bash
+cd $HOME/projects/atoutia/apps/android &&
+./gradlew --no-daemon --max-workers=2 :app:assembleDebug :app:assembleDebugAndroidTest \
+  -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
+```
+
+Avec ADB Windows depuis WSL, convertir les chemins pour l’installation :
+
+```bash
+cd $HOME/projects/atoutia/apps/android
+ADB="/mnt/c/Users/<utilisateur-Windows>/AppData/Local/Android/Sdk/platform-tools/adb.exe"
+"$ADB" devices
+```
+
+Si l’unique appareil est prêt, exécuter dans l’ordre :
+
+```bash
+"$ADB" install -r "$(wslpath -w "$PWD/app/build/outputs/apk/debug/app-debug.apk")" &&
+"$ADB" install -r "$(wslpath -w "$PWD/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")" &&
+"$ADB" shell am instrument -w \
+  -e class tech.devoo.atoutia.auth.AndroidSecureAuthTokenStoreInstrumentedTest \
+  tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Résultat attendu : `OK (3 tests)`. Conserver le résultat reçu, pas seulement le code retour ADB. Reprendre ensuite le scénario **Android PLAYER_0 et trois PNJ** ci-dessus : le lanceur reconstruit avec le Google Client ID configuré, installe et lance l’application. Vérifier connexion Google, déconnexion depuis l’accueil, redémarrage sans restauration de session après déconnexion, reconnexion Google, nouvelle partie, restauration et historique. Pour vérifier le renouvellement réel, garder la session plus de 15 minutes après la connexion puis actualiser/reconnecter le réseau ; aucune demande de reconnexion Google ni perte de partie ne doit survenir si le refresh reste valide. Ne pas modifier l’horloge de l’appareil pour forcer ce cas.
