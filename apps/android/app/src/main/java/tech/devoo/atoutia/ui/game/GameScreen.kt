@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -170,18 +171,8 @@ fun GameScreen(
             )
         }
 
-    val headerText =
-        if (
-            screenTitle ==
-                actionStatus
-        ) {
-            screenTitle
-        } else {
-            "$screenTitle • $actionStatus"
-        }
-
     val hudContent:
-        @Composable () -> Unit = {
+        @Composable (Boolean) -> Unit = { compact ->
             GameHud(
                 dealNumber =
                     publicMatch.dealNumber,
@@ -209,6 +200,8 @@ fun GameScreen(
 
                 modifier =
                     Modifier.fillMaxWidth(),
+
+                compact = compact,
             )
         }
 
@@ -247,8 +240,39 @@ fun GameScreen(
             )
         }
 
+    val handContent: @Composable (Boolean) -> Unit = { compact ->
+        if (
+            !isMatchCompleted &&
+            match.hand.isNotEmpty()
+        ) {
+            PlayerHandPanel(
+                hand =
+                    match.hand,
+
+                legalCards =
+                    actions.legalCards,
+
+                canPlay =
+                    actions.mode ==
+                        PlayerActionMode.PLAY_CARD,
+
+                submitting =
+                    isSubmitting,
+
+                onPlayCard =
+                    onPlayCard,
+
+                playCardState =
+                    playCardState,
+
+                compact = compact,
+            )
+        }
+
+    }
+
     val controlsContent:
-        @Composable () -> Unit = {
+        @Composable (Boolean) -> Unit = { includeHand ->
             if (
                 !isForfeitCompleted &&
                 actions.mode ==
@@ -276,31 +300,7 @@ fun GameScreen(
                 )
             }
 
-            if (
-                !isMatchCompleted &&
-                match.hand.isNotEmpty()
-            ) {
-                PlayerHandPanel(
-                    hand =
-                        match.hand,
-
-                    legalCards =
-                        actions.legalCards,
-
-                    canPlay =
-                        actions.mode ==
-                            PlayerActionMode.PLAY_CARD,
-
-                    submitting =
-                        isSubmitting,
-
-                    onPlayCard =
-                        onPlayCard,
-
-                    playCardState =
-                        playCardState,
-                )
-            }
+            if (includeHand) handContent(false)
 
             if (
                 forfeitAdjudication !=
@@ -399,172 +399,94 @@ fun GameScreen(
             )
         }
 
-    Scaffold(
-        modifier =
-            modifier.fillMaxSize(),
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-        ) {
-            if (!isMatchCompleted && onReturnToHome != null) {
-                OutlinedButton(
-                    onClick = onReturnToHome,
-                    enabled = !isSubmitting,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                ) {
-                    Text("Retour à l’accueil")
-                }
+    val returnHomeContent: @Composable () -> Unit = {
+        if (!isMatchCompleted && onReturnToHome != null) {
+            OutlinedButton(onClick = onReturnToHome, enabled = !isSubmitting) {
+                Text("Retour à l’accueil")
             }
-            BoxWithConstraints(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-            ) {
-                val landscapeLayout =
-                    maxWidth >
-                        maxHeight &&
-                        maxWidth >=
-                        600.dp
+        }
+    }
 
-                if (
-                    landscapeLayout
+    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+        // Select from the allocated screen bounds before reserving space for system bars.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val landscapeLayout = maxWidth > maxHeight && maxWidth >= 600.dp
+            if (landscapeLayout) {
+                Column(
+                    Modifier.fillMaxSize().padding(innerPadding).padding(8.dp).testTag("game-landscape-layout"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    10.dp,
-                                ),
-
-                        horizontalArrangement =
-                            Arrangement.spacedBy(
-                                12.dp,
-                            ),
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        returnHomeContent()
+                        Box(Modifier.weight(1f)) { hudContent(true) }
+                    }
+                    Row(
+                        Modifier.weight(1f).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Box(
-                            modifier =
-                                Modifier
-                                    .weight(
-                                        1.55f,
-                                    )
-                                    .fillMaxHeight(),
-
-                            contentAlignment =
-                                Alignment.Center,
-                        ) {
-                            tableContent()
-                        }
-
+                            Modifier.weight(1.55f).fillMaxHeight(),
+                            contentAlignment = Alignment.Center,
+                        ) { tableContent() }
                         Column(
-                            modifier =
-                                Modifier
-                                    .weight(
-                                        1f,
-                                    )
-                                    .fillMaxHeight()
-                                    .verticalScroll(
-                                        rememberScrollState(),
-                                    ),
-
-                            verticalArrangement =
-                                Arrangement.spacedBy(
-                                    10.dp,
-                                ),
-
-                            horizontalAlignment =
-                                Alignment.CenterHorizontally,
+                            Modifier.weight(1f).fillMaxHeight(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
-                                text =
-                                    headerText,
-
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .titleMedium,
-
-                                fontWeight =
-                                    FontWeight.Bold,
-
-                                textAlign =
-                                    TextAlign.Center,
-
-                                modifier =
-                                    Modifier.fillMaxWidth(),
+                                actionStatus,
+                                modifier = Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
                             )
-
-                            hudContent()
-
-                            controlsContent()
-
-                            footerContent()
+                            // The hand has its own fixed area; secondary controls alone scroll.
+                            handContent(true)
+                            Column(
+                                Modifier.weight(1f).fillMaxWidth()
+                                    .testTag("game-secondary-controls")
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (!isMatchCompleted && match.hand.isNotEmpty()) {
+                                    PlayCardFeedback(playCardState)
+                                }
+                                controlsContent(false)
+                                footerContent()
+                            }
                         }
                     }
-                } else {
+                }
+            } else {
+                Column(Modifier.fillMaxSize().padding(innerPadding).testTag("game-stacked-layout")) {
+                    Box(Modifier.padding(horizontal = 12.dp)) { returnHomeContent() }
                     Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .verticalScroll(
-                                    rememberScrollState(),
-                                )
-                                .padding(
-                                    16.dp,
-                                ),
-
-                        verticalArrangement =
-                            Arrangement.spacedBy(
-                                12.dp,
-                            ),
-
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally,
+                        Modifier.weight(1f).fillMaxWidth()
+                            .verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text =
-                                screenTitle,
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .headlineMedium,
-
-                            fontWeight =
-                                FontWeight.Bold,
-
-                            textAlign =
-                                TextAlign.Center,
+                            screenTitle,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
                         )
-
-                        if (
-                            actionStatus !=
-                                screenTitle
-                        ) {
+                        if (actionStatus != screenTitle) {
                             Text(
-                                text =
-                                    actionStatus,
-
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .titleMedium,
-
-                                fontWeight =
-                                    FontWeight.SemiBold,
-
-                                textAlign =
-                                    TextAlign.Center,
+                                actionStatus,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
                             )
                         }
-
-                        hudContent()
-
+                        hudContent(false)
                         tableContent()
-
-                        controlsContent()
-
+                        controlsContent(true)
                         footerContent()
                     }
                 }
@@ -668,93 +590,44 @@ private fun PlayerHandPanel(
     submitting: Boolean,
     onPlayCard: ((PlayerCard) -> Unit)?,
     playCardState: GamePlayCardUiState,
+    compact: Boolean = false,
 ) {
-    OutlinedCard(
-        modifier =
-            Modifier.fillMaxWidth(),
-    ) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier =
-                Modifier.padding(
-                    16.dp,
-                ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    12.dp,
-                ),
+            Modifier.padding(if (compact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 12.dp),
         ) {
-            Text(
-                text =
+            if (!compact) {
+                Text(
                     "Votre main",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-            )
-
-            Text(
-                text =
-                    if (
-                        canPlay
-                    ) {
-                        "Choisissez une carte mise en évidence."
-                    } else {
-                        "En attente de votre prochain tour."
-                    },
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-            )
-
-            BeloteHand(
-                hand =
-                    hand,
-
-                legalCards =
-                    legalCards,
-
-                canPlay =
-                    canPlay,
-
-                submitting =
-                    submitting,
-
-                onPlayCard =
-                    onPlayCard,
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-            )
-
-            when (
-                playCardState
-            ) {
-                GamePlayCardUiState.Idle -> {
-                    Unit
-                }
-
-                GamePlayCardUiState.Submitting -> {
-                    CommandSubmittingRow(
-                        message =
-                            "Envoi de la carte...",
-                    )
-                }
-
-                is GamePlayCardUiState.Failed -> {
-                    CommandFailureText(
-                        message =
-                            playCardState.message,
-                    )
-                }
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    if (canPlay) "Choisissez une carte mise en évidence."
+                    else "En attente de votre prochain tour.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
+            BeloteHand(
+                hand = hand,
+                legalCards = legalCards,
+                canPlay = canPlay,
+                submitting = submitting,
+                onPlayCard = onPlayCard,
+                modifier = Modifier.fillMaxWidth().testTag("player-hand"),
+            )
+            if (!compact) PlayCardFeedback(playCardState)
         }
+    }
+}
+
+@Composable
+private fun PlayCardFeedback(state: GamePlayCardUiState) {
+    when (state) {
+        GamePlayCardUiState.Idle -> Unit
+        GamePlayCardUiState.Submitting -> CommandSubmittingRow("Envoi de la carte...")
+        is GamePlayCardUiState.Failed -> CommandFailureText(state.message)
     }
 }
 

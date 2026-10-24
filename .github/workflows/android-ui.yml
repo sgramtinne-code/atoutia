@@ -1,0 +1,127 @@
+name: Android UI CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/android/**"
+      - ".github/workflows/android-ui.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/android/**"
+      - ".github/workflows/android-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  landscape:
+    name: Landscape UI on emulator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            apps/android/**/*.gradle.kts
+            apps/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Install emulator and Android SDK packages
+        run: |
+          export ANDROID_USER_HOME="$RUNNER_TEMP/atoutia-android"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          echo "ANDROID_USER_HOME=$ANDROID_USER_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-37.0" "build-tools;36.0.0" \
+            "emulator" "system-images;android-36;google_apis;x86_64"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          test -e /dev/kvm
+          sudo chown "$(id -u):$(id -g)" /dev/kvm
+          sudo chmod 660 /dev/kvm
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+            --name atoutia-ui --package "system-images;android-36;google_apis;x86_64" --device pixel_7 \
+            --path "$ANDROID_AVD_HOME/atoutia-ui.avd"
+          test -f "$ANDROID_AVD_HOME/atoutia-ui.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
+
+      - name: Start isolated emulator
+        timeout-minutes: 6
+        run: |
+          trap 'tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true' ERR
+          adb start-server
+          nohup "$ANDROID_HOME/emulator/emulator" -avd atoutia-ui -port 5554 \
+            -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader -cores 2 -memory 2048 \
+            > "$RUNNER_TEMP/atoutia-emulator.log" 2>&1 &
+          emulator_pid=$!
+          booted=false
+          boot_deadline=$((SECONDS + 240))
+          while (( SECONDS < boot_deadline )); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Emulator process stopped before boot completed."
+              false
+            fi
+            boot_state="$(timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [[ "$boot_state" == "1" ]]; then
+              booted=true
+              break
+            fi
+            sleep 2
+          done
+          [[ "$booted" == "true" ]]
+          adb -s emulator-5554 shell settings put global window_animation_scale 0
+          adb -s emulator-5554 shell settings put global transition_animation_scale 0
+          adb -s emulator-5554 shell settings put global animator_duration_scale 0
+          adb -s emulator-5554 shell input keyevent 82
+
+      - name: Build debug and targeted test APKs
+        run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug :app:assembleDebugAndroidTest -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
+
+      - name: Run only isolated landscape UI tests
+        timeout-minutes: 6
+        run: |
+          adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
+          adb -s emulator-5554 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          timeout 300s adb -s emulator-5554 shell am instrument -w \
+            -e class tech.devoo.atoutia.ui.game.LandscapeGameScreenInstrumentedTest \
+            tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-ui-result.txt"
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-ui-result.txt").read_text()
+          passed = bool(re.search(r"^OK \(4 tests\)\s*$", result, re.MULTILINE))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("Isolated landscape instrumentation: " + ("4/4 passed" if passed else "FAILED") + "\n")
+          if not passed:
+              raise SystemExit("The four landscape UI tests did not all pass.")
+          PY
+
+      - name: Report failures and stop emulator
+        timeout-minutes: 1
+        if: ${{ !cancelled() }}
+        run: |
+          if [[ "${{ job.status }}" != "success" ]]; then
+            tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true
+            timeout 10s adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:E || true
+          fi
+          timeout 10s adb -s emulator-5554 emu kill || true

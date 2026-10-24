@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -236,6 +237,7 @@ fun BeloteHand(
 
                     modifier =
                         Modifier
+                            .testTag("hand-${card.rank.name}-${card.suit.name}")
                             .offset(
                                 x =
                                     startX +

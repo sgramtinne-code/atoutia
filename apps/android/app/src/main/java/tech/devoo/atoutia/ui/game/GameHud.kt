@@ -50,7 +50,16 @@ fun GameHud(
     modifier:
         Modifier =
         Modifier,
+
+    compact: Boolean = false,
 ) {
+    if (compact) {
+        CompactGameHud(
+            dealNumber, dealer, taker, trumpSuit, scoreTeam0, scoreTeam1,
+            targetScore, revision, modifier,
+        )
+        return
+    }
     Surface(
         modifier =
             modifier.fillMaxWidth(),
@@ -258,6 +267,55 @@ fun GameHud(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CompactGameHud(
+    dealNumber: Int,
+    dealer: PlayerPosition,
+    taker: PlayerPosition?,
+    trumpSuit: CardSuit?,
+    scoreTeam0: Int,
+    scoreTeam1: Int,
+    targetScore: Int,
+    revision: Int,
+    modifier: Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Score $scoreTeam0 - $scoreTeam1 / $targetScore",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "Atout ${trumpSuit?.toSymbol() ?: "—"} ${trumpSuit?.toDisplayName() ?: ""}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = trumpSuit?.toSuitColor() ?: MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Text(
+                "Donne $dealNumber · Donneur J${dealer.ordinal + 1} · " +
+                    "Preneur ${taker?.let { "J${it.ordinal + 1}" } ?: "—"} · R$revision",
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
