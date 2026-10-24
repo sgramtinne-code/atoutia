@@ -92,8 +92,10 @@ class LandscapeGameScreenInstrumentedTest {
     }
 
     @Test fun completedMatchHidesHandAndKeepsReplayReachable() {
+        submitted.value = GamePlayCardUiState.Failed("Ancienne erreur de carte")
         show(fixture(PlayerActionMode.MATCH_FINISHED))
         compose.onNodeWithTag("player-hand").assertDoesNotExist()
+        compose.onNodeWithText("Ancienne erreur de carte").assertDoesNotExist()
         compose.onNodeWithText("Rejouer").performScrollTo().assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, replays) }
     }

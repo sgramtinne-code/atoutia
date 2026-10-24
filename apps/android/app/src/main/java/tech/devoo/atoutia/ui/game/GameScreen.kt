@@ -451,7 +451,9 @@ fun GameScreen(
                                     .verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                PlayCardFeedback(playCardState)
+                                if (!isMatchCompleted && match.hand.isNotEmpty()) {
+                                    PlayCardFeedback(playCardState)
+                                }
                                 controlsContent(false)
                                 footerContent()
                             }
