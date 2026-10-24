@@ -85,7 +85,7 @@ Ces signaux ne sont pas corrigés ni supprimés par une baseline lint. Ils reste
 
 La correction des WebSockets, l’audit complet de l’UI et une livraison production ne sont pas présentés comme terminés par cette PR.
 
-Outils de test à examiner séparément : `dev-android-room.mjs` passe le chemin Linux de l’APK directement à adb.exe ; la variante en cours utilise l’installation `wslpath -w` explicitement validée, puis le script PNJ existant. `dev-autoplay-room.mjs` ne renouvelle pas ses access tokens ; effectuer l’attente de 16 minutes pour le refresh Android sur l’accueil avant leur création. Aucun de ces scripts n’est modifié ou présenté comme corrigé ici.
+Le passage direct du chemin Linux à adb.exe dans `dev-android-room.mjs` est corrigé par le helper de support `09cee69` décrit ci-dessous ; reprendre le lanceur automatique. `dev-autoplay-room.mjs` ne renouvelle pas ses access tokens ; effectuer l’attente de 16 minutes pour le refresh Android sur l’accueil avant leur création. Seul le passage du chemin APK au lanceur automatique est corrigé dans `09cee69` ; le renouvellement des tokens PNJ reste à examiner.
 
 La capture suivante confirme le défilement de l’accueil : Historique, Paramètres et Se déconnecter sont visibles. Le message « Le profil joueur arrive prochainement. » correspond à l’action de profil encore prévue ; ce n’est pas une erreur d’authentification. Les captures suivantes montrent un écran déconnecté puis l’accueil et l’historique chargé ; le redémarrage entre les deux vues déconnectées et le délai de 16 minutes restent à confirmer.
 
@@ -94,3 +94,9 @@ La capture suivante confirme le défilement de l’accueil : Historique, Paramè
 Le test de fermeture/relancement a maintenant une preuve terminal supplémentaire et le scénario d’authentification reçoit un retour positif du développeur. Ne pas le refaire avant de passer au multijoueur. L’observation directe et la validation rapportée restent distinctes : aucune mesure du token n’est fournie par ces captures.
 
 Réutiliser backend et APK, puis tester un nouveau salon avec Android PLAYER_0 et trois PNJ via le script existant. Tester fermeture/relancement Android quand PLAYER_0 doit jouer une carte, en gardant backend et PNJ actifs, puis restauration de la même partie/main. À la fin : résultat, Rejouer vers les salons, Retour vers l’accueil puis Historique. Les résultats ne sont pas encore reçus ; PR nº 7 toujours en brouillon, aucun changement applicatif dans cet enregistrement.
+
+## Lanceur automatique et chemins ADB Windows
+
+À la demande du développeur qui ne peut pas copier le salon, rétablissement du lanceur automatique existant comme procédure du test. Détection du nouveau salon, choix PLAYER_0 manuel et ajout des trois PNJ restent ceux de `dev-android-room.mjs` ; aucun identifiant à copier.
+
+Correctif de support **`09cee69`** : `resolveAdbInstallPath` convertit uniquement le chemin APK pour adb.exe lancé sous Linux/WSL avec `wslpath -w`, via arguments directs sans shell. Échec de conversion ou résultat vide arrêtent le lancement au lieu d’utiliser un chemin invalide ; chemins natifs inchangés. Six tests Node locaux réussis, syntaxe du lanceur et actionlint réussis, CI moteur/backend étendue avec ces tests. L’exécution réelle complète sous WSL reste à recevoir. Aucun changement Kotlin, SQLite ou logique PNJ. La prochaine validation utilise le script automatique, N pour autoplay et O pour les PNJ, puis création du salon seulement à son invite. PR nº 7 en brouillon jusqu’aux résultats multijoueurs.

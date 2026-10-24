@@ -4,6 +4,8 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
+Test multijoueur actuel : utiliser **`node apps/backend/scripts/dev-android-room.mjs`**, avec N pour autoplay PLAYER_0 puis O pour les PNJ. Le lanceur détecte le nouveau salon : **aucun identifiant à copier**. Attendre son message avant de créer le salon. Sa conversion du chemin APK pour ADB Windows est corrigée dans `09cee69` ; validation complète WSL du lanceur encore attendue.
+
 Travail actuel : [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7), revue Android et correction de la concurrence des sessions, depuis `main` `5e267e3`. Voir [le bilan Android et ses limites](docs/ANDROID_REVIEW.md). Les livraisons SQLite et la CI moteur/backend ci-dessous sont acquises ; elles ne prouvent pas une validation Android.
 
 Le diagnostic d'expiration en lecture seule est livré par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), fusionnée dans `deea680`, depuis `main` `4109cec`, sur la branche `feat/live-room-expiration-dry-run`. Son code applicatif est au commit [`a2258b0`](https://github.com/sgramtinne-code/atoutia/commit/a2258b0e09a825ef5a0728b5e0995b8ad664b552) ; les changements suivants de cette PR consignent la validation et la reprise. Vérifier le statut GitHub de la PR et le dernier `main` avant une reprise.
@@ -302,14 +304,15 @@ Journal développeur reçu le 24 octobre 2026 après récupération de `fix/andr
 
 Pour la prochaine validation WSL/ADB Windows, utiliser le démarrage backend local décrit plus haut, puis le build Android avec `-PATOUTIA_GOOGLE_CLIENT_ID="<GOOGLE_WEB_CLIENT_ID>"` et autoplay désactivé. Installer l’APK avec la conversion `wslpath -w` déjà validée et démarrer `tech.devoo.atoutia/.MainActivity`. Vérifier Google, déconnexion, fermeture et redémarrage sans session, puis reconnexion Google. Rester **16 minutes sur l’accueil**, puis ouvrir l’historique : l’accès doit renouveler la session sans nouvelle demande Google. Effectuer cette attente avant de créer les PNJ, car leur script actuel ne renouvelle pas ses tokens.
 
-Créer ensuite un **nouveau** salon dans Android, copier son identifiant et utiliser le remplissage existant depuis la racine du dépôt :
+Pour la partie, utiliser le lanceur automatique existant depuis la racine du dépôt, sans copier d’identifiant :
 
 ```bash
-read -r -p "Identifiant du nouveau salon (ms1_...) : " ROOM_SESSION_ID
-node apps/backend/scripts/dev-autoplay-room.mjs "$ROOM_SESSION_ID" --android-player-0
+node apps/backend/scripts/dev-android-room.mjs
 ```
 
-À **4/4**, démarrer manuellement et jouer PLAYER_0. Fermer puis relancer Android pendant la partie pour vérifier la restauration ; garder backend et PNJ actifs. Terminer puis consulter le résultat et l’historique. Conserver les sorties utiles sans tokens ni inventaire local. Cette variante utilise la même logique PNJ que le lanceur global, avec l’installation Windows explicitement convertie déjà vérifiée ; aucun script ni comportement applicatif n’est modifié par cette étape documentaire. Les résultats fonctionnels restent à recevoir et la PR reste en brouillon.
+Répondre **N** pour autoplay PLAYER_0 puis **O** pour les trois PNJ. Attendre **ATTENTE DU NOUVEAU SALON**, puis créer un nouveau salon dans Android. Le lanceur le détecte et ajoute les PNJ. Si un salon en attente avait déjà été créé, le quitter avant ce scénario ; ne pas supprimer de données pour recommencer.
+
+À **4/4**, démarrer manuellement et jouer PLAYER_0. Fermer puis relancer Android pendant la partie pour vérifier la restauration ; garder backend et PNJ actifs. Terminer puis consulter le résultat et l’historique. Conserver les sorties utiles sans tokens ni inventaire local. Le lanceur automatique utilise la même logique PNJ, avec la conversion Windows ajoutée dans `09cee69` ; aucun changement Kotlin dans ce correctif de support. Les résultats fonctionnels restent à recevoir et la PR reste en brouillon.
 
 ### Connexion Google jusqu’à l’accueil observée
 
@@ -331,4 +334,12 @@ Le 24 octobre 2026, de nouvelles captures de l’émulateur montrent deux vues �
 
 Après les captures déconnecté/accueil/historique, le développeur transmet le terminal exécutant `am force-stop` puis `am start`, avec lancement réussi, et rapporte que tout semble fonctionner. Le parcours est enregistré comme retour fonctionnel positif du développeur. Le délai exact d’attente et la rotation des tokens ne sont pas mesurés dans cette capture ; ne pas inventer de preuve réseau supplémentaire et ne pas redemander le scénario acquis avant de poursuivre.
 
-Étape actuelle : réutiliser le backend loopback et l’APK déjà installé, contrôler `/health`, ADB en état `device` et `adb reverse tcp:3000 tcp:3000`, puis ouvrir l’application. Créer un nouveau salon, lancer le script PNJ avec son identifiant et `--android-player-0`, attendre 4/4 puis démarrer sur Android. Quand c’est au tour de PLAYER_0 de jouer une carte et avant tout envoi, garder backend et PNJ actifs, fermer/relancer Android dans un autre terminal : la même partie et les mêmes cartes doivent revenir. Terminer et vérifier le résultat ; depuis cet écran toucher Rejouer, vérifier l’écran des salons sans en créer, puis Retour vers l’accueil et Historique pour retrouver le résultat. Les commandes backend, ADB et PNJ sont données plus haut. Résultats de cette partie encore attendus ; PR nº 7 en brouillon.
+Étape actuelle : garder le backend loopback, contrôler `/health` et ADB en état `device`, puis lancer `dev-android-room.mjs`. Répondre N puis O ; attendre son invite, créer un nouveau salon, laisser détecter son ID et remplir les places, puis démarrer sur Android à 4/4. Quand c’est au tour de PLAYER_0 de jouer une carte et avant tout envoi, garder backend et PNJ actifs, fermer/relancer Android dans un autre terminal : la même partie et les mêmes cartes doivent revenir. Terminer et vérifier le résultat ; depuis cet écran toucher Rejouer, vérifier l’écran des salons sans en créer, puis Retour vers l’accueil et Historique pour retrouver le résultat. Les commandes backend, ADB et PNJ sont données plus haut. Résultats de cette partie encore attendus ; PR nº 7 en brouillon.
+
+### Lanceur automatique rétabli pour le test en cours
+
+Le développeur ne peut pas copier l’identifiant et demande le lanceur déjà présent. La procédure manuelle est donc remplacée par `dev-android-room.mjs` : build, vérification autoplay, installation, reverse, démarrage, détection d’un nouveau salon et lancement du script PNJ sont déjà implémentés. Aucun nouvel outil de détection n’est créé.
+
+Correctif de support **`09cee69`** : lors d’un lancement sous Linux/WSL avec adb.exe, le chemin de l’APK est converti par `wslpath -w` avant installation. L’appel passe ses arguments directement sans shell et ne revient pas au chemin Linux si la conversion échoue. ADB natif Linux et l’hôte Windows conservent leur chemin. Helper `dev-adb.mjs` et six tests Node, exécutés aussi par la CI moteur/backend.
+
+Validation locale de l’assistant : **6/6 tests Node**, syntaxe du lanceur, actionlint et diff réussis. Aucun SDK/émulateur Windows n’est exécuté ici ; la validation complète du lanceur reste celle demandée au développeur. Aucun changement Kotlin ou de détection SQLite/PNJ dans ce correctif. Le code Kotlin reste `46163ef`, la PR nº 7 reste en brouillon jusqu’aux résultats nécessaires.
