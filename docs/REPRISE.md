@@ -389,3 +389,12 @@ La documentation et les blocs bash/liens locaux sont vérifiés. Prochaine actio
 
 
 Relecture de la séparation des commandes : conserver l’ancienne condition d’affichage des retours de carte (partie non terminée et main non vide). Une erreur de carte antérieure ne doit pas apparaître au-dessus d’une fin de partie/forfait. Le quatrième test UI vérifie aussi ce cas ; toujours quatre tests instrumentés, sans exécution sur appareil revendiquée. Vérifier les CI du dernier commit de cette petite correction avant intégration.
+
+
+## Initialisation des tests impossible sur le PC : APK de l’ancienne interface observé
+
+Le développeur transmet un build/install réussi mais `ClassNotFoundException` pour `LandscapeGameScreenInstrumentedTest` : **aucun des quatre tests UI n’a été exécuté**, seul le chargement de classe échoue. Les captures privées montrent encore le grand HUD défilant de l’ancienne interface ; le nouveau bandeau compact n’est pas affiché. Le journal ne montre pas de récupération de la branche PR nº 9 avant cette construction. Un ancien checkout/APK est l’hypothèse principale, sans affirmer la branche locale non transmise. La classe publique et son package sont présents sur la branche distante et compilés dans ses CI.
+
+Le nouveau journal N/O confirme seulement le scénario existant (backend/ADB, installation, trois PNJ et démarrage) ; il ne valide pas la nouvelle disposition. Ne pas modifier le Kotlin pour cette erreur avant d’avoir vérifié la branche et le fichier source. Ne pas demander clean, suppression des données, désinstallation ou nouvelle partie pour diagnostiquer un chargement de classe.
+
+Prochaine action : un bloc continu fetch/switch/pull sur `fix/android-landscape-hand-visibility`, affichage branche/commit, puis **git ls-files --error-unmatch** sur le chemin de la classe avant build. Enchaîner par les deux APK, installations -r via wslpath, puis am instrument ciblant uniquement cette classe. Toute commande en échec arrête la chaîne. Recevoir la sortie de ce bloc ; la validation UI réelle attendra le résultat des quatre tests. La PR nº 9 reste en brouillon, main demeure `81b4f2d`. Aucun nouveau changement applicatif ni résultat instrumenté positif revendiqué dans ce point documentaire.
