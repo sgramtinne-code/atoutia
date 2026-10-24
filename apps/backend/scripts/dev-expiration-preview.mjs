@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -14,6 +14,7 @@ import { SQLiteMatchResultRepository } from "../dist/sqliteMatchResultRepository
 const directory = mkdtempSync(join(tmpdir(), "atoutia-expiration-demo-"));
 const databasePath = join(directory, "synthetic.sqlite");
 const cli = fileURLToPath(new URL("../dist/previewLiveRoomExpiration.js", import.meta.url));
+const auditCli = fileURLToPath(new URL("../dist/auditLiveRooms.js", import.meta.url));
 const hash = () => createHash("sha256").update(readFileSync(databasePath)).digest("hex");
 try {
   const repository = new SQLiteLiveRoomRepository({ databasePath });
@@ -58,8 +59,48 @@ try {
     env: { ...environment, ATOUTIA_PREVIEW_EMPTY_IDLE_MS: "0" }, encoding: "utf8", cwd: directory,
   });
   assert.equal(badDuration.status, 1, "CLI must refuse invalid durations.");
-  assert.equal(hash(), before);
+  const auditRun = spawnSync(process.execPath, [auditCli], { env: environment, encoding: "utf8", cwd: directory });
+  assert.equal(auditRun.status, 0, "Synthetic aggregate audit must succeed.");
+  const audit = JSON.parse(auditRun.stdout);
+  assert.equal(audit.scanned, 3);
+  assert.equal(audit.invalidRoomDocuments, 0);
+  assert.equal(audit.durableResultRows, 0);
+  assert.equal(audit.resultValidation, "COUNT_ONLY");
+  assert.equal(audit.roomsByState.find(row => row.occupiedSeats === 0)?.rooms, 2);
+  assert.equal(audit.roomsByState.find(row => row.occupiedSeats === 1)?.rooms, 1);
+  assert.doesNotMatch(auditRun.stdout, /sessionId|synthetic-demo|baseSeed|participant/);
+  const auditNoPath = spawnSync(process.execPath, [auditCli], {
+    env: { ...environment, ATOUTIA_DATABASE_PATH: "" }, encoding: "utf8", cwd: directory,
+  });
+  assert.equal(auditNoPath.status, 1, "Aggregate audit must refuse an implicit database path.");
+  assert.equal(hash(), before, "Both diagnostics must preserve the original fixture.");
   assert.deepEqual(readdirSync(directory), files);
+  const partialPath = join(directory, "incomplete.sqlite");
+  copyFileSync(databasePath, partialPath);
+  const corruption = new DatabaseSync(partialPath);
+  try { corruption.prepare("INSERT INTO live_rooms VALUES (?, ?)").run("private-invalid-id", "{private-invalid-data"); }
+  finally { corruption.close(); }
+  const partialHash = () => createHash("sha256").update(readFileSync(partialPath)).digest("hex");
+  const corruptBefore = partialHash();
+  const partial = spawnSync(process.execPath, [auditCli], {
+    env: { ...environment, ATOUTIA_DATABASE_PATH: partialPath }, encoding: "utf8", cwd: directory,
+  });
+  assert.equal(partial.status, 2, "An incomplete aggregate audit must be signaled by its exit code.");
+  assert.equal(JSON.parse(partial.stdout).invalidRoomDocuments, 1);
+  assert.doesNotMatch(partial.stdout, /private-invalid/);
+  assert.equal(partialHash(), corruptBefore);
+  const missingResults = new DatabaseSync(partialPath);
+  try { missingResults.exec("DROP TABLE match_result_participants; DROP TABLE match_results;"); }
+  finally { missingResults.close(); }
+  const missingBefore = partialHash();
+  const noResults = spawnSync(process.execPath, [auditCli], {
+    env: { ...environment, ATOUTIA_DATABASE_PATH: partialPath }, encoding: "utf8", cwd: directory,
+  });
+  assert.equal(noResults.status, 2, "A missing results table must be signaled by the CLI.");
+  assert.equal(JSON.parse(noResults.stdout).durableResultRows, null);
+  assert.equal(partialHash(), missingBefore);
+  assert.equal(hash(), before);
+  console.log("Synthetic aggregate room audit passed.");
   console.log(JSON.stringify({ syntheticOnly: true, databaseUnchanged: true,
     scenarios: { empty: find(empty), occupied: find(occupied), legacy: find(legacy) } }, null, 2));
   console.log("Synthetic expiration preview passed. Temporary fixtures will be removed.");

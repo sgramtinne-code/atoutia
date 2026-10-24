@@ -150,6 +150,18 @@ La première livraison de classification en lecture seule et son audit local sur
 
 Ne pas confondre les tests synthétiques, le rapport reçu sur copie et l’état présent d’un serveur. La copie est un instantané daté, sans observation WebSocket. La documentation publique ne stocke ni son inventaire exact ni son emplacement personnel.
 
+## 8 bis. Nouvelle commande d’audit synthétique en cours
+
+Après clôture de la première livraison dans `main` `528fa4a` (PR nº 4), le développeur a demandé de continuer. Une nouvelle branche `feat/read-only-room-audit-cli` ajoute la commande `audit:rooms` pour remplacer les longs blocs Python lors des prochaines observations. La validation de l’audit réel précédent reste acquise : ne pas la redemander.
+
+Fichiers : `apps/backend/src/sqliteLiveRoomAudit.ts`, `auditLiveRooms.ts`, `apps/backend/tests/sqliteLiveRoomAudit.test.ts`, script `dev-expiration-preview.mjs` étendu et entrée `audit:rooms` dans le package backend. Le résumé regroupe les modes, phases, places occupées et adjudications, compte les entrées de résolution en attente et les lignes de résultats. Il ne divulgue pas d’identifiants ni de données du jeu.
+
+Chemin SQLite absolu explicite obligatoire via `ATOUTIA_DATABASE_PATH`, ouverture `readOnly: true`, transaction de lecture unique, aucune migration ni création de schéma/copie, aucun store ou backend démarré. Documents invalides exclus des regroupements et comptés séparément ; table des résultats absente représentée par `null`. Le décompte est `COUNT_ONLY`, sans validation des scores/historiques. Codes retour : `0` inventaire structurel lisible, `2` rapport incomplet, `1` échec.
+
+Prochaine action : vérifier la branche et sa PR, recueillir la validation WSL de la nouvelle commande sur fixtures synthétiques, corriger si nécessaire et fusionner quand les contrôles requis réussissent. Aucun nouveau test Android ni lecture de la vraie base n’est nécessaire. Lire la procédure complète dans `docs/ROOM_LIFECYCLE.md`. Ne pas transformer ce travail en suppression.
+
+Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests ciblés réussis** (dont **19 nouveaux tests d’audit**), **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis. Le scénario CLI synthétique a réussi pour les deux commandes, y compris les codes de retour et la conservation des bases. La validation WSL de cette évolution reste attendue ; les audits réels déjà reçus ne sont pas à refaire.
+
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
 Ne me donne pas uniquement l'étape suivante : fournis le scénario complet adapté au changement, depuis la récupération de branche jusqu'à la validation, sans me renvoyer aux messages anciens.
@@ -173,6 +185,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Vérifie GitHub, le dernier `main`, la branche et la PR de diagnostic. Lis les directives et `docs/ROOM_LIFECYCLE.md`. Vérifie les résultats actuels au lieu de reprendre les anciens décomptes comme une nouvelle validation. La validation WSL est déjà réussie pour `a2258b0`. La PR nº 2 est fusionnée dans `deea680`, récupéré sur le PC. Le diagnostic et l’audit structurel de la copie isolée ont tous deux été reçus avec empreinte inchangée, après récupération de `b79a114`. La première livraison en lecture seule est terminée. Retrouve le bilan privé si une décision en dépend, puis poursuis le prochain objectif demandé. Ne demande pas de refaire ces audits sans raison et n’implémente aucune purge.
+Vérifie GitHub, le dernier `main` et la PR de `feat/read-only-room-audit-cli`. La première classification, les tests WSL et l’audit structurel réel sont déjà validés et clôturés. La reprise porte sur la nouvelle commande synthétique `audit:rooms` : termine les validations encore nécessaires, corrige sur sa branche et fusionne seulement après réussite. Si elle est déjà fusionnée, repartir du dernier `main` et poursuivre le prochain objectif demandé.
 
-Ne recrée pas le diagnostic. Ne purge aucun ancien salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.
+Ne recrée pas ce qui existe, ne redemande pas l’ancien audit réel et ne purge aucun salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.
