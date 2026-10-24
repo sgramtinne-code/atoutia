@@ -28,7 +28,7 @@ La [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), branche **`fea
 
 La PR nº 5 (`audit:rooms`) a été fusionnée dans `abeff8011fbc6f61e5e6af8c9de13264e17760bd`, récupéré sur le PC. Le code applicatif `3eff899` est validé à distance et sous WSL : 74 tests ciblés, 583 moteur, 599 backend, typechecks/builds et scénarios CLI réussis.
 
-Travail actuel : branche **`ci/engine-backend-validation`**, depuis ce `main`, pour ajouter la première validation automatique GitHub moteur/backend. Le workflow `.github/workflows/ci.yml` est préparé et vérifié statiquement ; son exécution réelle reste à confirmer avant fusion. Ne pas redemander les anciens audits SQLite ni réimplémenter les commandes existantes.
+Travail actuel : branche **`ci/engine-backend-validation`**, depuis ce `main`, pour ajouter la première validation automatique GitHub moteur/backend. Le workflow `.github/workflows/ci.yml` est vérifié statiquement et sa première exécution GitHub est réussie (run `40086371702`, commit `3e306cc`). Vérifier la PR nº 6 et le résultat CI de son dernier commit avant la fusion. Ne pas redemander les anciens audits SQLite ni réimplémenter les commandes existantes.
 
 Lis d'abord ces documents, puis `docs/GAME_RULES.md` et `docs/RULES_VALIDATION.md`. La spécification canonique du dépôt est en version documentaire **0.1.2**, plus récente que le texte initial 0.1.0 joint à l'ancien chat. Elle définit notamment `PLAYER_0` à `PLAYER_3`, `TEAM_0` / `TEAM_1`, la prise en compte de la Belote dans le contrat et le traitement de deux litiges consécutifs. Ne remplace pas cette spécification par le document initial. Signale les contradictions sans réécrire silencieusement les règles.
 
@@ -168,15 +168,17 @@ Validation distante de la nouvelle commande le 24 octobre 2026 : **74 tests cibl
 
 Validation WSL transmise par le développeur le 24 octobre 2026 pour le code applicatif `3eff899` : **74/74 tests ciblés**, **59 fichiers / 583 tests moteur**, **70 fichiers / 599 tests backend**, typechecks et builds réussis, `git diff --check` propre. Le scénario se termine avec `Synthetic aggregate room audit passed.`, `databaseUnchanged: true` et `Synthetic expiration preview passed.`. pnpm 12.3.4 est confirmé dans le journal. Cette exécution utilise des fixtures synthétiques, pas la vraie base ni Android.
 
-## 8 ter. Validation automatique GitHub en cours
+## 8 ter. Validation automatique GitHub vérifiée
 
 La branche `ci/engine-backend-validation` ajoute `.github/workflows/ci.yml` : workflow **Engine and backend CI**, job **Engine and backend**, sur PR, push dans `main` et déclenchement manuel. Runner Ubuntu 24.04, Node.js 24.22.1, pnpm issu du `packageManager` racine (12.3.4). Installation au lockfile, typechecks/tests/builds moteur puis backend, scénario CLI SQLite synthétique, vérification du diff du commit et absence de modifications suivies générées par les builds.
 
 Actions épinglées à des commits de releases officielles vérifiées le 24 octobre 2026 : checkout v7.0.1, setup-node v7.1.0, pnpm/action-setup v6.1.0 (support pnpm 12). Cache pnpm indexé sur le lockfile. Permissions `contents: read`, credentials Git non persistés, aucun secret applicatif ni déploiement. Les tests utilisent leurs données synthétiques et loopback ; aucun démarrage du backend de développement ou manipulation de la vraie base.
 
-Validation locale de configuration : YAML/triggers/permissions/SHA vérifiés et `actionlint` 1.7.12 réussi. Première exécution réelle GitHub encore attendue. Reprendre par la PR et ses runs Actions ; analyser les logs et corriger sur la branche si nécessaire. Fusionner seulement après réussite du contrôle réel sur le dernier commit. La CI n’active pas une protection de branche obligatoire et ne remplace pas Android/ADB quand ils sont nécessaires.
+Validation locale de configuration : YAML/triggers/permissions/SHA vérifiés et `actionlint` 1.7.12 réussi. Première exécution réelle GitHub réussie : run `40086371702` sur le commit `3e306cc`. Reprendre par la PR nº 6 et ses runs Actions ; vérifier le résultat du dernier commit, puis fusionner si les contrôles sont réussis. Les commits de clôture documentaire ne changent ni le workflow validé ni le code applicatif. Fusionner seulement après réussite du contrôle réel sur le dernier commit. La CI n’active pas une protection de branche obligatoire et ne remplace pas Android/ADB quand ils sont nécessaires.
 
 La modification ne change pas le code applicatif validé. Aucun nouveau test WSL requis uniquement pour l’ajout de ce workflow si les commandes restent inchangées et les runs GitHub réussissent. Après fusion, donner la procédure complète pour récupérer `main` et vérifier le run de push.
+
+Première validation GitHub Actions réussie le 24 octobre 2026 : [run nº 1](https://github.com/sgramtinne-code/atoutia/actions/runs/40086371702), événement `pull_request`, commit `3e306cc`. Le job **Engine and backend** est `success` : installation au lockfile, typechecks/builds, 59 fichiers / 583 tests moteur, 70 fichiers / 599 tests backend, les deux scénarios CLI et les contrôles Git sont réussis. Les logs confirment Node.js 24.22.1 et pnpm 12.3.4. Il s’agit d’une exécution réelle sur GitHub, distincte des résultats WSL précédents.
 
 ## 9. Procédure locale à toujours redonner quand elle est nécessaire
 
@@ -201,6 +203,6 @@ Pour les travaux d'expiration, choisir une base de test isolée via `ATOUTIA_DAT
 
 ## 10. Première action attendue
 
-Vérifie le dernier `main`, la branche et la PR de `ci/engine-backend-validation`. L’audit SQLite et `audit:rooms` sont déjà validés et intégrés par les PR nº 2 à 5. La reprise porte sur l’exécution réelle du workflow GitHub : retrouve ses runs, vérifie leurs commits et résultats, corrige les échecs si nécessaire et fusionne seulement quand les contrôles requis réussissent. Si le workflow est déjà intégré et vert, poursuivre le prochain objectif demandé.
+Vérifie le dernier `main`, la branche et la PR de `ci/engine-backend-validation`. L’audit SQLite et `audit:rooms` sont déjà validés et intégrés par les PR nº 2 à 5. La première exécution réelle du workflow GitHub est réussie (run `40086371702`). Retrouve les runs du dernier commit de la PR nº 6, vérifie leurs résultats, corrige si nécessaire et fusionne seulement quand les contrôles requis réussissent. Si le workflow est déjà intégré et vert, poursuivre le prochain objectif demandé.
 
 Ne recrée pas ce qui existe, ne redemande pas les anciens audits réels et ne purge aucun salon. Tiens `AGENTS.md`, `README.md` et ce document à jour.

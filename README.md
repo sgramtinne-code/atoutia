@@ -53,13 +53,15 @@ Validation WSL transmise par le développeur le 24 octobre 2026 pour le code app
 
 Code applicatif validé : [`3eff899`](https://github.com/sgramtinne-code/atoutia/commit/3eff899e567004346297c142afa791e17fc5fb9f). Les derniers changements de la PR nº 5 consignent seulement la validation et la reprise. Prochaine action : vérifier sa fusion, récupérer le dernier `main`, puis poursuivre le prochain objectif demandé. Aucune nouvelle validation de la copie réelle n’est nécessaire pour cette livraison.
 
-## Validation automatique moteur/backend en cours
+## Validation automatique moteur/backend
 
-La branche `ci/engine-backend-validation`, créée depuis `main` `abeff80` (PR nº 5 fusionnée), ajoute [le workflow CI](.github/workflows/ci.yml). Il exécute **Engine and backend** sur les PR, après push dans `main` et sur déclenchement manuel : installation `pnpm install --frozen-lockfile`, typecheck/tests/build du moteur, puis du backend, scénarios CLI SQLite synthétiques et contrôles Git.
+La [PR nº 6](https://github.com/sgramtinne-code/atoutia/pull/6), branche `ci/engine-backend-validation` depuis `main` `abeff80`, ajoute [le workflow CI](.github/workflows/ci.yml). Il exécute **Engine and backend** sur les PR, après push dans `main` et sur déclenchement manuel : installation `pnpm install --frozen-lockfile`, typecheck/tests/build du moteur, puis du backend, scénarios CLI SQLite synthétiques et contrôles Git.
 
 Environnement : Ubuntu 24.04, Node.js 24.22.1, pnpm 12.3.4 lu depuis `package.json`. Les actions `actions/checkout`, `actions/setup-node` et `pnpm/action-setup` sont épinglées à des commits de leurs releases officielles. Aucun secret applicatif ni base locale ; le job ne déploie rien et ne démarre pas le backend de développement. Il teste aussi les deux CLI d’audit déjà validées sous WSL.
 
-Le workflow a été vérifié avec `actionlint` 1.7.12 et son YAML a été contrôlé. La première exécution sur GitHub reste à confirmer avant fusion ; ne pas confondre ce contrôle statique avec un job réussi. La CI ne remplace pas les tests Android nécessaires et ne configure pas à elle seule une protection de branche.
+Le workflow a été vérifié avec `actionlint` 1.7.12 et son YAML a été contrôlé. La première exécution réelle sur GitHub est également réussie ; voir le résultat ci-dessous. La CI ne remplace pas les tests Android nécessaires et ne configure pas à elle seule une protection de branche.
+
+Première validation GitHub Actions réussie le 24 octobre 2026 : [run nº 1](https://github.com/sgramtinne-code/atoutia/actions/runs/40086371702), événement `pull_request`, commit `3e306cc`. Le job **Engine and backend** est `success` : installation au lockfile, typechecks/builds, 59 fichiers / 583 tests moteur, 70 fichiers / 599 tests backend, les deux scénarios CLI et les contrôles Git sont réussis. Les logs confirment Node.js 24.22.1 et pnpm 12.3.4. Il s’agit d’une exécution réelle sur GitHub, distincte des résultats WSL précédents.
 
 Suivre les exécutions dans [GitHub Actions](https://github.com/sgramtinne-code/atoutia/actions). La procédure locale complète ci-dessous reste disponible pour reproduire un échec. Un changement portant seulement sur ce workflow sera validé directement dans GitHub Actions ; aucune nouvelle exécution sur le PC du développeur n’est requise si les commandes applicatives restent inchangées et la CI réussit.
 
