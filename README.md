@@ -4,6 +4,12 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 24 octobre 2026
 
+**Jalon Android validé** : sessions Kotlin, CI Android, lanceur automatique WSL/ADB Windows, partie avec trois PNJ, restauration après fermeture et historique. La [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7) porte cette livraison ; son statut GitHub et ses derniers contrôles font foi pour l’intégration dans main. Les essais requis sont reçus ; voir la clôture ci-dessous. La revue exhaustive de l’application reste une suite distincte.
+
+Test multijoueur actuel : utiliser **`node apps/backend/scripts/dev-android-room.mjs`**, avec N pour autoplay PLAYER_0 puis O pour les PNJ. Le lanceur détecte le nouveau salon : **aucun identifiant à copier**. Attendre son message avant de créer le salon. Sa conversion du chemin APK pour ADB Windows est corrigée dans `09cee69` ; validation WSL du lanceur reçue et réussie, partie terminée et résultat retrouvé dans l’historique.
+
+Travail actuel : [PR nº 7](https://github.com/sgramtinne-code/atoutia/pull/7), revue Android et correction de la concurrence des sessions, depuis `main` `5e267e3`. Voir [le bilan Android et ses limites](docs/ANDROID_REVIEW.md). Les livraisons SQLite et la CI moteur/backend ci-dessous sont acquises ; elles ne prouvent pas une validation Android.
+
 Le diagnostic d'expiration en lecture seule est livré par la [PR nº 2](https://github.com/sgramtinne-code/atoutia/pull/2), fusionnée dans `deea680`, depuis `main` `4109cec`, sur la branche `feat/live-room-expiration-dry-run`. Son code applicatif est au commit [`a2258b0`](https://github.com/sgramtinne-code/atoutia/commit/a2258b0e09a825ef5a0728b5e0995b8ad664b552) ; les changements suivants de cette PR consignent la validation et la reprise. Vérifier le statut GitHub de la PR et le dernier `main` avant une reprise.
 
 L'étape précédente était `db0d727`, `feat: track live room activity timestamps` (7 octobre 2026), puis la PR documentaire nº 1 fusionnée dans `4109cec`.
@@ -251,3 +257,111 @@ Base principale : `$HOME/projects/atoutia/apps/backend/data/atoutia.sqlite`. Ne 
 Le dernier inventaire local doit être revérifié avant toute opération. Les comptages, identifiants de matchs et emplacements personnels de sauvegardes restent dans le contexte privé de travail.
 
 Les timestamps migrés ne prouvent pas une activité réelle à cette date. Une future politique d'expiration doit protéger présence, reconnexion, parties en cours, adjudications RANKED et historique, et commencer par un diagnostic sans suppression.
+
+## Revue Android Kotlin en cours
+
+Branche `fix/android-shared-auth-session` depuis `main` `5e267e3`. La revue des parcours authentifiés a identifié des gestionnaires de session distincts dont les verrous ne coordonnent pas le renouvellement des tokens. Le backend révoque une session lorsqu’un refresh token déjà consommé est réutilisé. Des tests de concurrence reproduisent les chevauchements refresh/refresh, refresh/déconnexion et refresh/connexion Google. Ils ont échoué avant correction puis réussi avec le verrou partagé entre stockages et coordinateurs.
+
+[Android CI](.github/workflows/android.yml) exécute les tests JVM, la compilation debug et du paquet de tests instrumentés, et le lint. La validation Keystore sur émulateur a maintenant été reçue et réussie ; le parcours Google jusqu’à l’accueil a ensuite été observé, tandis que déconnexion, refresh, restauration et multijoueur restent à recevoir. L’audit complet de l’interface reste ouvert.
+
+La [revue Android détaillée](docs/ANDROID_REVIEW.md) conserve le périmètre et les suites à donner. Reproduction avant correction sur GitHub : [run `40087526338`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087526338), commit `2e707ad` : **192 tests JVM, trois échecs attendus dans les nouveaux tests de concurrence, 189 autres réussis**. Après correction applicative **`46163ef`** : [run Android `40087752809`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752809) réussi avec **192/192 tests JVM**, compilation de l’APK debug et de l’APK instrumenté, lint et contrôles Git réussis. Le [run moteur/backend `40087752798`](https://github.com/sgramtinne-code/atoutia/actions/runs/40087752798) est aussi réussi. Les trois tests Keystore ont réussi sur l’émulateur du développeur ; le parcours Google jusqu’à l’accueil est observé ; déconnexion, refresh, restauration et multijoueur restent à recevoir avant fusion. La PR nº 7 demeure en brouillon. Les commits documentaires suivants ne changent pas le correctif applicatif.
+
+### Test Keystore sur appareil de test
+
+Cette classe utilise uniquement des tokens synthétiques, sans backend. Elle efface la session de connexion locale de l’application cible : utiliser un appareil de test et se reconnecter ensuite. Elle n’efface pas la base du backend. Ne pas lancer toute la suite instrumentée sans préparer le backend attendu par les autres classes.
+
+Après récupération de la branche et vérification d’un seul appareil ADB en état `device`, construire :
+
+```bash
+cd $HOME/projects/atoutia/apps/android &&
+./gradlew --no-daemon --max-workers=2 :app:assembleDebug :app:assembleDebugAndroidTest \
+  -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
+```
+
+Avec ADB Windows depuis WSL, convertir les chemins pour l’installation :
+
+```bash
+cd $HOME/projects/atoutia/apps/android
+ADB="/mnt/c/Users/<utilisateur-Windows>/AppData/Local/Android/Sdk/platform-tools/adb.exe"
+"$ADB" devices
+```
+
+Si l’unique appareil est prêt, exécuter dans l’ordre :
+
+```bash
+"$ADB" install -r "$(wslpath -w "$PWD/app/build/outputs/apk/debug/app-debug.apk")" &&
+"$ADB" install -r "$(wslpath -w "$PWD/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")" &&
+"$ADB" shell am instrument -w \
+  -e class tech.devoo.atoutia.auth.AndroidSecureAuthTokenStoreInstrumentedTest \
+  tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Résultat attendu : `OK (3 tests)`. Conserver le résultat reçu, pas seulement le code retour ADB. Reprendre ensuite le scénario **Android PLAYER_0 et trois PNJ** ci-dessus : le lanceur reconstruit avec le Google Client ID configuré, installe et lance l’application. Vérifier connexion Google, déconnexion depuis l’accueil, redémarrage sans restauration de session après déconnexion, reconnexion Google, nouvelle partie, restauration et historique. Pour vérifier le renouvellement réel, garder la session plus de 15 minutes après la connexion puis actualiser/reconnecter le réseau ; aucune demande de reconnexion Google ni perte de partie ne doit survenir si le refresh reste valide. Ne pas modifier l’horloge de l’appareil pour forcer ce cas.
+
+Dernier contrôle documentaire et CI résumé : commit `f0adaad`, [Android `40088059834`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059834) et [moteur/backend `40088059833`](https://github.com/sgramtinne-code/atoutia/actions/runs/40088059833) réussis. Android confirme 192/192 tests JVM, les deux APK et le lint ; le lint conserve **14 avertissements et une suggestion**, détaillés dans [le bilan](docs/ANDROID_REVIEW.md#avertissements-lint-observés). Ils concernent notamment heartbeats, extraction/sauvegarde des données et grands écrans. Les essais sur appareil et ces revues restent à terminer.
+
+### Résultat WSL/émulateur reçu et prochaine validation
+
+Journal développeur reçu le 24 octobre 2026 après récupération de `fix/android-shared-auth-session` : `:app:assembleDebug :app:assembleDebugAndroidTest` avec `--no-daemon --max-workers=2` et autoplay désactivé, **BUILD SUCCESSFUL** en 20 secondes ; installation des deux APK via ADB Windows et chemins convertis avec `wslpath -w`, deux `Success` ; classe `AndroidSecureAuthTokenStoreInstrumentedTest`, **OK (3 tests)** en 0,088 seconde. Les trois cas couvrent persistance/relecture par Keystore, effacement et moniteur partagé entre deux stockages. L’émulateur est passé de `offline` à `device` avant ces opérations. Ce résultat ne valide pas encore Google, le refresh réel, la restauration d’une partie ou un téléphone physique. Le journal ne contient pas de SHA local explicite ; la branche distante vérifiée avant cet enregistrement est `80dcab4`, avec correctif applicatif `46163ef` inchangé.
+
+Pour la prochaine validation WSL/ADB Windows, utiliser le démarrage backend local décrit plus haut, puis le build Android avec `-PATOUTIA_GOOGLE_CLIENT_ID="<GOOGLE_WEB_CLIENT_ID>"` et autoplay désactivé. Installer l’APK avec la conversion `wslpath -w` déjà validée et démarrer `tech.devoo.atoutia/.MainActivity`. Vérifier Google, déconnexion, fermeture et redémarrage sans session, puis reconnexion Google. Rester **16 minutes sur l’accueil**, puis ouvrir l’historique : l’accès doit renouveler la session sans nouvelle demande Google. Effectuer cette attente avant de créer les PNJ, car leur script actuel ne renouvelle pas ses tokens.
+
+Pour la partie, utiliser le lanceur automatique existant depuis la racine du dépôt, sans copier d’identifiant :
+
+```bash
+node apps/backend/scripts/dev-android-room.mjs
+```
+
+Répondre **N** pour autoplay PLAYER_0 puis **O** pour les trois PNJ. Attendre **ATTENTE DU NOUVEAU SALON**, puis créer un nouveau salon dans Android. Le lanceur le détecte et ajoute les PNJ. Si un salon en attente avait déjà été créé, le quitter avant ce scénario ; ne pas supprimer de données pour recommencer.
+
+À **4/4**, démarrer manuellement et jouer PLAYER_0. Fermer puis relancer Android pendant la partie pour vérifier la restauration ; garder backend et PNJ actifs. Terminer puis consulter le résultat et l’historique. Conserver les sorties utiles sans tokens ni inventaire local. Le lanceur automatique utilise la même logique PNJ, avec la conversion Windows ajoutée dans `09cee69` ; aucun changement Kotlin dans ce correctif de support. Les résultats fonctionnels restent à recevoir et la PR reste en brouillon.
+
+### Connexion Google jusqu’à l’accueil observée
+
+Le 24 octobre 2026, le développeur a récupéré la branche jusqu’à `13be59e`, construit le debug avec Client ID Google et autoplay false (**BUILD SUCCESSFUL**, puis seconde exécution à jour), installé et lancé l’application avec succès. Le journal serveur annonce ensuite HTTP/WebSocket sur loopback, Google et bootstrap activés. Le `curl` en échec dans le journal précédait ce démarrage ; aucun nouvel échec réseau après démarrage n’a été transmis.
+
+Les captures montrent le sélecteur Google puis l’accueil authentifié en paysage. Ce constat valide visuellement l’aboutissement de cette connexion ; il ne prouve pas encore la déconnexion, le maintien déconnecté après redémarrage, le refresh après expiration ou une partie restaurée. Les captures et comptes qu’elles affichent restent hors du dépôt public.
+
+L’accueil est déjà défilant : glisser le contenu vers le haut au milieu de l’écran permet d’atteindre **Historique**, **Paramètres** et **Se déconnecter** sous les boutons initialement visibles. Continuer avec l’installation actuelle et garder le backend ouvert : se déconnecter, fermer/relancer pour vérifier l’écran déconnecté, se reconnecter, attendre 16 minutes sur l’accueil puis ouvrir Historique sans nouvelle demande Google. Les tests de partie avec trois PNJ viennent ensuite ; la PR nº 7 reste en brouillon.
+
+La capture suivante confirme le défilement de l’accueil : Historique, Paramètres et Se déconnecter sont visibles. Le message « Le profil joueur arrive prochainement. » correspond à l’action de profil encore prévue ; ce n’est pas une erreur d’authentification. Les captures suivantes montrent un écran déconnecté puis l’accueil et l’historique chargé ; le redémarrage entre les deux vues déconnectées et le délai de 16 minutes restent à confirmer.
+
+### Écran déconnecté puis historique chargé observés
+
+Le 24 octobre 2026, de nouvelles captures de l’émulateur montrent deux vues « Aucune session Atoutia », puis l’accueil authentifié et un historique effectivement chargé avec du contenu persistant. Les scores, dates et captures brutes restent privés. L’ouverture de l’historique authentifié est donc observée ; ces images ne permettent pas de confirmer le force-stop entre les deux premières vues ni l’attente de 16 minutes après la dernière connexion Google. Ne pas présenter le renouvellement automatique comme validé sur cette seule base.
+
+« Backend non testé » représente l’état initial du bouton de test manuel de santé ; ce libellé ne signale pas une panne. Prochaine action : recevoir la confirmation du redémarrage et du délai depuis la dernière connexion Google. Si l’attente n’a pas été faite, revenir à l’accueil, garder backend et application ouverts 16 minutes, puis rouvrir Historique sans nouvelle demande Google. Les validations Keystore et l’accès initial à l’historique restent acquis ; les essais PNJ et restauration de partie restent à faire, PR nº 7 en brouillon.
+
+### Passage au scénario multijoueur
+
+Après les captures déconnecté/accueil/historique, le développeur transmet le terminal exécutant `am force-stop` puis `am start`, avec lancement réussi, et rapporte que tout semble fonctionner. Le parcours est enregistré comme retour fonctionnel positif du développeur. Le délai exact d’attente et la rotation des tokens ne sont pas mesurés dans cette capture ; ne pas inventer de preuve réseau supplémentaire et ne pas redemander le scénario acquis avant de poursuivre.
+
+Étape actuelle : garder le backend loopback, contrôler `/health` et ADB en état `device`, puis lancer `dev-android-room.mjs`. Répondre N puis O ; attendre son invite, créer un nouveau salon, laisser détecter son ID et remplir les places, puis démarrer sur Android à 4/4. Quand c’est au tour de PLAYER_0 de jouer une carte et avant tout envoi, garder backend et PNJ actifs, fermer/relancer Android dans un autre terminal : la même partie et les mêmes cartes doivent revenir. Terminer et vérifier le résultat ; depuis cet écran toucher Rejouer, vérifier l’écran des salons sans en créer, puis Retour vers l’accueil et Historique pour retrouver le résultat. Les commandes backend, ADB et PNJ sont données plus haut. Résultats de cette partie encore attendus ; PR nº 7 en brouillon.
+
+### Lanceur automatique rétabli pour le test en cours
+
+Le développeur ne peut pas copier l’identifiant et demande le lanceur déjà présent. La procédure manuelle est donc remplacée par `dev-android-room.mjs` : build, vérification autoplay, installation, reverse, démarrage, détection d’un nouveau salon et lancement du script PNJ sont déjà implémentés. Aucun nouvel outil de détection n’est créé.
+
+Correctif de support **`09cee69`** : lors d’un lancement sous Linux/WSL avec adb.exe, le chemin de l’APK est converti par `wslpath -w` avant installation. L’appel passe ses arguments directement sans shell et ne revient pas au chemin Linux si la conversion échoue. ADB natif Linux et l’hôte Windows conservent leur chemin. Helper `dev-adb.mjs` et six tests Vitest, exécutés aussi par la CI moteur/backend.
+
+Validation locale de l’assistant : **6/6 tests Vitest**, syntaxe du lanceur, actionlint et diff réussis. Aucun SDK/émulateur Windows n’est exécuté ici par l’assistant ; le journal développeur reçu valide maintenant le lanceur complet jusqu’à la fin de partie et l’historique. Aucun changement Kotlin ou de détection SQLite/PNJ dans ce correctif. Le code Kotlin reste `46163ef`, la PR nº 7 reste en brouillon jusqu’aux résultats nécessaires.
+
+Intégration des tests du lanceur : le run `40104824613` a signalé un conflit de collecte, car Vitest chargeait le fichier utilisant node:test. Le test utilise maintenant Vitest, comme la suite backend ; les six cas ciblés sont réussis localement. Le job backend existant les exécute directement, sans étape Node distincte. Vérifier le run du dernier commit avant d’annoncer la CI réussie ; aucune fusion sur cet échec intermédiaire.
+
+### Lanceur automatique et partie complète validés sous WSL
+
+Journal développeur reçu le 24 octobre 2026 après récupération explicite de **`6669443`** : backend sain, un émulateur prêt, réponses N/O, build debug réussi, autoplay PLAYER_0 OFF, installation ADB Windows réussie, application lancée, nouveau salon détecté automatiquement sans copier son identifiant. Les trois PNJ remplissent les places et jouent uniquement PLAYER_1 à PLAYER_3 ; PLAYER_0 démarre et joue manuellement. Le script termine normalement avec **FINISHED**, **Test terminé** et retour au terminal.
+
+Les captures montrent la partie en cours, le résultat final et l’historique chargé avec le même résultat. Cela valide le lanceur corrigé et une partie complète sur l’émulateur du développeur ; aucune nouvelle exécution de ce scénario n’est demandée sans changement concerné. Les données de match et le log brut restent privés.
+
+La restauration après fermeture en cours de cette partie reste à confirmer simplement : les vues de jeu ne montrent pas la même révision/main avant et après, et le journal fourni concerne le lanceur, pas le troisième terminal ADB. Ne pas conclure à un échec et ne pas faire rejouer ce match pour obtenir une réponse factuelle. Les boutons de fin sont visibles et l’historique est chargé ; le clic sur Rejouer n’est pas directement montré. La PR nº 7 reste en brouillon en attendant la validation manquante.
+
+## Clôture des validations Android de la PR nº 7
+
+Le développeur a relancé le lanceur automatique avec PLAYER_0 manuel et trois PNJ, puis confirme explicitement la restauration en cours de partie par « oui c’est ok ». Deux captures montrent le même état de jeu et la même main ; la partie revient sans nouvelle connexion Google. Ce retour complète le match déjà terminé et son résultat cohérent dans l’historique. Une nouvelle fin de partie n’est pas requise pour cette seconde exécution centrée sur la restauration.
+
+Les validations nécessaires à cette livraison sont reçues : **192 tests JVM Android**, **583 moteur**, **605 backend dont six helpers**, builds et lint en CI ; **trois tests Keystore sur émulateur**, parcours Google avec retour positif, lanceur WSL/ADB Windows réellement exécuté, partie complète, résultat/historique et restauration confirmée par le développeur. Les résultats restent distincts d’un test sur téléphone physique, d’une trace réseau des tokens et d’une validation exhaustive des composants Compose.
+
+Code Kotlin : `46163ef`. Support du lanceur : `09cee69`, tests intégrés dans `6669443`. Dernier point de contrôle avant clôture documentaire : `4701e96`, runs moteur/backend `40105927418` et Android `40105927594` réussis. Vérifier les contrôles du dernier commit documentaire puis l’intégration de la PR nº 7 ; après fusion, récupérer main. Aucune nouvelle validation WSL de ce code inchangé n’est nécessaire.
+
+La prochaine étape est une revue séparée du cycle de vie WebSocket puis des points UI et de sauvegarde déjà documentés. La release n’est pas prête pour production et les avertissements lint restent visibles. Les instructions historiques « en attente » ci-dessus décrivent les étapes précédentes ; la présente clôture définit l’état courant.

@@ -29,6 +29,8 @@ import {
   DatabaseSync,
 } from "node:sqlite";
 
+import { resolveAdbInstallPath } from "./dev-adb.mjs";
+
 const DEFAULT_BASE_URL =
   "http://127.0.0.1:3000";
 
@@ -771,6 +773,8 @@ function installAndroid() {
 
   assertAdbAvailable();
 
+  const installApkPath = resolveAdbInstallPath(adbPath, apkPath);
+
   runCommand(
     adbPath,
     [
@@ -795,7 +799,7 @@ function installAndroid() {
     [
       "install",
       "-r",
-      apkPath,
+      installApkPath,
     ],
   );
 

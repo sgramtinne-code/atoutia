@@ -16,6 +16,9 @@ class AndroidSecureAuthTokenStore(
     context:
         Context,
 ) : AuthTokenStore {
+    override val sessionLock: Any
+        get() = SESSION_LOCK
+
     private val preferences =
         context
             .applicationContext
@@ -24,7 +27,11 @@ class AndroidSecureAuthTokenStore(
                 Context.MODE_PRIVATE,
             )
 
-    override fun save(
+    override fun save(session: AuthSessionTokens) = synchronized(sessionLock) {
+        saveSession(session)
+    }
+
+    private fun saveSession(
         session:
             AuthSessionTokens,
     ) {
@@ -95,7 +102,11 @@ class AndroidSecureAuthTokenStore(
         }
     }
 
-    override fun load():
+    override fun load(): AuthSessionTokens? = synchronized(sessionLock) {
+        loadSession()
+    }
+
+    private fun loadSession():
         AuthSessionTokens? {
         val accountId =
             preferences.getString(
@@ -247,7 +258,7 @@ class AndroidSecureAuthTokenStore(
         }
     }
 
-    override fun clear() {
+    override fun clear() = synchronized(sessionLock) {
         preferences
             .edit()
             .clear()
@@ -427,6 +438,9 @@ class AndroidSecureAuthTokenStore(
     }
 
     private companion object {
+        // All instances use the same preferences and Keystore alias in this process.
+        val SESSION_LOCK = Any()
+
         const val ANDROID_KEY_STORE =
             "AndroidKeyStore"
 

@@ -12,7 +12,7 @@ class AuthSessionCoordinator(
             System::currentTimeMillis,
 ) {
     private val lock =
-        Any()
+        tokenStore.sessionLock
 
     fun loadSession():
         AuthSessionTokens? =
