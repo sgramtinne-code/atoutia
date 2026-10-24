@@ -18,7 +18,9 @@ class AtoutiaRealtimeClient(
     private val httpClient: WebSocket.Factory =
         OkHttpClient(),
     private val schedulerFactory: () -> ScheduledExecutorService = {
-        Executors.newSingleThreadScheduledExecutor()
+        Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "atoutia-lobby-realtime").apply { isDaemon = true }
+        }
     },
 ) : AtoutiaRealtimeApi {
     private val webSocketBaseUrl =
@@ -54,148 +56,121 @@ class AtoutiaRealtimeClient(
 
         val scheduler = schedulerFactory()
 
-        val socketListener =
-            SocketListener(
-                parser = parser,
-                scheduler = scheduler,
-                listener = listener,
-            )
-
-        val socket =
-            httpClient.newWebSocket(
-                request,
-                socketListener,
-            )
-
-        return Connection(
-            socket = socket,
-            scheduler = scheduler,
-            stopHeartbeat = {
-                socketListener.stopHeartbeat()
-            },
-        )
-    }
-
-    private class Connection(
-        private val socket: WebSocket,
-        private val scheduler: ScheduledExecutorService,
-        private val stopHeartbeat: () -> Unit,
-    ) : AtoutiaRealtimeConnection {
-        override fun close() {
-            stopHeartbeat()
-
-            socket.close(
-                NORMAL_CLOSE_CODE,
-                NORMAL_CLOSE_REASON,
-            )
-
-            scheduler.shutdownNow()
+        val connection = Connection(parser, scheduler, listener)
+        try {
+            connection.attach(httpClient.newWebSocket(request, connection))
+            return connection
+        } catch (error: Throwable) {
+            connection.close()
+            throw error
         }
     }
 
-    private class SocketListener(
+    private enum class ConnectionState { ACTIVE, CLOSING, TERMINATED, LOCALLY_CLOSED }
+
+    private class Connection(
         private val parser: RealtimeMessageParser,
         private val scheduler: ScheduledExecutorService,
         private val listener: AtoutiaRealtimeApi.Listener,
-    ) : WebSocketListener() {
-        private var heartbeatFuture:
-            ScheduledFuture<*>? =
-            null
+    ) : WebSocketListener(), AtoutiaRealtimeConnection {
+        private val lock = Any()
+        private var state = ConnectionState.ACTIVE
+        private var socket: WebSocket? = null
+        private var heartbeatFuture: ScheduledFuture<*>? = null
 
-        override fun onOpen(
-            webSocket: WebSocket,
-            response: Response,
-        ) {
-            listener.onConnected()
-
-            startHeartbeat(
-                webSocket,
-            )
-        }
-
-        override fun onMessage(
-            webSocket: WebSocket,
-            text: String,
-        ) {
-            try {
-                listener.onEvent(
-                    parser.parse(
-                        text,
-                    ),
-                )
-            } catch (
-                error: Throwable,
-            ) {
-                listener.onFailure(
-                    error,
-                )
+        fun attach(created: WebSocket) {
+            val retained = synchronized(lock) {
+                if (state == ConnectionState.ACTIVE) {
+                    socket = created
+                    true
+                } else false
             }
+            if (!retained) created.close(NORMAL_CLOSE_CODE, NORMAL_CLOSE_REASON)
         }
 
-        override fun onClosing(
-            webSocket: WebSocket,
-            code: Int,
-            reason: String,
-        ) {
-            stopHeartbeat()
-
-            webSocket.close(
-                code,
-                reason,
-            )
+        override fun close() {
+            val activeSocket = synchronized(lock) {
+                if (state == ConnectionState.LOCALLY_CLOSED || state == ConnectionState.TERMINATED) return
+                state = ConnectionState.LOCALLY_CLOSED
+                stopWork()
+                socket.also { socket = null }
+            }
+            activeSocket?.close(NORMAL_CLOSE_CODE, NORMAL_CLOSE_REASON)
         }
 
-        override fun onClosed(
-            webSocket: WebSocket,
-            code: Int,
-            reason: String,
-        ) {
-            stopHeartbeat()
-
-            listener.onDisconnected(
-                code,
-                reason,
-            )
-        }
-
-        override fun onFailure(
-            webSocket: WebSocket,
-            t: Throwable,
-            response: Response?,
-        ) {
-            stopHeartbeat()
-
-            listener.onFailure(
-                t,
-            )
-        }
-
-        private fun startHeartbeat(
-            webSocket: WebSocket,
-        ) {
-            stopHeartbeat()
-
-            heartbeatFuture =
-                scheduler.scheduleAtFixedRate(
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            if (!isActive()) {
+                webSocket.close(NORMAL_CLOSE_CODE, NORMAL_CLOSE_REASON)
+                return
+            }
+            try {
+                listener.onConnected()
+            } catch (error: Throwable) {
+                close()
+                throw error
+            }
+            // onConnected may close the connection; close may also race this callback.
+            synchronized(lock) {
+                if (state != ConnectionState.ACTIVE) return
+                heartbeatFuture = scheduler.scheduleWithFixedDelay(
                     {
-                        webSocket.send(
-                            HEARTBEAT_MESSAGE,
-                        )
+                        synchronized(lock) {
+                            if (state == ConnectionState.ACTIVE) webSocket.send(HEARTBEAT_MESSAGE)
+                        }
                     },
                     HEARTBEAT_INTERVAL_SECONDS,
                     HEARTBEAT_INTERVAL_SECONDS,
                     TimeUnit.SECONDS,
                 )
+            }
         }
 
-        fun stopHeartbeat() {
-            heartbeatFuture
-                ?.cancel(
-                    true,
-                )
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            if (!isActive()) return
+            try {
+                listener.onEvent(parser.parse(text))
+            } catch (error: Throwable) {
+                if (isActive()) listener.onFailure(error)
+            }
+        }
 
-            heartbeatFuture =
-                null
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            val reply = synchronized(lock) {
+                if (state == ConnectionState.ACTIVE) {
+                    state = ConnectionState.CLOSING
+                    stopWork()
+                    true
+                } else false
+            }
+            if (reply) webSocket.close(code, reason)
+        }
+
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            if (terminate()) listener.onDisconnected(code, reason)
+        }
+
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            if (terminate()) listener.onFailure(t)
+        }
+
+        private fun isActive() = synchronized(lock) { state == ConnectionState.ACTIVE }
+
+        private fun terminate(): Boolean = synchronized(lock) {
+            if (state == ConnectionState.LOCALLY_CLOSED || state == ConnectionState.TERMINATED) {
+                false
+            } else {
+                state = ConnectionState.TERMINATED
+                socket = null
+                stopWork()
+                true
+            }
+        }
+
+        // Called with lock held, on every local or remote terminal path.
+        private fun stopWork() {
+            heartbeatFuture?.cancel(true)
+            heartbeatFuture = null
+            scheduler.shutdownNow()
         }
     }
 

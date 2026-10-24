@@ -10,11 +10,19 @@ import java.util.concurrent.TimeUnit
 
 class GameRealtimeLifecycleTest {
     @Test fun closeDuringTokenLookupCannotOpenANewSocket() {
-        val f = Fixture()
-        lateinit var subscription: AtoutiaGameRealtimeSubscription
-        subscription = f.subscribe { subscription.close(); "atk1_test" }
-        f.executor.runNext()
-        assertTrue(f.sockets.entries.isEmpty())
+        for (fails in listOf(false, true)) {
+            val f = Fixture()
+            lateinit var subscription: AtoutiaGameRealtimeSubscription
+            subscription = f.subscribe {
+                subscription.close()
+                if (fails) throw IOException("lookup ended after close")
+                "atk1_test"
+            }
+            f.executor.runNext()
+            assertTrue(f.sockets.entries.isEmpty())
+            assertTrue(f.issues.isEmpty())
+            assertTrue(f.executor.delayed.isEmpty())
+        }
     }
 
     @Test fun socketCreatedWhileClosingIsReleasedImmediately() {

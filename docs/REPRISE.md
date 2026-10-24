@@ -282,3 +282,12 @@ Après intégration, fournir git status, switch main, pull --ff-only et log -1 ;
 ## 19. Nouvelle étape : cycle de vie WebSocket
 
 La PR nº 7 est fusionnée dans main `82b0937` et le développeur a confirmé sa récupération propre. Les runs de push main `40106664050` et `40106664067` sont réussis. Ne pas reprendre les anciens tests reçus. Nouvelle branche `fix/android-websocket-lifecycle`, dédiée aux courses de fermeture et aux ressources des clients salon/partie. Première étape : injection des fabriques WebSocket/ordonnanceur conservant les défauts, 17 nouveaux tests sans threads ni pauses forcées, puis exécution de reproduction CI avant correction. Pas de SDK dans l’environnement assistant ; compilation réelle via Android CI. Reprendre les résultats du dernier commit de cette branche et `docs/ANDROID_WEBSOCKETS.md`, puis corriger et valider. Aucun test réel réseau de cette nouvelle livraison encore reçu ; ne pas fusionner un échec.
+
+
+## 20. Reproduction WebSocket acquise, correction à valider
+
+La [PR nº 8](https://github.com/sgramtinne-code/atoutia/pull/8), branche `fix/android-websocket-lifecycle`, reste en brouillon. Android CI sur `309fa65`, run `40107762457`, job `120912892898` : compilation réussie, **209 tests exécutés, 14 échecs** (neuf salon, cinq partie), tous dans les 17 nouveaux tests. Les 192 tests antérieurs passent. La correction suivante est proposée ; vérifier ses résultats réels avant toute déclaration de réussite. Lire docs/ANDROID_WEBSOCKETS.md pour les contrats et limites.
+
+Correctif : état de connexion salon partagé avec le listener ; arrêt/cancellation aux chemins terminaux ; ouverture tardive et tâches capturées neutralisées ; connexion de partie vérifiée après le token et à l’attachement du socket ; acknowledge et reconnexion tolèrent seulement le rejet lié à close ; heartbeat à délai fixe dix secondes. Le test token couvre retour et exception après close. Pas de changement backend, protocole, règles, SQLite ou authentification.
+
+Prochaine action : vérifier les CI Android et moteur/backend du correctif, puis fournir la procédure complète du lanceur automatique et les essais ciblés salon/quitter/recréer, partie/interruption réseau/reprise et fermeture/relancement. Garder backend et PNJ actifs ; aucun ID à copier ni répétition Keystore/Google/partie complète sans anomalie. Aucun essai réel de cette nouvelle correction encore reçu ; ne pas fusionner. Main reste `82b0937`, confirmé propre et récupéré par le développeur.

@@ -101,3 +101,12 @@ Suite séparée après intégration : reproduire les courses de fermeture/heartb
 ## Revue WebSocket en cours
 
 La PR nº 7 est fusionnée dans main `82b0937`, récupéré par le développeur. Branche suivante : `fix/android-websocket-lifecycle`. Reproduire les défauts avec des fabriques WebSocket et exécuteurs injectables, puis corriger fermeture/heartbeat du salon et création/acknowledge après fermeture de partie. Dix-sept tests de cycle de vie ajoutés avant correction ; aucune réussite de cette nouvelle livraison encore annoncée. Ne pas redemander les validations d’authentification/Keystore/lanceur acquises ; les essais réseau concernés par cette correction seront distincts.
+
+
+## Correction WebSocket proposée — PR nº 8
+
+La reproduction `309fa65` est confirmée par Android CI, run `40107762457`, job `120912892898` : compilation réussie, 209 tests JVM exécutés, **14 échecs sur les 17 nouveaux tests**. Les échecs concernent neuf cas salon et cinq partie ; les 192 tests antérieurs restent réussis. La suite moteur/backend de cette reproduction est à vérifier indépendamment.
+
+La branche `fix/android-websocket-lifecycle`, [PR nº 8](https://github.com/sgramtinne-code/atoutia/pull/8) en brouillon, corrige l’arrêt de l’ordonnanceur et les callbacks tardifs du salon, l’attachement d’un socket créé pendant close, la fermeture pendant recherche du token et acknowledge/close de partie. Heartbeats à délai fixe de dix secondes, protocole inchangé. Le test de recherche du token couvre aussi son échec après close, sans remonter d’erreur à l’écran fermé. Une opération déjà en cours peut finir ; une fermeture ne prétend pas interrompre un callback utilisateur déjà engagé.
+
+Prochaine action : vérifier les deux CI du commit corrigé (JVM, APK et lint Android inclus), puis recevoir les essais ciblés WSL/émulateur avant fusion. Utiliser le lanceur automatique N/O et un nouveau salon ; aucun ID à copier. Les contrôles Keystore/authentification/fin de match précédents restent acquis. Main reste `82b0937` ; cette correction n’est pas encore validée sur appareil. Voir [le suivi WebSocket](docs/ANDROID_WEBSOCKETS.md).
