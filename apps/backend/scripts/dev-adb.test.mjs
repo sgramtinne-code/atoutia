@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { resolveAdbInstallPath } from "./dev-adb.mjs";
 
 const apk = "/home/tester/Projet avec espaces/app-debug.apk";

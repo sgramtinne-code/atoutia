@@ -67,9 +67,6 @@ jobs:
           pnpm --filter @atoutia/backend test
           pnpm --filter @atoutia/backend build
 
-      - name: Validate Android launcher path handling
-        run: node --test apps/backend/scripts/dev-adb.test.mjs
-
       - name: Validate synthetic SQLite CLI scenarios
         run: node apps/backend/scripts/dev-expiration-preview.mjs
 
