@@ -23,3 +23,10 @@ Les deux premiers utilisent deux workers, latches et attentes bornées. La ferme
 ## Validation requise
 
 CI Android Kotlin : exécution des JVM, APK debug/instrumenté et lint. Contrôler aussi les CI moteur/backend et UI existantes (8 paysage/sync + 3 politique + 7 historique). Aucun nouveau scénario PC N/O, compte ou match complet nécessaire pour cet ordre de callbacks simulé. Ne pas annoncer de fusion avant vérification du dernier commit et des CI.
+
+
+## Salon : trois échecs reproduits, correction proposée — PR nº 14
+
+La reproduction **`bf91800`** est réelle : [Android CI `40178838447`](https://github.com/sgramtinne-code/atoutia/actions/runs/40178838447), job **`121125320806`**, **223 tests JVM : 220 réussis/3 échecs**. Les deux réponses après close déclenchent encore un callback (succès/erreur) ; deux close sont transmis au transport. Kotlin compilé, aucun échec de timeout ; APK/lint ignorés après l'échec attendu des tests. Moteur/backend `40178838560` réussi.
+
+Correction proposée dans la [PR nº 14](https://github.com/sgramtinne-code/atoutia/pull/14) : un état fermé par connexion invalide les notifications avant le close du transport et rend close idempotent. État et livraison des callbacks sont sérialisés ; getRoom et fermeture du transport restent hors verrou. Le HTTP commencé peut finir mais ne livre plus de résultat au listener fermé. Validations de protocole et tests inchangés ; aucune annulation HTTP revendiquée, aucun changement Compose/session/authentification/persistance/backend/règles/sensorLandscape. Les callbacks déjà transmis avant close ne sont pas rétractés. Diff et liens/bash documentaires vérifiés localement ; aucun SDK local assistant. Suite : obtenir les trois CI du correctif, dont 223 JVM/APK/lint et 8+3+7 instrumentés, avant intégration. Aucun nouveau compte, scénario PC N/O, coupure ou match complet requis.
