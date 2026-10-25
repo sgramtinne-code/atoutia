@@ -8,6 +8,8 @@ import type {
 
 import {
   BELOTE_ENGINE_VERSION,
+  type LiveMatchRoomSnapshotDocument,
+  type PlayerCommand,
 } from "@atoutia/belote-engine";
 
 import {
@@ -419,6 +421,54 @@ afterEach(
 describe(
   "authenticated room command",
   () => {
+    it("returns remaining cards through both authenticated command and snapshot routes", async () => {
+      const { baseUrl, authService } = await startServer();
+      const players = PLAYER_POSITIONS.map(() => createIdentity(authService));
+      const room = await createRoom(baseUrl);
+      let revision = await claimAllAuthenticatedSeats(baseUrl, room.sessionId, players, room.revision);
+      revision = await startMatch(baseUrl, room.sessionId, revision, players[0]!.token);
+
+      async function snapshot(index: number): Promise<LiveMatchRoomSnapshotDocument> {
+        const response = await fetch(`${baseUrl}/api/v1/rooms/${room.sessionId}/snapshot`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${players[index]!.token}` },
+        });
+        expect(response.status).toBe(200);
+        return await response.json() as LiveMatchRoomSnapshotDocument;
+      }
+      async function command(index: number, command: PlayerCommand): Promise<LiveMatchRoomSnapshotDocument> {
+        const response = await fetch(`${baseUrl}/api/v1/rooms/${room.sessionId}/commands`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${players[index]!.token}` },
+          body: JSON.stringify({ document: {
+            formatVersion: 1, engineVersion: BELOTE_ENGINE_VERSION,
+            sessionId: room.sessionId, expectedRevision: revision, command,
+          } }),
+        });
+        expect(response.status).toBe(200);
+        const result = await response.json() as LiveMatchRoomSnapshotDocument;
+        expect(result.revision).toBe(revision + 1);
+        revision = result.revision;
+        return result;
+      }
+
+      const bidding = await snapshot(1);
+      await command(1, { type: "TAKE", suit: bidding.game.match.public.turnUpCard.suit });
+      const before = await snapshot(1);
+      expect(before.game.actions.mode).toBe("PLAY_CARD");
+      expect(before.game.match.hand).toHaveLength(8);
+      const card = before.game.actions.legalCards[0]!;
+      const after = await command(1, { type: "PLAY_CARD", card });
+      expect(after.game.match.hand).toHaveLength(7);
+      expect(after.game.match.hand).not.toContainEqual(card);
+      expect(await snapshot(1)).toEqual(after);
+      const nextPlayer = await snapshot(2);
+      expect(nextPlayer.game.match.hand).toHaveLength(8);
+      expect(nextPlayer.game.match.hand).not.toContainEqual(card);
+      expect(nextPlayer.game.actions.mode).toBe("PLAY_CARD");
+      expect(Object.keys(after.game.match).sort()).toEqual(["hand", "legalCards", "player", "public"]);
+    });
+
     it(
       "requires authentication when auth is enabled",
       async () => {

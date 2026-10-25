@@ -67,6 +67,9 @@ jobs:
           pnpm --filter @atoutia/backend test
           pnpm --filter @atoutia/backend build
 
+      - name: Validate built player snapshot package
+        run: node apps/backend/scripts/dev-check-player-hand.mjs
+
       - name: Validate synthetic SQLite CLI scenarios
         run: node apps/backend/scripts/dev-expiration-preview.mjs
 

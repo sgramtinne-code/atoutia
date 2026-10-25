@@ -62,18 +62,18 @@ function createPlayerHand(
     );
   }
 
-  const completedDeal =
-    state.currentDeal.completedDeal;
+  const sequence =
+    state.currentDeal.trickSequence;
 
   if (
-    completedDeal ===
+    sequence ===
       null
   ) {
     return Object.freeze([]);
   }
 
   return Object.freeze(
-    completedDeal.hands[player]
+    sequence.hands[player]
       .map(
         cloneCard,
       ),
