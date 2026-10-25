@@ -2,15 +2,15 @@
 
 ## État
 
-Branche `fix/android-history-callback-scope`, depuis main `e6def15` (PR nº 12 intégrée et récupération PC propre reçue). Les anciennes validations sont closes, dont main 8 → 7 → 6 → 5, reprise réseau et politique de sauvegarde.
+[PR nº 13](https://github.com/sgramtinne-code/atoutia/pull/13), branche `fix/android-history-callback-scope`, depuis main `e6def15` (PR nº 12 intégrée et récupération PC propre reçue). Les anciennes validations sont closes, dont main 8 → 7 → 6 → 5, reprise réseau et politique de sauvegarde.
 
 ## Constat de code et périmètre
 
 Dans MainActivity, requestMatchHistory applique Loaded, Failed ou SessionExpired à l’état de l’application sans vérifier que la demande appartient encore à l’écran et à la session courants. Les appels HTTP utilisent lifecycleScope de l’Activity, dont la durée n’est pas celle d’une visite de l’historique. Une sortie/retour ou une déconnexion/reconnexion peut donc rendre une réponse obsolète avant son callback UI.
 
-Ce point doit être reproduit avant correction ; aucune occurrence réelle sur le compte du développeur n’est annoncée. Le correctif visera l’application des réponses à l’UI, pas les règles d’authentification serveur, la révocation ou le stockage des tokens. Il ne prétendra pas annuler un HTTP déjà engagé. Les callbacks salon/chargement de partie et les parseurs seront des revues distinctes.
+Ce point est maintenant reproduit sur callbacks synthétiques (bilan ci-dessous) ; aucune occurrence réelle sur le compte du développeur n’est annoncée. Le correctif visera l’application des réponses à l’UI, pas les règles d’authentification serveur, la révocation ou le stockage des tokens. Il ne prétendra pas annuler un HTTP déjà engagé. Les callbacks salon/chargement de partie et les parseurs seront des revues distinctes.
 
-## Reproduction isolée prévue
+## Reproduction isolée exécutée
 
 Le véritable composable AtoutiaApp est hébergé dans une ComponentActivity, avec les dépendances existantes remplacées par des fonctions mémoire. Sa visibilité Kotlin passe de private à internal pour les tests ; aucun comportement n’est corrigé à cette étape. L’hôte de test utilise le portrait pour rendre accessibles les écrans d’accueil/connexion ; sensorLandscape de MainActivity reste intact.
 
@@ -26,10 +26,10 @@ Sept cas contrôlent les clics et l’ordre des réponses :
 
 Les identités sont synthétiques et la reconnexion est une simple réponse injectée : ni Credential Manager, compte Google, Keystore, stockage privé, backend ni vraie base. Les callbacks sont livrés sur le thread UI comme dans la production ; l’état visible doit rester celui de la demande courante.
 
-Le workflow exécute séparément 8 fixtures UI, 3 tests de politique et ces 7 cas, avec contrôle explicite de chaque total. Aucun lancement de la suite instrumentée globale. CI de reproduction encore à obtenir ; actionlint et diff vérifiés localement, aucun SDK/AVD local assistant.
+Le workflow exécute séparément 8 fixtures UI, 3 tests de politique et ces 7 cas, avec contrôle explicite de chaque total. Aucun lancement de la suite instrumentée globale. La reproduction `c8778c1` a réellement exécuté les sept cas : trois contrôles actuels réussis et quatre réponses obsolètes en échec. Huit UI et trois politiques passent. CI émulateur `40176710644`, job `121118840915` ; Kotlin `40176710597` (220 JVM/APK/lint 11/1) et moteur/backend `40176710705` réussis. Aucun SDK/AVD local assistant.
 
-## Correction ensuite
+## Correction proposée et contrôles attendus
 
-Après reproduction, lier chaque demande à son identité, à l’écran Historique et à la session authentifiée d’origine. Invalider les réponses lors de la sortie et ne pas appliquer les résultats obsolètes à une nouvelle visite/session. Les réponses actuelles doivent conserver succès, échec/réessai et expiration. Vérifier ensuite les mêmes fixtures, JVM/APK/lint et CI moteur/backend avant intégration ; tenir AGENTS, README et reprise à jour avec les preuves réelles.
+Une identité de demande est mémorisée pour chaque chargement ; le callback vérifie aussi Historique et la session authentifiée d’origine, compte + session. Une réponse obsolète sort avant toute mutation UI. L’identité est invalidée après traitement, à Retour, au début de déconnexion, avant restauration d’une nouvelle authentification et en sortie de composition. Les branches actuelles conservent leur comportement ; les tests sont inchangés. La correction n’annule pas un HTTP en vol et ne change pas les tokens/services/backend.
 
-Pas de nouvelle partie N/O, restauration de sauvegarde, test de compte réel ou attente de réseau à demander pour cette simulation déterministe de callbacks. Une fixture ne constitue pas un audit de tous les callbacks Android ou un essai de téléphone physique.
+Actionlint, diff et documentation vérifiés localement. Vérifier les trois CI du correctif (8 UI + 3 politique + 7 historique, 220 JVM/APK/lint et moteur/backend) avant d’annoncer un succès ou fusionner. Pas de nouvelle partie N/O, restauration de sauvegarde, test de compte réel ou attente de réseau à demander pour cette simulation déterministe de callbacks. Les autres callbacks Android et un téléphone physique ne sont pas validés par ces fixtures.
