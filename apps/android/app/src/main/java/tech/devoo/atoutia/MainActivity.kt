@@ -3244,8 +3244,11 @@ internal fun AtoutiaApp(
 
                             startRoom(
                                 membership,
-                            ) {
+                            ) onStartResult@ {
                                 result ->
+                                // Realtime may already have advanced beyond this lobby.
+                                if (destination !== currentDestination ||
+                                    authState != currentAuthState) return@onStartResult
                                 when (
                                     result
                                 ) {
