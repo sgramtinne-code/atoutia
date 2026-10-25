@@ -1,6 +1,6 @@
-# Revue Android Kotlin — 24 octobre 2026
+# Revue Android Kotlin — 25 octobre 2026
 
-État actualisé : les PR nº 7/8 sont intégrées ; la PR nº 9 a reçu les validations de visibilité paysage et de jeu manuel avec trois PNJ. Voir la clôture en fin de document et `ANDROID_LANDSCAPE.md`. Les sections antérieures conservent l’historique de la revue ; elles ne définissent pas les contrôles encore manquants aujourd’hui. La revue exhaustive et la préparation release restent ouvertes.
+État actualisé : PR nº 7 à 11 intégrées et validations de leurs périmètres reçues, main `78a46f5` récupéré proprement sur le PC. PR nº 12 en brouillon pour règles explicites de sauvegarde : trois échecs de politique reproduits sur APK avant correction, huit UI/220 JVM réussis ; XML correctifs proposés et CI à vérifier. Voir [le suivi des sauvegardes](ANDROID_BACKUP.md) et le dernier bilan. Les anciennes sections conservent l’historique, pas les contrôles encore manquants ; revue exhaustive et préparation release restent ouvertes.
 
 ## Portée et statut
 
@@ -253,3 +253,12 @@ Nouvelle branche **`fix/android-backup-exclusions`**. Lecture : minSdk 26, targe
 Trois nouveaux tests instrumentés **BackupPolicyInstrumentedTest** lisent uniquement le manifeste et les ressources de l’APK installé : opt-out et deux références XML ; anciens domaines exclus ; cloud/D2D exclus. Aucun compte, préférence, clé ou fichier privé lu/écrit, aucune opération de backup/restore. Le workflow conserve la classe UI séparée (OK 8) et lance cette seule classe de politique (attendu OK 3), sans les tests Keystore ni la suite instrumentée globale. Configuration de production inchangée à cette étape ; compilation/exécution distante à obtenir avant d’annoncer la reproduction. Actionlint et diff vérifiés localement ; aucun SDK/AVD local assistant.
 
 Suite : ouvrir une PR en brouillon, constater les tests manquants en CI, ajouter les règles des neuf domaines pour les deux formats en conservant allowBackup=false, puis vérifier APK/JVM/lint et 8 UI + 3 politique. Aucun nouveau scénario de partie, authentification, migration d’appareil réel ou vraie base requis pour lire cette configuration empaquetée ; un test de XML n’est pas une preuve de transfert physique sur tous fabricants. Préserver sessions, sensorLandscape, API backend, versions et stockage ; ne pas supprimer des données pour tester les sauvegardes.
+
+
+## Sauvegardes : reproduction réelle et règles proposées — PR nº 12
+
+La reproduction **`8a535bb`** est confirmée : [Android UI CI `40173790845`](https://github.com/sgramtinne-code/atoutia/actions/runs/40173790845), job **`121110053170`**, APK construits/installés sur AVD API 36, **OK (8 tests)** UI puis **3/3 échecs** BackupPolicyInstrumentedTest : références aux règles absentes du manifeste empaqueté. Le parseur lit bien le manifeste cible ; allowBackup=false reste confirmé. [Android Kotlin `40173790769`](https://github.com/sgramtinne-code/atoutia/actions/runs/40173790769) réussie, **220/220 JVM**, deux APK/lint (**12 avertissements, une suggestion**, DataExtractionRules encore présent) ; [moteur/backend `40173790843`](https://github.com/sgramtinne-code/atoutia/actions/runs/40173790843) réussi. Aucun test de compte ou de stockage exécuté.
+
+Correctif sur la même [PR nº 12](https://github.com/sgramtinne-code/atoutia/pull/12) : le manifeste conserve allowBackup=false et référence `@xml/backup_rules` et `@xml/data_extraction_rules`. Les neuf domaines sont exclus avec path="." dans full-backup-content, cloud-backup et device-transfer, sans inclusion. Ressources dans src/main, données existantes, formats de session, chiffrement, sensorLandscape, permissions/réseau et règles de jeu inchangés. Aucun agent de sauvegarde ni intégration iOS ajouté.
+
+Contrôle XML source local réussi, actionlint et diff vérifiés ; aucun nouveau build Android local assistant. Vérifier les trois CI du commit corrigé, les huit UI et les trois tests de politique réellement exécutés, et les avis lint restant visibles. La PR reste en brouillon jusqu’aux validations. Aucun nouveau scénario de partie, authentification, transfert physique ou restauration de données du développeur demandé : ces tests vérifient la configuration de l’APK debug, pas tous les transports/fabricants ou une release. Voir [le suivi des sauvegardes](ANDROID_BACKUP.md).
