@@ -2411,7 +2411,7 @@ sealed interface BackendCheckState {
 }
 
 @Composable
-private fun AtoutiaApp(
+internal fun AtoutiaApp(
     checkBackend:
         (
             (
@@ -2659,12 +2659,27 @@ private fun AtoutiaApp(
             )
         }
 
+    var historyRequest by remember { mutableStateOf<Any?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose { historyRequest = null }
+    }
+
     fun requestMatchHistory() {
+        val requestingAuth = authState as? AuthStartupState.Authenticated ?: return
+        if (destination != AuthenticatedDestination.History) return
+        val ticket = Any()
+        historyRequest = ticket
         matchHistoryState =
             MatchHistoryUiState.Loading
 
-        loadMatchHistory {
+        loadMatchHistory onHistoryResult@ {
             result ->
+            // A callback belongs to this visit and auth session, not to the whole Activity.
+            if (historyRequest !== ticket ||
+                destination != AuthenticatedDestination.History ||
+                authState != requestingAuth) return@onHistoryResult
+            historyRequest = null
             when (
                 result
             ) {
@@ -2728,6 +2743,7 @@ private fun AtoutiaApp(
         authenticatedState:
             AuthStartupState.Authenticated,
     ) {
+        historyRequest = null
         authState =
             AuthStartupState.Loading
 
@@ -2915,6 +2931,7 @@ private fun AtoutiaApp(
                         },
 
                         onSignOut = {
+                            historyRequest = null
                             signOutState =
                                 SignOutUiState.Loading
 
@@ -2977,6 +2994,7 @@ private fun AtoutiaApp(
                         },
 
                         onBack = {
+                            historyRequest = null
                             matchHistoryState =
                                 MatchHistoryUiState.Loading
 
