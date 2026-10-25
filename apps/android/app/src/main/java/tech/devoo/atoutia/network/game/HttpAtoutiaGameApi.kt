@@ -1311,6 +1311,19 @@ class HttpAtoutiaGameApi(
                         "Atoutia game API returned bidding actions during PLAY_CARD mode.",
                     )
                 }
+
+                if (snapshot.actions.legalCards.any { it !in snapshot.match.hand }) {
+                    throw AtoutiaGameApiException(
+                        "Atoutia game API returned a legal card outside the player hand.",
+                    )
+                }
+
+                // Both views describe the server's legal cards; wire order is not significant.
+                if (snapshot.actions.legalCards.toSet() != snapshot.match.legalCards.toSet()) {
+                    throw AtoutiaGameApiException(
+                        "Atoutia game API returned inconsistent legal card lists.",
+                    )
+                }
             }
         }
     }

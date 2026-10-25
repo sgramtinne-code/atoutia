@@ -16,6 +16,109 @@ import java.net.InetSocketAddress
 
 class HttpAtoutiaGameApiTest {
     @Test
+    fun acceptsConsistentPlayingCardLists() {
+        val snapshot = readCardValidationResponse(playingSnapshotJson()).document.snapshot
+        assertEquals(PlayerActionMode.PLAY_CARD, snapshot.actions.mode)
+        assertEquals(5, snapshot.match.hand.size)
+        assertEquals(snapshot.match.hand, snapshot.match.legalCards)
+        assertEquals(snapshot.match.legalCards, snapshot.actions.legalCards)
+    }
+
+    @Test
+    fun acceptsTheSameLegalCardsInDifferentWireOrders() {
+        val json = playingSnapshotJson()
+        val actions = json.getJSONObject("game").getJSONObject("actions")
+        val cards = actions.getJSONArray("legalCards")
+        val reversed = JSONArray()
+        for (index in cards.length() - 1 downTo 0) reversed.put(cards.get(index))
+        actions.put("legalCards", reversed)
+        val snapshot = readCardValidationResponse(json).document.snapshot
+        assertEquals(snapshot.match.legalCards.reversed(), snapshot.actions.legalCards)
+        assertEquals(5, snapshot.actions.legalCards.size)
+    }
+
+    @Test
+    fun rejectsActionCardsOutsideTheHandOnSnapshotRead() {
+        val json = playingSnapshotJson()
+        json.getJSONObject("game").getJSONObject("actions")
+            .put("legalCards", JSONArray().put(JSONObject().put("suit", "SPADES").put("rank", "QUEEN")))
+        val error = assertThrows(AtoutiaGameApiException::class.java) {
+            readCardValidationResponse(json)
+        }
+        assertEquals("Atoutia game API returned a legal card outside the player hand.", error.message)
+        assertNull(error.statusCode)
+    }
+
+    @Test
+    fun rejectsDisagreeingLegalCardSetsEvenWhenAllCardsAreInHand() {
+        val json = playingSnapshotJson()
+        val game = json.getJSONObject("game")
+        game.getJSONObject("actions").put("legalCards",
+            JSONArray().put(game.getJSONObject("match").getJSONArray("hand").get(0)))
+        val error = assertThrows(AtoutiaGameApiException::class.java) {
+            readCardValidationResponse(json)
+        }
+        assertEquals("Atoutia game API returned inconsistent legal card lists.", error.message)
+        assertNull(error.statusCode)
+    }
+
+    @Test
+    fun rejectsActionCardsOutsideTheHandInACommandResponse() {
+        val json = playingSnapshotJson()
+        json.getJSONObject("game").getJSONObject("actions")
+            .put("legalCards", JSONArray().put(JSONObject().put("suit", "SPADES").put("rank", "QUEEN")))
+        val error = assertThrows(AtoutiaGameApiException::class.java) {
+            readCardValidationResponse(json, commandResponse = true)
+        }
+        assertEquals("Atoutia game API returned a legal card outside the player hand.", error.message)
+        assertNull(error.statusCode)
+    }
+
+    private fun playingSnapshotJson(): JSONObject {
+        val json = JSONObject(validSnapshotBody())
+        val game = json.getJSONObject("game")
+        val match = game.getJSONObject("match")
+        val hand = match.getJSONArray("hand")
+        match.getJSONObject("public")
+            .put("phase", "PLAYING")
+            .put("biddingPlayer", JSONObject.NULL)
+            .put("taker", "PLAYER_0")
+            .put("trumpSuit", "HEARTS")
+            .put("currentTrick", JSONObject().put("currentPlayer", "PLAYER_0").put("plays", JSONArray()))
+        // Five remaining cards after completed tricks; the empty trick permits the whole hand.
+        match.put("legalCards", JSONArray(hand.toString()))
+        game.getJSONObject("actions")
+            .put("mode", "PLAY_CARD")
+            .put("biddingActions", JSONArray())
+            .put("legalCards", JSONArray(hand.toString()))
+        return json
+    }
+
+    private fun readCardValidationResponse(json: JSONObject, commandResponse: Boolean = false): PlayerGameSnapshot {
+        var result: PlayerGameSnapshot? = null
+        withServer(
+            handler = { exchange ->
+                assertEquals("POST", exchange.requestMethod)
+                assertEquals("/api/v1/rooms/ms1_testroom/" + if (commandResponse) "commands" else "snapshot",
+                    exchange.requestURI.path)
+                assertEquals("Bearer atk1_parser_test", exchange.requestHeaders.getFirst("Authorization"))
+                readRequestBody(exchange)
+                respond(exchange, HttpURLConnection.HTTP_OK, json.toString())
+            },
+            block = { baseUrl ->
+                val api = HttpAtoutiaGameApi(baseUrl)
+                result = if (commandResponse) {
+                    api.submitCommand("ms1_testroom", 4, "0.1.0",
+                        PlayerGameCommand.PlayCard(PlayerCard(CardSuit.HEARTS, CardRank.JACK)), "atk1_parser_test")
+                } else {
+                    api.getPlayerSnapshot("ms1_testroom", "atk1_parser_test")
+                }
+            },
+        )
+        return requireNotNull(result)
+    }
+
+    @Test
     fun readsAuthenticatedPlayerSnapshot() {
         withServer(
             handler = {
