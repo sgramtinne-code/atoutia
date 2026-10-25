@@ -1,34 +1,27 @@
 # Cohérence des cartes autorisées du snapshot — 25 octobre 2026
 
-Base main `3155084`, PR nº 15 intégrée et récupération PC reçue. Branche `fix/android-snapshot-legal-card-validation`.
+[PR nº 16](https://github.com/sgramtinne-code/atoutia/pull/16), branche `fix/android-snapshot-legal-card-validation`, depuis main `3155084` (PR nº 15 intégrée et récupérée proprement sur le PC).
 
-## Contrat examiné
+## Problème et correction
 
-createPlayerClientSnapshot assemble createPlayerMatchSnapshot et createPlayerAvailableActions depuis le même MatchMachineState. En PLAY_CARD, les deux producteurs appellent getLegalCards sur la même main, le même joueur, le même pli et le même atout. HttpAtoutiaGameApi contrôle déjà l’appartenance de match.legalCards à la main, mais actions.legalCards n’a pas le même contrôle ni de comparaison des deux vues. GameScreen utilise cette seconde liste pour activer la main.
+createPlayerClientSnapshot assemble createPlayerMatchSnapshot et createPlayerAvailableActions depuis le même MatchMachineState. En PLAY_CARD, les deux producteurs utilisent getLegalCards sur la même main, le même joueur, le même pli et le même atout. Le parseur Android vérifiait déjà match.legalCards dans la main ; actions.legalCards, utilisé par GameScreen pour activer les cartes, n’avait pas ces mêmes contrôles.
 
-Une réponse malformée peut donc annoncer dans actions une carte absente de la main, ou un ensemble contradictoire avec match.legalCards, tout en passant le parseur actuel. C’est un constat de code à reproduire, pas un incident backend ou une réponse réelle observée sur le PC. Le backend reste autoritaire ; ces contrôles doivent comparer les informations reçues, sans recalculer les règles de belote.
+Le code `f15b0ea` ajoute deux contrôles après la validation existante des enchères en PLAY_CARD : cartes d’action incluses dans la main et égalité des ensembles match/actions. L’ordre reçu est conservé. Le backend reste l’autorité des coups : aucun calcul local de belote, changement moteur/backend, règle, DTO/version ou resserrement des autres modes. L’unicité globale des cartes et les autres invariants de phase restent distincts.
 
-## Tests préparés avant correction
+Une réponse incohérente produit une AtoutiaGameApiException de protocole sans statut 401 ; le parseur ne modifie pas l’authentification ou le stockage. Le rejet d’une réponse de commande n’annule pas une commande déjà acceptée par le serveur. Aucun incident backend, payload ou main réelle du développeur n’est déduit de cette revue.
 
-Cinq tests dans HttpAtoutiaGameApiTest via un serveur HttpServer temporaire sur loopback et le vrai client HTTP :
+## Reproduction réelle
 
-- PLAY_CARD cohérent accepté ;
-- mêmes ensembles de cartes dans un ordre différent acceptés et ordre reçu conservé ;
-- actions hors main refusées en lecture de snapshot ;
-- actions incluses dans la main mais contradictoires avec match.legalCards refusées ;
-- actions hors main refusées dans une réponse de commande.
+Cinq nouveaux tests dans HttpAtoutiaGameApiTest utilisent le vrai client HTTP et HttpServer temporaire sur loopback. Deux documents cohérents sont acceptés (ordre identique/différent) ; trois documents doivent être refusés : actions hors main en lecture et réponse de commande, et actions incluses dans la main mais contradictoires avec match.legalCards. La fixture synthétique contient cinq cartes restantes et un nouveau pli vide ; la main entière est autorisée à l’entame. Le serveur de test renvoie une réponse, sans appliquer de commande métier ni accéder à un compte/Keystore/SQLite.
 
-La fixture contient une main restante de cinq cartes, un nouveau pli vide et l’ensemble de la main autorisé à l’entame. Elle dérive du JSON synthétique existant ; aucun compte, partie, main ou log du développeur. Le serveur de test renvoie un document et n’applique aucune commande métier. Les erreurs attendues sont des AtoutiaGameApiException sans statut d’authentification. Le code de production reste inchangé à cette étape ; compilation/reproduction distante à obtenir. Diff vérifié localement ; aucun SDK/AVD local assistant.
+Commit `7155bcf` : [Android CI `40195346170`](https://github.com/sgramtinne-code/atoutia/actions/runs/40195346170), job `121174874606`, Kotlin compilé puis **228 JVM : 225 réussis/3 échecs**. Les 223 contrôles antérieurs et deux nouveaux contrôles positifs passent ; les trois rejets échouent car aucune exception n’est levée, sans erreur de transport ou compilation. APK/lint ignorés après cet échec attendu ; moteur/backend `40195346168` réussi. Les cinq tests restent inchangés après correction.
 
-## Périmètre et suite
+## Validation reçue
 
-Vérifier d’abord la reproduction, puis contrôler actions.legalCards dans la main et l’égalité des ensembles en PLAY_CARD. L’ordre n’est pas une règle de légalité. Aucun changement moteur/backend/DTO/version, aucun nouveau calcul des coups Android et aucune mutation de stockage/session. L’unicité globale des cartes, les autres modes/phases et les autres parseurs restent distincts.
+Le code **`f15b0ea`** est validé : [moteur/backend `40195584297`](https://github.com/sgramtinne-code/atoutia/actions/runs/40195584297), job `121175596402`, **588/618**, typechecks/builds et CLI synthétiques ; [Android Kotlin `40195584302`](https://github.com/sgramtinne-code/atoutia/actions/runs/40195584302), job **`121175596667`**, **228/228 JVM**, deux APK et lint (**11 avertissements/1 suggestion**) ; [Android UI `40195584304`](https://github.com/sgramtinne-code/atoutia/actions/runs/40195584304), job **`121175653489`**, **OK (8 tests)**, **OK (3 tests)**, **OK (7 tests)** et **OK (5 tests)** réellement exécutés sur AVD API36. Reproduction `7155bcf` : 225 réussis/3 échecs, aucune exception sur les trois documents incohérents ; après correction, cinq nouveaux tests et assertions inchangés.
 
-Validation requise : JVM ciblés puis suite Android/APK/lint, moteur/backend et les 23 instrumentés existants en CI. Ces derniers couvrent leurs propres périmètres, pas ces cas de parseur HTTP JVM. Aucun nouveau scénario PC N/O, compte/Keystore, réseau coupé, sauvegarde ou match complet nécessaire pour ces réponses synthétiques malformées. Ne pas déduire du rejet d’une réponse qu’une commande acceptée côté serveur aurait été annulée. Garder la PR en brouillon jusqu’aux validations et consigner les résultats avant intégration.
+Les nouvelles fixtures sont des tests JVM HTTP, pas une exécution du parseur sur le PC ou un appareil du développeur. Les 23 instrumentés existants protègent leurs propres périmètres ; aucun nouveau cas de parseur exécuté sur appareil revendiqué. Aucun SDK/AVD local assistant, aucun vrai backend métier, compte, stockage privé ou base réelle. Aucun changement d’UI/authentification, donnée existante ou sensorLandscape ; aucune partie complète, validation sur téléphone physique, revue Android exhaustive ou validation release n’est revendiquée.
 
+## Reprise
 
-## Cartes du snapshot : trois réponses invalides acceptées, correctif proposé — PR nº 16
-
-Reproduction **`7155bcf`** : [Android CI `40195346170`](https://github.com/sgramtinne-code/atoutia/actions/runs/40195346170), job **`121174874606`**, Kotlin compilé puis **228 JVM : 225 réussis/3 échecs**. Les deux nouveaux documents cohérents et les 223 contrôles antérieurs passent. Les trois cas malformés échouent car aucune AtoutiaGameApiException n’est levée : actions hors main en lecture/réponse de commande, et listes contradictoires pourtant incluses dans la main. Ce sont des acceptations indues, pas des échecs de transport ou de compilation. APK/lint ignorés après l’échec attendu des JVM ; moteur/backend `40195346168` réussi.
-
-Correctif proposé dans la [PR nº 16](https://github.com/sgramtinne-code/atoutia/pull/16) : après les contrôles existants en PLAY_CARD, actions.legalCards doit appartenir à la main et représenter le même ensemble que match.legalCards. Comparaison d’ensembles, ordre reçu conservé ; cinq tests et assertions inchangés. Les autres modes, la validation globale des doublons et les autres invariants restent distincts. Aucun calcul des règles Android, changement moteur/backend/format/version/stockage/authentification/orientation. Une erreur de protocole sans statut HTTP n’est pas convertie en 401 par le parseur. La réponse de commande synthétique n’atteste aucune exécution métier ; le rejet du DTO ne prétend pas annuler une commande acceptée côté serveur. Diff et liens/bash vérifiés localement ; aucun SDK local assistant. Suite : vérifier les trois CI du correctif (228 JVM, APK/lint, 23 instrumentés existants et moteur/backend) avant intégration ; aucun nouvel essai PC requis.
+Validations nécessaires reçues ; aucun nouveau PC N/O, compte/Keystore, coupure, sauvegarde ou match complet à demander pour ces réponses contrôlées. Vérifier les trois CI de clôture avant intégration avec SHA attendu, puis PR/main et ses CI. Le statut GitHub fait foi sans PR documentaire supplémentaire pour inscrire son propre SHA. Ensuite poursuivre séparément les autres invariants de DTO (unicité, phases) et les autres parseurs.
