@@ -1,6 +1,8 @@
 # Revue Android Kotlin — 25 octobre 2026
 
-État actualisé : PR nº 7 à 12 intégrées et validations de leurs périmètres reçues, main `e6def15` récupéré proprement sur le PC ; trois CI main réussies (588/618, 220 JVM, 8 UI + 3 politique), lint 11 avertissements/1 suggestion. PR nº 13, code `854a611` : quatre réponses obsolètes reproduites puis sept scénarios d’historique réellement réussis, huit UI/trois politiques/220 JVM/APK/lint et moteur/backend réussis. Vérifier les CI de clôture et GitHub pour l’intégration ; pas de nouveau test PC de compte/partie requis pour ces callbacks contrôlés. Voir [le suivi des callbacks d’historique](ANDROID_HISTORY_CALLBACKS.md). Les anciennes sections conservent l’historique ; aucune revue exhaustive ou release revendiquée.
+Branche stable **main `c4f1519`**, [PR nº 13](https://github.com/sgramtinne-code/atoutia/pull/13) intégrée et récupération PC propre reçue. CI main réussies : moteur/backend `40178115885` (**588/618**), Android Kotlin `40178115782` (**220 JVM**, APK/lint, **11 avertissements/1 suggestion**), Android UI `40178115850` (**8 UI + 3 politique + 7 historique réellement exécutés**). Les validations des PR nº 7 à 13 restent clôturées.
+
+Nouvelle branche **`fix/android-lobby-refresh-close`** : trois tests JVM ajoutés avant correction dans RoomLobbyRealtimeCoordinatorTest. Deux bloquent getRoom, ferment la connexion puis livrent succès/échec ; le troisième vérifie fermeture idempotente et callbacks tardifs. La lecture identifie une absence de garde après le HTTP du salon ; la reproduction compilée reste à obtenir en CI. Aucun SDK local assistant, compte, réseau ou base réelle utilisé. [Suivi de la fermeture du salon](ANDROID_LOBBY_CALLBACKS.md).
 
 ## Portée et statut
 

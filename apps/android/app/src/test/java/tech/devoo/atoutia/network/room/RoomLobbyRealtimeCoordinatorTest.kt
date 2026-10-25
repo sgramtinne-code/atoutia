@@ -5,11 +5,89 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import tech.devoo.atoutia.network.realtime.AtoutiaRealtimeApi
 import tech.devoo.atoutia.network.realtime.AtoutiaRealtimeConnection
 import tech.devoo.atoutia.network.realtime.RealtimeEvent
 
 class RoomLobbyRealtimeCoordinatorTest {
+    @Test(timeout = 10000)
+    fun successfulRefreshCompletingAfterCloseIsIgnored() {
+        refreshAcrossClose(fail = false)
+    }
+
+    @Test(timeout = 10000)
+    fun failedRefreshCompletingAfterCloseIsIgnored() {
+        refreshAcrossClose(fail = true)
+    }
+
+    private fun refreshAcrossClose(fail: Boolean) {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val workers = Executors.newFixedThreadPool(2) { runnable ->
+            Thread(runnable, "lobby-refresh-test").apply { isDaemon = true }
+        }
+        val roomApi = FakeRoomApi(
+            roomToReturn = room(revision = 2, occupiedSeats = 2, player1Occupied = true),
+            beforeReturn = {
+                entered.countDown()
+                check(release.await(3, TimeUnit.SECONDS)) { "Refresh was not released" }
+                if (fail) throw IllegalStateException("Synthetic delayed failure")
+            },
+        )
+        val realtimeApi = FakeRealtimeApi()
+        val listener = RecordingListener()
+        val connection = RoomLobbyRealtimeCoordinator(roomApi, realtimeApi) { "atk1_test" }
+            .connect(membership(revision = 1, occupiedSeats = 1), listener)
+
+        try {
+            val refresh = workers.submit {
+                realtimeApi.emit(RealtimeEvent.Snapshot("ms1_test", 2))
+            }
+            assertTrue("HTTP refresh did not start", entered.await(2, TimeUnit.SECONDS))
+            // Closing must finish while the HTTP call is still blocked.
+            workers.submit { connection.close() }.get(2, TimeUnit.SECONDS)
+            assertTrue(realtimeApi.connection.closed)
+            release.countDown()
+            refresh.get(2, TimeUnit.SECONDS)
+            assertEquals(1, roomApi.getRoomCallCount)
+            assertTrue("Closed lobby received a room update", listener.updatedMemberships.isEmpty())
+            assertTrue("Closed lobby received a failure", listener.failures.isEmpty())
+        } finally {
+            release.countDown()
+            workers.shutdownNow()
+            assertTrue(workers.awaitTermination(2, TimeUnit.SECONDS))
+            connection.close()
+        }
+    }
+
+    @Test
+    fun localCloseIsIdempotentAndRejectsLateTransportCallbacks() {
+        val roomApi = FakeRoomApi()
+        val realtimeApi = FakeRealtimeApi()
+        val listener = RecordingListener()
+        val connection = RoomLobbyRealtimeCoordinator(roomApi, realtimeApi) { "atk1_test" }
+            .connect(membership(revision = 1, occupiedSeats = 1), listener)
+
+        connection.close()
+        connection.close()
+        realtimeApi.open()
+        realtimeApi.emit(RealtimeEvent.Snapshot("ms1_test", 2))
+        realtimeApi.emit(RealtimeEvent.ServerError("SYNTHETIC_ERROR"))
+        realtimeApi.disconnect(1000, "late close")
+        realtimeApi.fail(IllegalStateException("late failure"))
+
+        assertEquals(1, realtimeApi.connection.closeCount)
+        assertEquals(0, roomApi.getRoomCallCount)
+        assertTrue(!listener.connected)
+        assertTrue(listener.updatedMemberships.isEmpty())
+        assertTrue(listener.serverErrors.isEmpty())
+        assertEquals(null, listener.disconnectedCode)
+        assertTrue(listener.failures.isEmpty())
+    }
+
     @Test
     fun connectsWithMembershipSessionAndAccessToken() {
         val roomApi =
@@ -538,6 +616,7 @@ class RoomLobbyRealtimeCoordinatorTest {
                 revision = 1,
                 occupiedSeats = 1,
             ),
+        private val beforeReturn: () -> Unit = {},
     ) : AtoutiaRoomApi {
         var getRoomCallCount:
             Int =
@@ -554,6 +633,7 @@ class RoomLobbyRealtimeCoordinatorTest {
             getRoomCallCount +=
                 1
 
+            beforeReturn()
             return roomToReturn
         }
 
@@ -656,11 +736,13 @@ class RoomLobbyRealtimeCoordinatorTest {
 
     private class FakeConnection :
         AtoutiaRealtimeConnection {
+        var closeCount: Int = 0
         var closed:
             Boolean =
             false
 
         override fun close() {
+            closeCount += 1
             closed =
                 true
         }
