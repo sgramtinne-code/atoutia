@@ -127,6 +127,7 @@ fun RoomLobbyScreen(
             ) -> Unit
         )? =
             null,
+    connectRealtime: ((RoomSessionMembership, RoomLobbyRealtimeCoordinator.Listener) -> AutoCloseable)? = null,
 ) {
     val applicationContext =
         LocalContext.current
@@ -209,7 +210,7 @@ fun RoomLobbyScreen(
                 .ATOUTIA_API_BASE_URL
 
         if (
-            apiBaseUrl.isBlank()
+            connectRealtime == null && apiBaseUrl.isBlank()
         ) {
             realtimeState =
                 RoomLobbyRealtimeUiState
@@ -221,46 +222,49 @@ fun RoomLobbyScreen(
             return@LaunchedEffect
         }
 
-        val tokenStore =
-            AndroidSecureAuthTokenStore(
-                applicationContext,
-            )
+        val realtimeConnector = connectRealtime ?: run {
+            val tokenStore =
+                AndroidSecureAuthTokenStore(
+                    applicationContext,
+                )
 
-        val authSessionApi =
-            HttpAuthSessionApi(
-                apiBaseUrl,
-            )
+            val authSessionApi =
+                HttpAuthSessionApi(
+                    apiBaseUrl,
+                )
 
-        val authSessionCoordinator =
-            AuthSessionCoordinator(
-                tokenStore =
-                    tokenStore,
+            val authSessionCoordinator =
+                AuthSessionCoordinator(
+                    tokenStore =
+                        tokenStore,
 
-                sessionApi =
-                    authSessionApi,
-            )
+                    sessionApi =
+                        authSessionApi,
+                )
 
-        val roomApi =
-            HttpAtoutiaRoomApi(
-                apiBaseUrl,
-            )
+            val roomApi =
+                HttpAtoutiaRoomApi(
+                    apiBaseUrl,
+                )
 
-        val realtimeApi =
-            AtoutiaRealtimeClient(
-                apiBaseUrl,
-            )
+            val realtimeApi =
+                AtoutiaRealtimeClient(
+                    apiBaseUrl,
+                )
 
-        val realtimeCoordinator =
-            RoomLobbyRealtimeCoordinator(
-                roomApi =
-                    roomApi,
+            val realtimeCoordinator =
+                RoomLobbyRealtimeCoordinator(
+                    roomApi =
+                        roomApi,
 
-                realtimeApi =
-                    realtimeApi,
+                    realtimeApi =
+                        realtimeApi,
 
-                accessTokenProvider =
-                    authSessionCoordinator::accessTokenOrRefresh,
-            )
+                    accessTokenProvider =
+                        authSessionCoordinator::accessTokenOrRefresh,
+                )
+            realtimeCoordinator::connect
+        }
 
         var connection:
             AutoCloseable? =
@@ -271,12 +275,9 @@ fun RoomLobbyScreen(
                 withContext(
                     Dispatchers.IO,
                 ) {
-                    realtimeCoordinator.connect(
-                        membership =
-                            currentMembership,
-
-                        listener =
-                            object :
+                    realtimeConnector(
+                        currentMembership,
+                        object :
                                 RoomLobbyRealtimeCoordinator.Listener {
                                 override fun onConnected() {
                                     coroutineScope.launch {

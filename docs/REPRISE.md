@@ -14,11 +14,11 @@ Dépôt : `https://github.com/sgramtinne-code/atoutia`.
 
 Branche stable : `main`.
 
-État courant prioritaire : Branche stable **main `c4f1519`**, [PR nº 13](https://github.com/sgramtinne-code/atoutia/pull/13) intégrée et récupération PC propre reçue. CI main réussies : moteur/backend `40178115885` (**588/618**), Android Kotlin `40178115782` (**220 JVM**, APK/lint, **11 avertissements/1 suggestion**), Android UI `40178115850` (**8 UI + 3 politique + 7 historique réellement exécutés**). Les validations des PR nº 7 à 13 restent clôturées.
+État courant prioritaire : Branche stable **main `6d7a630`**, [PR nº 14](https://github.com/sgramtinne-code/atoutia/pull/14) intégrée et récupération PC propre reçue. Ses CI main sont réussies : moteur/backend `40179745275` (**588/618**), Android Kotlin `40179745282` (**223 JVM**, deux APK/lint, **11 avertissements/1 suggestion**), Android UI `40179745326` (**8+3+7 instrumentés réellement exécutés**). Les validations antérieures restent clôturées.
 
-La [PR nº 14](https://github.com/sgramtinne-code/atoutia/pull/14), branche **`fix/android-lobby-refresh-close`**, a reçu les validations du code **`660ca56`** : notifications du salon ignorées après fermeture locale et close idempotent, sans verrou pendant HTTP. Reproduction avant correction : **220 contrôles réussis/3 nouveaux échecs** ; après correction **223/223 JVM**, deux APK/lint (**11 avertissements/1 suggestion**), **8+3+7 instrumentés sur AVD**, moteur/backend **588/618**, typechecks/builds/CLI réussis. Aucun scénario PC supplémentaire requis pour ces ordres de callbacks simulés. Vérifier les trois CI de clôture puis GitHub pour l’intégration ; [preuves et limites](ANDROID_LOBBY_CALLBACKS.md).
+Nouvelle branche **`fix/android-start-callback-scope`** : cinq tests instrumentés du vrai AtoutiaApp/RoomLobbyScreen, avec services mémoire et connecteur temps réel injecté. Trois contrôles actuels (succès HTTP/un chargement, échec/réessai, expiration) et deux réponses tardives après annonce WebSocket/échec du chargement (succès HTTP, expiration). Le traitement des réponses est encore inchangé ; reproduction CI à obtenir avant correction. Aucun compte, réseau, Keystore ou base réelle utilisé par ces fixtures. [Suivi du démarrage](ANDROID_START_CALLBACKS.md).
 
-CI code : `40179028025`, `40179027934`, `40179027938`. Vérifier les trois CI de clôture, PR/main et ses CI avant d’annoncer l’intégration ; aucune nouvelle validation PC requise pour ce coordinateur simulé. Suite séparée : démarrage HTTP/WebSocket, chargement de partie et parseurs.
+Suite : ouvrir la PR en brouillon, obtenir la reproduction compilée puis protéger la réponse HTTP devenue obsolète après sortie du salon ; vérifier les trois CI et consigner leurs résultats avant intégration. Aucun nouveau scénario PC demandé pour cet ordre de callbacks contrôlé.
 
 Code applicatif de l’audit SQLite, validé historiquement à distance et sous WSL le 24 octobre 2026 :
 

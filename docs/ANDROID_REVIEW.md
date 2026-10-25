@@ -1,6 +1,8 @@
 # Revue Android Kotlin — 25 octobre 2026
 
-Branche stable **main `c4f1519`**, PR nº 13 intégrée/récupérée proprement sur le PC ; ses trois CI réussies et les anciens périmètres restent acquis. La [PR nº 14](https://github.com/sgramtinne-code/atoutia/pull/14), branche **`fix/android-lobby-refresh-close`**, a reçu les validations du code **`660ca56`** : notifications du salon ignorées après fermeture locale et close idempotent, sans verrou pendant HTTP. Reproduction avant correction : **220 contrôles réussis/3 nouveaux échecs** ; après correction **223/223 JVM**, deux APK/lint (**11 avertissements/1 suggestion**), **8+3+7 instrumentés sur AVD**, moteur/backend **588/618**, typechecks/builds/CLI réussis. Aucun scénario PC supplémentaire requis pour ces ordres de callbacks simulés. Vérifier les trois CI de clôture puis GitHub pour l’intégration ; [preuves et limites](ANDROID_LOBBY_CALLBACKS.md).
+Branche stable **main `6d7a630`**, [PR nº 14](https://github.com/sgramtinne-code/atoutia/pull/14) intégrée et récupération PC propre reçue. Ses CI main sont réussies : moteur/backend `40179745275` (**588/618**), Android Kotlin `40179745282` (**223 JVM**, deux APK/lint, **11 avertissements/1 suggestion**), Android UI `40179745326` (**8+3+7 instrumentés réellement exécutés**). Les validations antérieures restent clôturées.
+
+Nouvelle branche **`fix/android-start-callback-scope`** : cinq tests instrumentés du vrai AtoutiaApp/RoomLobbyScreen, avec services mémoire et connecteur temps réel injecté. Trois contrôles actuels (succès HTTP/un chargement, échec/réessai, expiration) et deux réponses tardives après annonce WebSocket/échec du chargement (succès HTTP, expiration). Le traitement des réponses est encore inchangé ; reproduction CI à obtenir avant correction. Aucun compte, réseau, Keystore ou base réelle utilisé par ces fixtures. [Suivi du démarrage](ANDROID_START_CALLBACKS.md).
 
 ## Portée et statut
 
