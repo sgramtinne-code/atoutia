@@ -25,7 +25,7 @@ class RoomLobbyRealtimeCoordinator(
                     membership,
             )
 
-        return realtimeApi.connect(
+        val connection = realtimeApi.connect(
             sessionId =
                 membership
                     .room
@@ -38,7 +38,7 @@ class RoomLobbyRealtimeCoordinator(
                 object :
                     AtoutiaRealtimeApi.Listener {
                     override fun onConnected() {
-                        listener.onConnected()
+                        state.dispatch { listener.onConnected() }
                     }
 
                     override fun onEvent(
@@ -53,9 +53,7 @@ class RoomLobbyRealtimeCoordinator(
                         } catch (
                             error: Throwable,
                         ) {
-                            listener.onFailure(
-                                error,
-                            )
+                            state.dispatch { listener.onFailure(error) }
                         }
                     }
 
@@ -63,21 +61,26 @@ class RoomLobbyRealtimeCoordinator(
                         code: Int,
                         reason: String,
                     ) {
-                        listener.onDisconnected(
-                            code = code,
-                            reason = reason,
-                        )
+                        state.dispatch {
+                            listener.onDisconnected(code = code, reason = reason)
+                        }
                     }
 
                     override fun onFailure(
                         error: Throwable,
                     ) {
-                        listener.onFailure(
-                            error,
-                        )
+                        state.dispatch { listener.onFailure(error) }
                     }
                 },
         )
+
+        return object : AtoutiaRealtimeConnection {
+            override fun close() {
+                // Invalidate notifications before closing the transport. An HTTP
+                // refresh already in progress may still finish afterwards.
+                if (state.markClosed()) connection.close()
+            }
+        }
     }
 
     private fun handleEvent(
@@ -85,6 +88,7 @@ class RoomLobbyRealtimeCoordinator(
         event: RealtimeEvent,
         listener: Listener,
     ) {
+        val membership = state.currentMembership() ?: return
         when (
             event
         ) {
@@ -99,7 +103,7 @@ class RoomLobbyRealtimeCoordinator(
             is RealtimeEvent.Presence -> {
                 validateEventSessionId(
                     expectedSessionId =
-                        state.membership
+                        membership
                             .room
                             .sessionId,
 
@@ -111,7 +115,7 @@ class RoomLobbyRealtimeCoordinator(
             is RealtimeEvent.Adjudication -> {
                 validateEventSessionId(
                     expectedSessionId =
-                        state.membership
+                        membership
                             .room
                             .sessionId,
 
@@ -121,9 +125,7 @@ class RoomLobbyRealtimeCoordinator(
             }
 
             is RealtimeEvent.ServerError -> {
-                listener.onServerError(
-                    event.code,
-                )
+                state.dispatch { listener.onServerError(event.code) }
             }
         }
     }
@@ -134,7 +136,7 @@ class RoomLobbyRealtimeCoordinator(
         listener: Listener,
     ) {
         val currentMembership =
-            state.membership
+            state.currentMembership() ?: return
 
         validateEventSessionId(
             expectedSessionId =
@@ -183,12 +185,7 @@ class RoomLobbyRealtimeCoordinator(
                         .player,
             )
 
-        state.membership =
-            refreshedMembership
-
-        listener.onRoomUpdated(
-            refreshedMembership,
-        )
+        state.updateMembership(refreshedMembership, listener)
     }
 
     private fun validateEventSessionId(
@@ -279,9 +276,35 @@ class RoomLobbyRealtimeCoordinator(
     private class State(
         membership: RoomSessionMembership,
     ) {
-        var membership:
-            RoomSessionMembership =
-            membership
+        private val lock = Any()
+        private var closed = false
+        private var membership = membership
+
+        fun currentMembership(): RoomSessionMembership? = synchronized(lock) {
+            if (closed) null else membership
+        }
+
+        fun markClosed(): Boolean = synchronized(lock) {
+            if (closed) false else {
+                closed = true
+                true
+            }
+        }
+
+        // Keep HTTP and transport close outside this lock. Only state changes
+        // and listener delivery are serialized with local invalidation.
+        fun dispatch(action: () -> Unit) {
+            synchronized(lock) {
+                if (!closed) action()
+            }
+        }
+
+        fun updateMembership(updated: RoomSessionMembership, listener: Listener) {
+            dispatch {
+                membership = updated
+                listener.onRoomUpdated(updated)
+            }
+        }
     }
 }
 
