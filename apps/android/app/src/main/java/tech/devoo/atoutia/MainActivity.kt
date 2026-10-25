@@ -71,6 +71,7 @@ import tech.devoo.atoutia.network.room.ActiveRoomSessionReference
 import tech.devoo.atoutia.network.room.AndroidActiveRoomSessionStore
 import tech.devoo.atoutia.network.room.AtoutiaRoomApiException
 import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
+import tech.devoo.atoutia.network.room.RoomLobbyRealtimeCoordinator
 import tech.devoo.atoutia.network.room.RoomSessionCoordinator
 import tech.devoo.atoutia.network.room.RoomSessionFullException
 import tech.devoo.atoutia.network.room.RoomSessionMembership
@@ -2543,6 +2544,7 @@ internal fun AtoutiaApp(
                 LeaveRoomResult,
             ) -> Unit,
         ) -> Unit,
+    connectLobbyRealtime: ((RoomSessionMembership, RoomLobbyRealtimeCoordinator.Listener) -> AutoCloseable)? = null,
 ) {
     var backendState by
         remember {
@@ -3221,6 +3223,7 @@ internal fun AtoutiaApp(
 
                 is AuthenticatedDestination.Lobby -> {
                     RoomLobbyScreen(
+                        connectRealtime = connectLobbyRealtime,
                         room =
                             currentDestination
                                 .membership
@@ -3241,8 +3244,11 @@ internal fun AtoutiaApp(
 
                             startRoom(
                                 membership,
-                            ) {
+                            ) onStartResult@ {
                                 result ->
+                                // Realtime may already have advanced beyond this lobby.
+                                if (destination !== currentDestination ||
+                                    authState != currentAuthState) return@onStartResult
                                 when (
                                     result
                                 ) {
