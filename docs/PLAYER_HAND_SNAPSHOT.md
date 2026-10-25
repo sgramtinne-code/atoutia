@@ -20,24 +20,33 @@ Le parseur Android accepte une liste de taille variable et vérifie que les cart
 
 La [PR nº 11](https://github.com/sgramtinne-code/atoutia/pull/11) porte le code **`8f87f21`**. Ses trois CI sont réellement réussies : [moteur/backend `40132855394`](https://github.com/sgramtinne-code/atoutia/actions/runs/40132855394), job `120988100760`, **588 moteur / 618 backend**, typechecks/builds/CLI synthétiques ; [Android Kotlin `40132855436`](https://github.com/sgramtinne-code/atoutia/actions/runs/40132855436), job `120988100769`, **220/220 JVM**, deux APK et lint (**12 avertissements, une suggestion**) ; [Android UI `40132855362`](https://github.com/sgramtinne-code/atoutia/actions/runs/40132855362), job `120988100603`, **OK (8 tests)** sur AVD CI. Le nouveau cas retire une carte du snapshot dans la même composition, vérifie sa disparition puis une sélection légale restante. Aucun SDK/émulateur local de l’assistant ni donnée réelle utilisé.
 
-Reste avant fusion : vérifier les contrôles du commit documentaire de bilan, puis recevoir l’essai PC ciblé décrit ci-dessous (backend reconstruit/redémarré, lanceur N/O, carte retirée et progression PNJ). La PR reste en brouillon ; aucun nouveau match complet, Keystore/Google, réseau ou diagnostic de vraie base requis.
+Les trois CI du bilan `7e16977` sont également réussies : moteur/backend `40133294999`, Android Kotlin `40133294980`, Android UI `40133294950`. Le retour PC suivant ne valide toutefois pas le retrait visuel ; reprendre le diagnostic ci-dessous avant toute fusion. La PR reste en brouillon ; aucun nouveau match complet, Keystore/Google, réseau ou diagnostic de vraie base requis.
 
-## Essai PC ciblé avant fusion
+## Retour PC et vérification du paquet compilé
 
-Vérifier les CI du dernier commit documentaire ; le code `8f87f21` a déjà ses trois validations CI. Arrêter l’ancien lanceur PNJ par Ctrl-C ; si le relais réseau tourne encore, q restaure sa connexion directe. Arrêter l’ancien backend par Ctrl-C dans son terminal, puis récupérer la branche et reconstruire le moteur/backend. Ne pas supprimer de données.
+Le journal reçu confirme build/install Android et nouveau N/O à 4/4 avec plusieurs actions locales acceptées suivies des PNJ. Les trois captures gardent huit cartes malgré ces coups : le retrait visuel n’est pas validé. La récupération de branche, le build moteur/backend et son redémarrage ne sont pas attestés par cet extrait. Un ancien paquet ou processus reste une hypothèse ; ne pas la présenter comme une cause certaine. Les captures et détails du match restent privés.
+
+Le lanceur existant construit Android uniquement. Le serveur importe le paquet moteur compilé lors de son démarrage ; reconstruire les fichiers ne recharge pas un ancien processus Node. La version 0.1.0 affichée par health n’identifie pas le correctif.
+
+`dev-check-player-hand.mjs` importe `@atoutia/belote-engine` depuis le même espace backend. Sur une fixture synthétique sans réseau ni SQLite, il exige une main de huit puis sept cartes, sans la carte jouée. Résultat local réussi avec le paquet corrigé ; un paquet temporaire recompilé avec l’ancien snapshot est rejeté sur huit au lieu de sept, puis supprimé. Syntaxe Node/actionlint vérifiés. Le workflow moteur/backend exécute aussi ce contrôle après build. Il vérifie le paquet chargé par ce nouveau processus, **pas un backend déjà actif**. Garder le redémarrage explicite.
+
+## Reprise PC ciblée avant fusion
+
+Vérifier les CI du nouveau jalon de diagnostic ; `8f87f21` et `7e16977` ont déjà leurs trois validations CI. Arrêter l’ancien lanceur PNJ par Ctrl-C ; si le relais réseau tourne encore, q restaure sa connexion directe. Arrêter l’ancien backend par Ctrl-C dans son terminal, puis récupérer la branche et reconstruire le moteur/backend. Ne pas supprimer de données.
 
 Terminal backend, depuis la racine du dépôt récupéré : remplacer la valeur de Client ID par celle déjà validée pour ce poste.
 
 ```bash
 pnpm --filter @atoutia/belote-engine build &&
 pnpm --filter @atoutia/backend build &&
+node apps/backend/scripts/dev-check-player-hand.mjs &&
 HOST="127.0.0.1" PORT="3000" \
 ATOUTIA_AUTH_BOOTSTRAP_ENABLED="true" \
 ATOUTIA_GOOGLE_CLIENT_ID="<GOOGLE_WEB_CLIENT_ID>" \
 pnpm --filter @atoutia/backend start
 ```
 
-Garder ce terminal actif. Dans un autre terminal à la racine du dépôt :
+Le contrôle doit afficher **Moteur compilé vérifié : 8 → 7 cartes, carte jouée retirée**, puis le nouveau backend doit annoncer son écoute. Si le contrôle échoue ou si le port est occupé, conserver l’erreur et ne pas poursuivre le scénario comme si le redémarrage avait réussi. Garder ce terminal actif. Dans un autre terminal à la racine du dépôt :
 
 ```bash
 curl --fail --silent --show-error http://127.0.0.1:3000/health &&
