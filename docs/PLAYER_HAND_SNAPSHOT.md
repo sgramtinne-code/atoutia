@@ -30,23 +30,36 @@ Le lanceur existant construit Android uniquement. Le serveur importe le paquet m
 
 `dev-check-player-hand.mjs` importe `@atoutia/belote-engine` depuis le même espace backend. Sur une fixture synthétique sans réseau ni SQLite, il exige une main de huit puis sept cartes, sans la carte jouée. Résultat local réussi avec le paquet corrigé ; un paquet temporaire recompilé avec l’ancien snapshot est rejeté sur huit au lieu de sept, puis supprimé. Syntaxe Node/actionlint vérifiés. Le workflow moteur/backend exécute aussi ce contrôle après build. Il vérifie le paquet chargé par ce nouveau processus, **pas un backend déjà actif**. Garder le redémarrage explicite.
 
-## Reprise PC ciblée avant fusion
+## Blocage courant confirmé : port occupé
 
-Vérifier les CI du nouveau jalon de diagnostic ; `8f87f21` et `7e16977` ont déjà leurs trois validations CI. Arrêter l’ancien lanceur PNJ par Ctrl-C ; si le relais réseau tourne encore, q restaure sa connexion directe. Arrêter l’ancien backend par Ctrl-C dans son terminal, puis récupérer la branche et reconstruire le moteur/backend. Ne pas supprimer de données.
+Le retour sur `3cb42be` prouve la récupération de branche, les builds et le précontrôle 8 → 7 sous WSL. Le lancement suivant échoue sur **EADDRINUSE 127.0.0.1:3000** : le nouveau backend n’a pas démarré. Le lanceur poursuivi après cette erreur utilise le serveur qui écoutait déjà ; ses quatre captures gardent huit cartes. Le commit chargé par ce processus n’est pas identifié. Les trois CI de `3cb42be` sont réussies : `40171715009`, `40171715011`, `40171715012`. Aucun retrait visuel validé sur le nouveau backend ; PR en brouillon.
+
+Arrêter le lanceur PNJ par Ctrl-C, puis identifier le port sans arrêter de processus :
+
+```bash
+ss -ltnp 'sport = :3000'
+for atoutia_pid in $(ss -ltnp 'sport = :3000' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u); do
+  ps -p "$atoutia_pid" -o pid=,ppid=,args=
+  readlink -f "/proc/$atoutia_pid/cwd"
+done
+```
+
+Recevoir cette sortie et vérifier la commande ainsi que le répertoire du dépôt avant l’arrêt ciblé. Aucun arrêt global de Node ou de tout occupant du port. Pas de nouveau build, précontrôle ou installation APK à cette étape : ils sont déjà acquis. Une fois l’ancien backend identifié et arrêté, attendre l’annonce de nouvelle écoute avant N/O. Les données restent privées.
+
+## Démarrage après libération du port et essai ciblé
+
+Vérifier les CI du dernier jalon ; `3cb42be` a déjà ses trois validations CI et ses builds/précontrôle PC réussis. Identifier et arrêter l’ancien backend selon le diagnostic ci-dessus. Si le relais tourne encore, q restaure sa connexion directe. Ne pas supprimer de données.
 
 Terminal backend, depuis la racine du dépôt récupéré : remplacer la valeur de Client ID par celle déjà validée pour ce poste.
 
 ```bash
-pnpm --filter @atoutia/belote-engine build &&
-pnpm --filter @atoutia/backend build &&
-node apps/backend/scripts/dev-check-player-hand.mjs &&
 HOST="127.0.0.1" PORT="3000" \
 ATOUTIA_AUTH_BOOTSTRAP_ENABLED="true" \
 ATOUTIA_GOOGLE_CLIENT_ID="<GOOGLE_WEB_CLIENT_ID>" \
 pnpm --filter @atoutia/backend start
 ```
 
-Le contrôle doit afficher **Moteur compilé vérifié : 8 → 7 cartes, carte jouée retirée**, puis le nouveau backend doit annoncer son écoute. Si le contrôle échoue ou si le port est occupé, conserver l’erreur et ne pas poursuivre le scénario comme si le redémarrage avait réussi. Garder ce terminal actif. Dans un autre terminal à la racine du dépôt :
+Le nouveau backend doit annoncer son écoute ; le contrôle compilé 8 → 7 est déjà reçu sous WSL. Si le lancement échoue ou si le port est occupé, conserver l’erreur et ne pas poursuivre le scénario comme si le redémarrage avait réussi. Garder ce terminal actif. Dans un autre terminal à la racine du dépôt :
 
 ```bash
 curl --fail --silent --show-error http://127.0.0.1:3000/health &&
