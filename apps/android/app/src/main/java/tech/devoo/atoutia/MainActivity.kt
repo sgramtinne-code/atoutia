@@ -2411,7 +2411,7 @@ sealed interface BackendCheckState {
 }
 
 @Composable
-private fun AtoutiaApp(
+internal fun AtoutiaApp(
     checkBackend:
         (
             (

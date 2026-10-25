@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   landscape:
-    name: Isolated UI and backup policy on emulator
+    name: Isolated Android checks on emulator
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -131,6 +131,23 @@ jobs:
               summary.write("Packaged backup policy: " + ("3/3 passed" if passed else "FAILED") + "\n")
           if not passed:
               raise SystemExit("The three packaged backup policy tests did not all pass.")
+          PY
+
+      - name: Run only isolated history callback tests
+        timeout-minutes: 4
+        run: |
+          timeout 180s adb -s emulator-5554 shell am instrument -w \
+            -e class tech.devoo.atoutia.ui.history.HistoryCallbackInstrumentedTest \
+            tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-history-result.txt"
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-history-result.txt").read_text()
+          passed = bool(re.search(r"^OK \(7 tests\)\s*$", result, re.MULTILINE))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("Isolated history callbacks: " + ("7/7 passed" if passed else "FAILED") + "\n")
+          if not passed:
+              raise SystemExit("The seven history callback tests did not all pass.")
           PY
 
       - name: Report failures and stop emulator
