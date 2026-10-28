@@ -6,7 +6,7 @@
 
 Un socle de belote multijoueur locale fonctionne : moteur TypeScript, backend autoritaire et Android Kotlin/Compose. Le produit complet, son solo hors ligne et la diffusion publique ne sont pas terminés.
 
-Main stable vérifié : **`44e4d3a`**, PR [nº 17](https://github.com/sgramtinne-code/atoutia/pull/17) fusionnée, CI de push réussies et récupération propre sur le PC reçue. **231 JVM, 23 instrumentés, APK/lint, 588 moteur et 618 backend** ; lint : 11 avertissements/1 suggestion, non masqués. Le statut GitHub fait foi pour les fusions, sans commit supplémentaire pour inscrire son propre SHA. Travail suivant : [campagnes de simulations](ENGINE_SIMULATION.md), branche `feat/engine-simulation-campaign` ; paliers 1 000 et 10 000 parties/replays réussis dans l'environnement assistant, rapports versionnés et CI de branche à obtenir. Millions non validés.
+Main stable vérifié : **`44e4d3a`**, PR [nº 17](https://github.com/sgramtinne-code/atoutia/pull/17) fusionnée, CI de push réussies et récupération propre sur le PC reçue. **231 JVM, 23 instrumentés, APK/lint, 588 moteur et 618 backend** ; lint : 11 avertissements/1 suggestion, non masqués. Le statut GitHub fait foi pour les fusions, sans commit supplémentaire pour inscrire son propre SHA. Travail suivant : [campagnes de simulations](ENGINE_SIMULATION.md), branche `feat/engine-simulation-campaign` ; paliers 1 000 et 10 000 parties/replays réussis dans l'environnement assistant, rapports versionnés ; code `106423b` validé dans les deux CI déclenchées, PR nº 18 à clôturer avec les résultats de son dernier commit. Millions non validés.
 
 Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug ou une homologation production. Les instrumentés existants ne testent pas les nouveaux cas HTTP JVM sur le PC du développeur.
 
@@ -36,7 +36,7 @@ Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug
 | 46 | Annonces, Coinche/Contrée, règles privées/régionales, modes rapides/défis | Évolutions futures ; ne pas les introduire silencieusement dans le MVP |
 | 47 | Domaine indépendant des UI, transport, stockage et backend | Séparation moteur/backend/Android existante ; intégration d’exécution locale Android encore à concevoir |
 | 48 | Autorité locale offline ; même moteur côté serveur online | Online implémenté ; moteur local dans l’application Android et solo offline non livrés |
-| 49 | Batterie de tests puis milliers/millions de parties simulées | 588 tests moteur ; rapports 1 000/10 000 parties complètes/replays obtenus dans l'environnement assistant, outil/13 contrôles en cours de livraison. CI à obtenir ; millions non validés |
+| 49 | Batterie de tests puis milliers/millions de parties simulées | 588 tests moteur ; rapports 1 000/10 000 parties complètes/replays obtenus dans l'environnement assistant, outil/13 contrôles en cours de livraison. CI du code 106423b réussies, clôture PR nº 18 à vérifier ; millions non validés |
 | 50 | Le moteur décide, humains/bots/UI proposent | Principe conservé ; ne pas calculer de nouvelles règles dans les contrôles de cohérence Android |
 
 Le mélange utilise RandomSource/Mulberry32Random ; le backend génère une baseSeed via node:crypto.randomInt. Cela ne constitue pas à lui seul un audit d’équité, de prédictibilité ou de sécurité pour une compétition publique. Revue et validation production à prévoir.
@@ -57,8 +57,8 @@ Les sources publiques du bilan n’incluent aucune donnée personnelle de l’an
 
 ## 5. Fonctionnalités et lots restant à livrer
 
-1. **Fiabilité bornée** : PR nº 17 clôturée ; examiner les relations de phases/DTO et callbacks restants, trier les 11 avertissements lint et fixer une liste finie de critères. Pas d’audit interminable présenté comme une livraison produit.
-2. **Simulations et validation moteur** : terminer la livraison de la campagne reproductible (paliers 1 000/10 000 réussis, CI en cours de validation), puis planifier les lots massifs avec rapports et budgets ; ne pas confondre tests, donnes et parties. Vérifier le hasard de production ; le rejeu intégral de chaque partie est contrôlé par l'outil.
+1. **Fiabilité bornée** : PR nº 17 clôturée ; traiter l'écart concret litige précédent + chute documenté dans ENGINE_SIMULATION.md, puis trier les 11 avertissements lint et borner les autres revues selon les risques. Les contrôles de conservation ne déterminent pas à quelle équipe un bonus doit être attribué. Pas d’audit interminable présenté comme une livraison produit.
+2. **Simulations et validation moteur** : terminer la livraison de la campagne reproductible (paliers 1 000/10 000 et CI du code réussis, clôture de PR nº 18 à vérifier), puis planifier les lots massifs avec rapports et budgets ; ne pas confondre tests, donnes et parties. Vérifier le hasard de production ; le rejeu intégral de chaque partie est contrôlé par l'outil.
 3. **Exécution locale Android** : choisir et vérifier l’intégration du moteur TypeScript existant, la parité des résultats et le fonctionnement sans backend ; aucune seconde implémentation divergente des règles créée silencieusement.
 4. **Solo offline complet** : démarrer/jouer/terminer une partie contre bots locaux, reprendre et sauvegarder localement, sans réseau/backend ni compte online requis pour ce parcours. Les scripts PNJ sont des outils de test, pas ce mode produit.
 5. **Expérience solo/utilisateur** : paramètres, tutoriel, progression/statistiques locales et profil. MainActivity contient encore des messages « arrive prochainement » pour profil, classement et paramètres.
