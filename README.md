@@ -2,11 +2,9 @@
 
 Application Android native de belote française à quatre joueurs, avec moteur TypeScript indépendant et backend multijoueur autoritaire.
 
-## État au 25 octobre 2026
+## État au 28 octobre 2026
 
-Branche stable **main `3155084`**, [PR nº 15](https://github.com/sgramtinne-code/atoutia/pull/15) intégrée et récupération PC propre reçue. Trois CI main réussies : moteur/backend `40194389105` (**588/618**), Android Kotlin `40194389067` (**223 JVM**, APK/lint, **11 avertissements/1 suggestion**), Android UI `40194389100` (**8+3+7+5 instrumentés réellement exécutés**). Les validations antérieures restent clôturées.
-
-La [PR nº 16](https://github.com/sgramtinne-code/atoutia/pull/16), branche **`fix/android-snapshot-legal-card-validation`**, a reçu les validations du code **`f15b0ea`** : les cartes d’action hors main ou contradictoires en PLAY_CARD sont refusées ; les réponses cohérentes restent acceptées avec leur ordre. Reproduction avant correction : **225 JVM réussis/3 échecs** ; après correction **228/228 JVM**, deux APK/lint (**11 avertissements/1 suggestion**), **23 instrumentés existants** et moteur/backend **588/618** réussis. Aucun nouveau scénario PC requis pour ces réponses synthétiques. Vérifier les trois CI de clôture puis GitHub pour l’intégration ; [preuves et limites](docs/ANDROID_SNAPSHOT_CARDS.md).
+Main vérifié **`68263e6`** (PR nº 16 intégrée, récupération PC propre reçue). Les validations antérieures restent acquises : 228 JVM, 23 instrumentés, APK/lint et moteur/backend. Nouvelle branche **`fix/android-snapshot-duplicate-cards`** : trois tests HTTP JVM ajoutés avant correction pour les doublons internes à hand, match.legalCards et actions.legalCards. La comparaison d’ensembles précédente ne vérifie pas cette unicité. Production encore inchangée, reproduction compilée à obtenir ; aucun compte, stockage ou backend réel utilisé. [Suivi des doublons](docs/ANDROID_SNAPSHOT_DUPLICATES.md).
 
 Test multijoueur : **`node apps/backend/scripts/dev-android-room.mjs`**, N pour PLAYER_0 manuel puis O pour les trois PNJ. Attendre ATTENTE DU NOUVEAU SALON avant de créer ; **aucun identifiant à copier**. Utiliser ce scénario lorsqu’un changement concret exige une nouvelle validation de jeu ; ne pas répéter les essais clôturés pour ces callbacks JVM. Aucune purge ni migration. Les sections datées ci-dessous sont historiques ; l’état courant et le dernier bilan de reprise définissent la suite.
 

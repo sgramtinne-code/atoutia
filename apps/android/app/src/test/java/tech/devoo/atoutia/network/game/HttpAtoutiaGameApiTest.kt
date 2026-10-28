@@ -16,6 +16,32 @@ import java.net.InetSocketAddress
 
 class HttpAtoutiaGameApiTest {
     @Test
+    fun rejectsDuplicateCardsInsideTheHand() {
+        assertDuplicateCardRejected("match", "hand")
+    }
+
+    @Test
+    fun rejectsDuplicateCardsInsideMatchLegalCards() {
+        assertDuplicateCardRejected("match", "legalCards")
+    }
+
+    @Test
+    fun rejectsDuplicateCardsInsideActionLegalCards() {
+        assertDuplicateCardRejected("actions", "legalCards")
+    }
+
+    private fun assertDuplicateCardRejected(section: String, field: String) {
+        val json = playingSnapshotJson()
+        val cards = json.getJSONObject("game").getJSONObject(section).getJSONArray(field)
+        cards.put(JSONObject(cards.getJSONObject(0).toString()))
+        val error = assertThrows(AtoutiaGameApiException::class.java) {
+            readCardValidationResponse(json)
+        }
+        assertEquals("Atoutia game API returned duplicate cards in a card list.", error.message)
+        assertNull(error.statusCode)
+    }
+
+    @Test
     fun acceptsConsistentPlayingCardLists() {
         val snapshot = readCardValidationResponse(playingSnapshotJson()).document.snapshot
         assertEquals(PlayerActionMode.PLAY_CARD, snapshot.actions.mode)
