@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BELOTE_ENGINE_VERSION,
   MATCH_REPLAY_FORMAT_VERSION,
+  CURRENT_MATCH_RULES_VERSION,
   applyMatchBiddingAction,
   createMatchMachine,
   createMatchReplayDocument,
@@ -12,6 +13,7 @@ import {
 
 function createBaseReplay() {
   return {
+    rulesVersion: CURRENT_MATCH_RULES_VERSION,
     formatVersion:
       MATCH_REPLAY_FORMAT_VERSION,
     engineVersion:

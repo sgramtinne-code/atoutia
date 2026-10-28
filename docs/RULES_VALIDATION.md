@@ -1,8 +1,8 @@
 # Atoutia — Validation des règles MVP
 
-Version : 0.1.0
+Version : 0.1.1
 
-Statut : validation intermédiaire avant gel de `GAME_RULES.md`.
+Statut : décisions métier du MVP, précision du litige intégrée à GAME_RULES.md 0.1.3.
 
 ## Référence principale
 
@@ -51,4 +51,6 @@ Règle validée :
 
 ## Décision
 
-Aucun code métier des cartes, plis ou scores ne doit être commencé avant la production et la validation de `GAME_RULES.md` version 0.1.2 consolidée.
+Précision d'implémentation du 28 octobre 2026, document normatif 0.1.3 : les « vainqueurs de la prise suivante » sont les preneurs en réussite ou la défense en chute/capot subi. Huit passes conservent le report ; deux litiges consécutifs suivent la règle spécifique ci-dessus. Les anciennes parties et les anciens replays restent sur leur comportement historique, identifié séparément.
+
+Décision historique : le code métier ne devait commencer qu’après la validation de GAME_RULES.md 0.1.2 consolidée. La référence documentaire actuelle est 0.1.3.

@@ -156,3 +156,11 @@ test("real CLI exits 2 when its campaign budget cannot complete the request", ()
   assert(report.matchesCompleted < report.config.matches);
   assert.equal(report.failure, null);
 });
+
+test("CLI selects explicit historical rules and refuses unknown versions", () => {
+  const config = parseArguments(["--rules-version", "CLASSIC_LEGACY_LITIGE_TAKER"]).options;
+  const legacy = run({ ...config, matches: 1 });
+  assert.equal(legacy.status, "PASSED");
+  assert.equal(legacy.rulesVersion, "CLASSIC_LEGACY_LITIGE_TAKER");
+  assert.throws(() => parseArguments(["--rules-version", "UNKNOWN"]), /Unsupported match rules version/);
+});

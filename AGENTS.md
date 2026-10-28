@@ -1,12 +1,16 @@
 # ATOUTIA — Directives de travail
 
+## Cap produit prioritaire confirmé — 28 octobre 2026
+
+Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ni un prérequis au solo offline, à la bêta ou à la publication. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
+
 ## Mission et références
 
 Développer une application Android de belote multijoueur fiable, sécurisée et maintenable. Le porteur du projet est débutant : prendre les décisions techniques courantes, expliquer simplement et fournir des commandes exactes, courtes et adaptées à WSL.
 
 Lire ce fichier, le [README](README.md), les [règles canoniques](docs/GAME_RULES.md), leur [validation](docs/RULES_VALIDATION.md) et le [prompt de reprise](docs/REPRISE.md) avant de reprendre le développement. Examiner les éventuels `AGENTS.md` plus proches des fichiers modifiés.
 
-La spécification métier du dépôt est `docs/GAME_RULES.md`, version documentaire 0.1.2 au 24 octobre 2026. Le document initial 0.1.0 est une référence historique ; ne pas rétablir ses anciens identifiants ni ses formulations moins précises. Les versions du document, des paquets et des règles enregistrées dans une partie sont des notions distinctes. Signaler toute contradiction métier avant de modifier les règles.
+La spécification métier du dépôt est `docs/GAME_RULES.md`, version documentaire 0.1.3 au 28 octobre 2026. Le document initial 0.1.0 est une référence historique ; ne pas rétablir ses anciens identifiants ni ses formulations moins précises. Les versions du document, des paquets et des règles enregistrées dans une partie sont des notions distinctes. Signaler toute contradiction métier avant de modifier les règles.
 
 ## GitHub et validation
 
@@ -468,3 +472,14 @@ Après validation et intégration, suivre PROJECT_STATUS.md : revue restante fin
 Écart signalé avant toute modification de règle : GAME_RULES §50 / RULES_VALIDATION attribuent le report aux vainqueurs/contrat réussi suivant ; code/test litige existants l'attribuent au preneur même en chute. Reproduction compilée synthétique : pending=81, PLAYER_0 prend, points bruts 70/92, aucune Belote → attribution actuelle 81/162, pending=0. Voir ENGINE_SIMULATION.md. Conservation/replay réussis ne résolvent pas ce choix d'équipe. Ne pas changer silencieusement règles, tests ou versions ; traiter dans un lot séparé selon les références canoniques et étudier compatibilité des replays/parties persistées. Aucun nouvel essai réel Android/base requis pour reproduire ce cas pur.
 
 Le lot courant est documentaire : mêmes scripts et rapports que 106423b, liens/bash/diff à vérifier, aucune nouvelle exécution applicative locale revendiquée. Après les deux CI déclenchées, fusionner PR nº 18 avec SHA attendu, vérifier main et CI de push puis donner le retour complet sur main. Les preuves de clôture/merge et CI de push peuvent être consignées dans la PR sans nouveau commit destiné à inscrire son propre SHA.
+
+
+## Litige versionné et cap IA corrigé — lot suivant PR nº 18
+
+Main **4148240** et récupération PC propre reçue. Branche active **fix/litige-winner-rules-version**. La clarification explicite du développeur sur les millions est prioritaire : entraînement IA futur sur PC RTX 5070 pour des PNJ de styles/méthodes/niveaux variés et distrayants, aucun prérequis de validation massive avant solo/bêta/publication. Voir AI_LAB_ROADMAP.md. Pas d'entraînement GPU ni installation lancés.
+
+Le correctif suit RULES_VALIDATION et GAME_RULES 0.1.3 : report précédent attribué au gagnant (défense en chute), Belote imprenable. Quatre tests locaux ont échoué avant correction puis passent avec les mêmes assertions. Nouveaux états = CLASSIC_LITIGE_WINNER ; états persistés sans champ = CLASSIC_LEGACY_LITIGE_TAKER, comportement historique conservé. Aucun recalcul rétroactif ou migration de la vraie base. Replays nouveaux au format 2 avec règles obligatoires et hash lié ; anciens format 1/empreintes conservés. Formats réseau/Android et engineVersion existants inchangés. Lire docs/LITIGE_RULES_VERSION.md avant de toucher aux versions.
+
+Validation locale assistant reçue : **601 moteur, 620 backend, 14 contrôles de l'outil**, typechecks/builds et CLI synthétiques. Deux contrôles SQLite temporaires redémarrent le store avant la carte décisive. Lot nouveau de 1 000 réussi (empreinte 458c11331f5d8d7b5c86069f612e78f08d187c40046c0f62922648ed213dc53b) ; lot legacy de 1 000 reproduit exactement le rapport PR18 (4a21bca7581b7e1696c6fb56af16a19332faf7796b2029024d5864aae332c20e). CI à obtenir avant intégration, aucun nouveau contrôle PC/ADB/base réelle nécessaire. Les anciens rapports 1 000/10 000 sont historiques, pas la référence des nouvelles règles.
+
+Suite après intégration : décision d'exécution locale du moteur et première partie solo offline. Ne pas lancer de nouveaux paliers de millions de validation ni multiplier les audits sans défaut concret. Maintenir README, REPRISE, bilan, preuves GitHub et périmètres exacts.

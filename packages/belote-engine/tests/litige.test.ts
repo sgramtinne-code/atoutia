@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createLitigeState,
+  LEGACY_MATCH_RULES_VERSION,
   resolveDealResult,
   resolveLitigeForDeal,
   type TeamPoints,
@@ -141,7 +142,7 @@ describe("litige", () => {
     ).toBe(0);
   });
 
-  it("awards pending litige points to the taker team even when the new contract fails", () => {
+  it("preserves the historical failed-contract award when legacy rules are explicit", () => {
     const state = Object.freeze({
       pendingPoints: 81,
     });
@@ -155,6 +156,7 @@ describe("litige", () => {
     const resolution = resolveLitigeForDeal(
       state,
       dealResult,
+      LEGACY_MATCH_RULES_VERSION,
     );
 
     expect(resolution.awardedPoints).toEqual(

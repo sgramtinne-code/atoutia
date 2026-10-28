@@ -55,6 +55,8 @@ export function createCanonicalMatchReplayJson(
     engineVersion:
       document.engineVersion,
 
+    ...(document.rulesVersion === undefined ? {} : { rulesVersion: document.rulesVersion }),
+
     baseSeed:
       document.baseSeed,
 

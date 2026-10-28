@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MATCH_REPLAY_FORMAT_VERSION,
+  CURRENT_MATCH_RULES_VERSION,
   BELOTE_ENGINE_VERSION,
   applyMatchBiddingAction,
   applyMatchCardPlay,
@@ -164,6 +165,7 @@ describe("match replay semantic validation", () => {
 
   it("rejects a bidding action from the wrong player", () => {
     const json = JSON.stringify({
+      rulesVersion: CURRENT_MATCH_RULES_VERSION,
       formatVersion:
         MATCH_REPLAY_FORMAT_VERSION,
       engineVersion:
@@ -218,6 +220,7 @@ describe("match replay semantic validation", () => {
     }
 
     const json = JSON.stringify({
+      rulesVersion: CURRENT_MATCH_RULES_VERSION,
       formatVersion:
         MATCH_REPLAY_FORMAT_VERSION,
       engineVersion:
@@ -263,6 +266,7 @@ describe("match replay semantic validation", () => {
     }
 
     const json = JSON.stringify({
+      rulesVersion: CURRENT_MATCH_RULES_VERSION,
       formatVersion:
         MATCH_REPLAY_FORMAT_VERSION,
       engineVersion:
@@ -292,6 +296,7 @@ describe("match replay semantic validation", () => {
 
   it("rejects an event attached to the wrong deal", () => {
     const json = JSON.stringify({
+      rulesVersion: CURRENT_MATCH_RULES_VERSION,
       formatVersion:
         MATCH_REPLAY_FORMAT_VERSION,
       engineVersion:
@@ -375,6 +380,7 @@ describe("match replay semantic validation", () => {
     }
 
     const json = JSON.stringify({
+      rulesVersion: CURRENT_MATCH_RULES_VERSION,
       formatVersion:
         MATCH_REPLAY_FORMAT_VERSION,
       engineVersion:

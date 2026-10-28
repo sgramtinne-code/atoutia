@@ -34,6 +34,7 @@ import {
   type PlayerPosition,
 } from "./players.js";
 import { Mulberry32Random } from "./random.js";
+import { CURRENT_MATCH_RULES_VERSION, resolveMatchRulesVersion, type MatchRulesVersion } from "./matchRulesVersion.js";
 import {
   playCard,
   type TrickPlayResult,
@@ -290,7 +291,9 @@ export function applyDealMachineCardPlay(
   state: DealMachineState,
   player: PlayerPosition,
   card: Card,
+  rulesVersion: MatchRulesVersion = CURRENT_MATCH_RULES_VERSION,
 ): DealMachineCardPlayResult {
+  const rules = resolveMatchRulesVersion(rulesVersion);
   if (state.phase !== "PLAYING") {
     throw new Error(
       "Cards can only be played during the playing phase.",
@@ -333,6 +336,7 @@ export function applyDealMachineCardPlay(
       state.taker,
       playResult.beloteState,
       state.litigeState,
+      rules,
     );
 
     const nextState: DealMachineState =
