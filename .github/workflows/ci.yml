@@ -67,6 +67,27 @@ jobs:
           pnpm --filter @atoutia/backend test
           pnpm --filter @atoutia/backend build
 
+      - name: Validate complete match simulations
+        timeout-minutes: 6
+        run: |
+          pnpm --filter @atoutia/belote-engine test:simulation
+          node packages/belote-engine/scripts/simulate-matches.mjs \
+            --matches 1000 --start-seed 20261028 --max-duration-ms 300000 \
+            --report "$RUNNER_TEMP/atoutia-engine-simulation.json"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const actual = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/atoutia-engine-simulation.json', 'utf8'));
+          const reference = JSON.parse(readFileSync('docs/reports/engine-simulation-1000.json', 'utf8'));
+          for (const key of ['formatVersion', 'harnessVersion', 'engineVersion', 'targetScore', 'seedStride', 'status', 'matchesCompleted', 'totals', 'transcriptSha256', 'failure', 'incomplete']) {
+            assert.deepEqual(actual[key], reference[key], 'Campaign reference mismatch: ' + key);
+          }
+          for (const key of ['matches', 'startSeed', 'maxActionsPerMatch']) {
+            assert.equal(actual.config[key], reference.config[key], 'Campaign config mismatch: ' + key);
+          }
+          console.log('Campaign matches committed 1000-match reference: ' + actual.transcriptSha256);
+          NODE
+
       - name: Validate built player snapshot package
         run: node apps/backend/scripts/dev-check-player-hand.mjs
 

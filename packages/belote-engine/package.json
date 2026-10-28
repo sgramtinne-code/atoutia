@@ -22,7 +22,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:simulation": "node --test scripts/simulation-checks.mjs",
+    "simulate": "node scripts/simulate-matches.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.13.4",
