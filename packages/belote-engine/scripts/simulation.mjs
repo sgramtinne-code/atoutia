@@ -5,6 +5,8 @@ import { isDeepStrictEqual } from "node:util";
 
 import {
   BELOTE_ENGINE_VERSION,
+  CURRENT_MATCH_RULES_VERSION,
+  resolveMatchRulesVersion,
   Mulberry32Random,
   PLAYER_POSITIONS,
   applyMatchBiddingAction,
@@ -22,6 +24,7 @@ import {
 
 export const SEED_STRIDE = 16777619;
 export const DEFAULT_OPTIONS = Object.freeze({
+  rulesVersion: CURRENT_MATCH_RULES_VERSION,
   matches: 1000,
   startSeed: 20261028,
   maxActionsPerMatch: 20000,
@@ -45,6 +48,7 @@ export function validateOptions(options = {}) {
     assert(Object.hasOwn(DEFAULT_OPTIONS, key), "Unknown option: " + key);
   }
   const config = { ...DEFAULT_OPTIONS, ...options };
+  assert.equal(resolveMatchRulesVersion(config.rulesVersion), config.rulesVersion, "Explicit campaign rules version is required.");
   integer(config.matches, "matches", 1, 1000000);
   integer(config.startSeed, "startSeed", 0, 0xffffffff);
   integer(config.maxActionsPerMatch, "maxActionsPerMatch", 1, 100000);
@@ -189,7 +193,7 @@ function simulateMatch(config, baseSeed, context, checkBudget) {
   const random = new Mulberry32Random(baseSeed ^ 0x5bd1e995);
   const totals = emptyTotals();
   totals["dealer_" + firstDealer] += 1;
-  let state = createMatchMachine({ baseSeed, firstDealer, targetScore: TARGET_SCORE });
+  let state = createMatchMachine({ baseSeed, firstDealer, targetScore: TARGET_SCORE, rulesVersion: config.rulesVersion });
   let takeAt = Math.floor(random.next() * 9); // 0..7: take at this bid; 8: all pass.
   let bidIndex = 0;
   let checkedCardRejection = false;
@@ -265,7 +269,7 @@ function simulateMatch(config, baseSeed, context, checkBudget) {
   }
 
   checkBudget();
-  const replayed = replayMatch({ baseSeed, firstDealer, targetScore: TARGET_SCORE, history: state.history });
+  const replayed = replayMatch({ baseSeed, firstDealer, targetScore: TARGET_SCORE, history: state.history, rulesVersion: config.rulesVersion });
   assert(isDeepStrictEqual(replayed, state), "Replay did not reconstruct the complete match identically.");
   checkBudget();
   totals.replaysVerified += 1;
@@ -283,6 +287,7 @@ export function runCampaign(options = {}, { now = () => performance.now(), onPro
   };
   const report = {
     formatVersion: 1, harnessVersion: "seeded-legal-v1", engineVersion: BELOTE_ENGINE_VERSION,
+    rulesVersion: config.rulesVersion,
     nodeVersion: process.version,
     targetScore: TARGET_SCORE, seedStride: SEED_STRIDE, config,
     status: "PASSED", matchesCompleted: 0, totals: emptyTotals(), transcriptSha256: null,

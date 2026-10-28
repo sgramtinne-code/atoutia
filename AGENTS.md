@@ -1,12 +1,16 @@
 # ATOUTIA — Directives de travail
 
+## Cap produit prioritaire confirmé — 28 octobre 2026
+
+Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ni un prérequis au solo offline, à la bêta ou à la publication. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
+
 ## Mission et références
 
 Développer une application Android de belote multijoueur fiable, sécurisée et maintenable. Le porteur du projet est débutant : prendre les décisions techniques courantes, expliquer simplement et fournir des commandes exactes, courtes et adaptées à WSL.
 
 Lire ce fichier, le [README](README.md), les [règles canoniques](docs/GAME_RULES.md), leur [validation](docs/RULES_VALIDATION.md) et le [prompt de reprise](docs/REPRISE.md) avant de reprendre le développement. Examiner les éventuels `AGENTS.md` plus proches des fichiers modifiés.
 
-La spécification métier du dépôt est `docs/GAME_RULES.md`, version documentaire 0.1.2 au 24 octobre 2026. Le document initial 0.1.0 est une référence historique ; ne pas rétablir ses anciens identifiants ni ses formulations moins précises. Les versions du document, des paquets et des règles enregistrées dans une partie sont des notions distinctes. Signaler toute contradiction métier avant de modifier les règles.
+La spécification métier du dépôt est `docs/GAME_RULES.md`, version documentaire 0.1.3 au 28 octobre 2026. Le document initial 0.1.0 est une référence historique ; ne pas rétablir ses anciens identifiants ni ses formulations moins précises. Les versions du document, des paquets et des règles enregistrées dans une partie sont des notions distinctes. Signaler toute contradiction métier avant de modifier les règles.
 
 ## GitHub et validation
 
@@ -450,7 +454,7 @@ Les deux textes joints par le développeur sont des références historiques, pa
 
 Priorités produit : Android/Google Play d’abord ; règles, plaisir/fluidité/stabilité/UX/équité avant graphismes/monétisation. Solo offline obligatoire : moteur local, bots, reprise/progression/statistiques locales, tutoriel et paramètres. Choisir l’intégration locale du moteur TypeScript existant et vérifier la parité ; pas de seconde implémentation divergente créée silencieusement. Online autoritaire ; social/compétitions/cosmétique progressifs, sans pay-to-win. AI Lab local séparé, pas d’entraînement mobile ni accès aux cartes cachées pour les bots normaux. Les scripts de test ne sont pas le solo Android livré.
 
-Point à ne plus laisser implicite : la campagne de milliers puis millions de parties demandée initialement n’a pas de rapport de validation identifié ; 588 tests ne sont pas 588 parties ni une preuve de millions de simulations. Planifier une campagne reproductible et bornée, ainsi que la revue du hasard/seed avant compétition publique. Ne pas laisser une succession de petits audits remplacer l’avancement produit. Les anciennes attentes chronologiques ne rouvrent pas des validations clôturées. Le bilan courant définit les priorités ; les suivis techniques gardent les preuves.
+Cap corrigé par le développeur : les millions appartiennent au futur entraînement IA sur le PC RTX 5070 pour des PNJ aux styles et niveaux variés et amusants. Les tests bornés du moteur sont livrés ; ne pas imposer de millions comme prérequis au solo, à la bêta ou à la publication. La clarification prioritaire en tête de ce fichier et AI_LAB_ROADMAP.md remplacent l’ancienne interprétation de validation massive manquante.
 
 ## Campagnes de parties complètes — 28 octobre 2026
 
@@ -468,3 +472,23 @@ Après validation et intégration, suivre PROJECT_STATUS.md : revue restante fin
 Écart signalé avant toute modification de règle : GAME_RULES §50 / RULES_VALIDATION attribuent le report aux vainqueurs/contrat réussi suivant ; code/test litige existants l'attribuent au preneur même en chute. Reproduction compilée synthétique : pending=81, PLAYER_0 prend, points bruts 70/92, aucune Belote → attribution actuelle 81/162, pending=0. Voir ENGINE_SIMULATION.md. Conservation/replay réussis ne résolvent pas ce choix d'équipe. Ne pas changer silencieusement règles, tests ou versions ; traiter dans un lot séparé selon les références canoniques et étudier compatibilité des replays/parties persistées. Aucun nouvel essai réel Android/base requis pour reproduire ce cas pur.
 
 Le lot courant est documentaire : mêmes scripts et rapports que 106423b, liens/bash/diff à vérifier, aucune nouvelle exécution applicative locale revendiquée. Après les deux CI déclenchées, fusionner PR nº 18 avec SHA attendu, vérifier main et CI de push puis donner le retour complet sur main. Les preuves de clôture/merge et CI de push peuvent être consignées dans la PR sans nouveau commit destiné à inscrire son propre SHA.
+
+
+## Litige versionné et cap IA corrigé — lot suivant PR nº 18
+
+Main **4148240** et récupération PC propre reçue. Branche active **fix/litige-winner-rules-version**. La clarification explicite du développeur sur les millions est prioritaire : entraînement IA futur sur PC RTX 5070 pour des PNJ de styles/méthodes/niveaux variés et distrayants, aucun prérequis de validation massive avant solo/bêta/publication. Voir AI_LAB_ROADMAP.md. Pas d'entraînement GPU ni installation lancés.
+
+Le correctif suit RULES_VALIDATION et GAME_RULES 0.1.3 : report précédent attribué au gagnant (défense en chute), Belote imprenable. Quatre tests locaux ont échoué avant correction puis passent avec les mêmes assertions. Nouveaux états = CLASSIC_LITIGE_WINNER ; états persistés sans champ = CLASSIC_LEGACY_LITIGE_TAKER, comportement historique conservé. Aucun recalcul rétroactif ou migration de la vraie base. Replays nouveaux au format 2 avec règles obligatoires et hash lié ; anciens format 1/empreintes conservés. Formats réseau/Android et engineVersion existants inchangés. Lire docs/LITIGE_RULES_VERSION.md avant de toucher aux versions.
+
+Validation locale assistant reçue : **601 moteur, 620 backend, 14 contrôles de l'outil**, typechecks/builds et CLI synthétiques. Deux contrôles SQLite temporaires redémarrent le store avant la carte décisive. Lot nouveau de 1 000 réussi (empreinte 458c11331f5d8d7b5c86069f612e78f08d187c40046c0f62922648ed213dc53b) ; lot legacy de 1 000 reproduit exactement le rapport PR18 (4a21bca7581b7e1696c6fb56af16a19332faf7796b2029024d5864aae332c20e). CI à obtenir avant intégration, aucun nouveau contrôle PC/ADB/base réelle nécessaire. Les anciens rapports 1 000/10 000 sont historiques, pas la référence des nouvelles règles.
+
+Suite après intégration : décision d'exécution locale du moteur et première partie solo offline. Ne pas lancer de nouveaux paliers de millions de validation ni multiplier les audits sans défaut concret. Maintenir README, REPRISE, bilan, preuves GitHub et périmètres exacts.
+
+
+## Validation reçue — PR nº 19
+
+Code **3c2ad4a** validé : [moteur/backend 40747230287](https://github.com/sgramtinne-code/atoutia/actions/runs/40747230287), job 123024146142, **601/620 + 14 contrôles + deux lots de 1 000 et références identiques** ; [Android Kotlin 40747232842](https://github.com/sgramtinne-code/atoutia/actions/runs/40747232842), job 123024147545, **231 JVM/APK/lint**, 11 avertissements/1 suggestion. Les deux CI réussies. Workflow instrumenté non déclenché selon les filtres de chemins ; aucun nouveau résultat AVD revendiqué.
+
+La clarification du développeur est persistée dans AI_LAB_ROADMAP, README, REPRISE et le bilan : millions pour l’entraînement futur sur PC RTX 5070 et PNJ aux méthodes/styles/niveaux variés et amusants, aucun prérequis de millions avant moteur/solo/bêta/publication. Ne pas relancer de campagne massive de validation à la place du produit.
+
+Cette clôture ne change que des documents ; scripts, sources, fixtures et rapports restent identiques à 3c2ad4a. Liens/blocs bash/YAML/diff à vérifier, aucun nouveau test applicatif local revendiqué. Vérifier les deux CI du dernier commit de PR19, rendre prête et intégrer avec SHA attendu, vérifier main/arbre et CI de push. Consigner le SHA de fusion et ses CI dans la PR sans nouveau commit destiné à inscrire son propre SHA. Fournir récupération de main, builds moteur/backend et redémarrage normal du backend avant utilisation des nouveaux salons (pas de kill arbitraire, APK Android inchangé). Aucun nouvel essai PC/ADB/base réelle requis pour valider ce lot pur. Suite : décision d’exécution locale du moteur et première partie solo offline.

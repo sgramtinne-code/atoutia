@@ -10,10 +10,10 @@ import {
 } from "../src/index.js";
 
 describe("match replay format", () => {
-  it("defines replay format version one", () => {
+  it("defines replay format version two with explicit match rules", () => {
     expect(
       MATCH_REPLAY_FORMAT_VERSION,
-    ).toBe(1);
+    ).toBe(2);
   });
 
   it("includes the engine version", () => {

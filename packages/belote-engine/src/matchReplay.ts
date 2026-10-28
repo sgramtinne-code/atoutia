@@ -10,7 +10,7 @@ import {
   type MatchMachineState,
 } from "./matchMachine.js";
 import {
-  MATCH_REPLAY_FORMAT_VERSION,
+  resolveReplayRulesVersion,
   type MatchReplayDocument,
 } from "./matchReplayFormat.js";
 
@@ -41,6 +41,7 @@ export function replayMatch(
   options: ReplayMatchOptions,
 ): MatchMachineState {
   let state = createMatchMachine({
+    ...(options.rulesVersion === undefined ? {} : { rulesVersion: options.rulesVersion }),
     baseSeed: options.baseSeed,
 
     ...(options.firstDealer === undefined
@@ -98,16 +99,10 @@ export function replayMatch(
 export function replayMatchDocument(
   document: MatchReplayDocument,
 ): MatchMachineState {
-  if (
-    document.formatVersion !==
-    MATCH_REPLAY_FORMAT_VERSION
-  ) {
-    throw new Error(
-      "Unsupported match replay format version.",
-    );
-  }
+  const rulesVersion = resolveReplayRulesVersion(document.formatVersion, document.rulesVersion);
 
   return replayMatch({
+    rulesVersion,
     baseSeed: document.baseSeed,
     firstDealer: document.firstDealer,
     targetScore: document.targetScore,

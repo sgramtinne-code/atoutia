@@ -6,13 +6,13 @@
 
 Un socle de belote multijoueur locale fonctionne : moteur TypeScript, backend autoritaire et Android Kotlin/Compose. Le produit complet, son solo hors ligne et la diffusion publique ne sont pas terminés.
 
-Main stable vérifié : **`44e4d3a`**, PR [nº 17](https://github.com/sgramtinne-code/atoutia/pull/17) fusionnée, CI de push réussies et récupération propre sur le PC reçue. **231 JVM, 23 instrumentés, APK/lint, 588 moteur et 618 backend** ; lint : 11 avertissements/1 suggestion, non masqués. Le statut GitHub fait foi pour les fusions, sans commit supplémentaire pour inscrire son propre SHA. Travail suivant : [campagnes de simulations](ENGINE_SIMULATION.md), branche `feat/engine-simulation-campaign` ; paliers 1 000 et 10 000 parties/replays réussis dans l'environnement assistant, rapports versionnés ; code `106423b` validé dans les deux CI déclenchées, PR nº 18 à clôturer avec les résultats de son dernier commit. Millions non validés.
+Main stable vérifié : **4148240**, PR nº 18 livrée et récupérée proprement sur le PC. Lot actuel : [litige et compatibilité](LITIGE_RULES_VERSION.md), branche fix/litige-winner-rules-version ; **601 moteur, 620 backend, 14 contrôles et 2 lots de 1 000 réussis localement**, code `3c2ad4a` validé dans moteur/backend `40747230287` et Android Kotlin `40747232842` (231 JVM/APK/lint). Clôture de [PR nº 19](https://github.com/sgramtinne-code/atoutia/pull/19) à vérifier. La règle corrigée concerne les nouveaux salons ; anciens scores et replays préservés. La [clarification IA du développeur](AI_LAB_ROADMAP.md) réserve les millions à l’entraînement futur sur PC RTX 5070 pour des PNJ variés, amusants et par niveau ; aucun blocage du solo ou de la publication.
 
 Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug ou une homologation production. Les instrumentés existants ne testent pas les nouveaux cas HTTP JVM sur le PC du développeur.
 
 ## 2. Différences de versions à conserver
 
-- La norme actuelle est [GAME_RULES.md](GAME_RULES.md) **0.1.2**, pas le texte initial 0.1.0.
+- La norme actuelle est [GAME_RULES.md](GAME_RULES.md) **0.1.3**, pas le texte initial 0.1.0.
 - Positions/équipes : PLAYER_0…3 et TEAM_0/1 ; ne pas restaurer NORTH/EAST/SOUTH/WEST ou TEAM_NS/EW dans les DTO. Ne pas déduire une correspondance fixe avec les positions d’affichage.
 - Belote/Rebelote entre dans la comparaison du contrat ; le traitement de deux litiges consécutifs est précisé dans la norme actuelle.
 - Les noms de phases sont des concepts adaptés à l’implémentation, pas une raison de renommer toutes les machines à états selon le premier texte.
@@ -26,17 +26,17 @@ Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug
 
 | Rubriques initiales | Exigence | État / suite |
 | --- | --- | --- |
-| 1–4 | Autorité du moteur, variante classique, joueurs/équipes, paquet unique de 32 cartes | Implémenté ; identifiants adaptés à la norme 0.1.2 ; annonces autres que Belote hors MVP |
+| 1–4 | Autorité du moteur, variante classique, joueurs/équipes, paquet unique de 32 cartes | Implémenté ; identifiants adaptés à la norme 0.1.3 ; annonces autres que Belote hors MVP |
 | 5–7 | Ordres et valeurs à/hors atout, 152 points + dix de der, Belote séparée | Modules cardRules/scoring et tests présents |
 | 8–16 | Donneur, mélange, distribution 5 puis 8, deux tours de prise, tous passent, preneur et entame | Modules random/deck/deal/bidding/dealMachine et tests présents ; revue de l’usage du hasard en production à finaliser |
 | 17–26 | Fournir, couper/monter, partenaire maître, défausse, maître et gagnant, quatre cartes/huit plis | legalPlays/trick/trickSequence et tests présents ; préserver autorité du moteur |
-| 27–38 | Dix de der, Belote automatique/imprenable, capot, contrat/chute/litige, reports, score cible et victoire | Modules belote/capot/litige/dealResult/matchScore et tests présents ; appliquer les précisions 0.1.2 |
+| 27–38 | Dix de der, Belote automatique/imprenable, capot, contrat/chute/litige, reports, score cible et victoire | Modules belote/capot/litige/dealResult/matchScore et tests présents ; appliquer les précisions 0.1.3 |
 | 39–43 | Revalidation des actions, erreurs sans mutation, phases/invariants, déterminisme | Machines/commandes/DTO et tests présents ; revue des invariants et erreurs restants à borner |
 | 44–45 | Replay et versionnement | Modules matchReplay*, validation/intégrité/hash et tests présents ; interfaces utilisateur de replay/analyse et exploitation support/anti-triche non livrées comme produit complet |
 | 46 | Annonces, Coinche/Contrée, règles privées/régionales, modes rapides/défis | Évolutions futures ; ne pas les introduire silencieusement dans le MVP |
 | 47 | Domaine indépendant des UI, transport, stockage et backend | Séparation moteur/backend/Android existante ; intégration d’exécution locale Android encore à concevoir |
 | 48 | Autorité locale offline ; même moteur côté serveur online | Online implémenté ; moteur local dans l’application Android et solo offline non livrés |
-| 49 | Batterie de tests puis milliers/millions de parties simulées | 588 tests moteur ; rapports 1 000/10 000 parties complètes/replays obtenus dans l'environnement assistant, outil/13 contrôles en cours de livraison. CI du code 106423b réussies, clôture PR nº 18 à vérifier ; millions non validés |
+| 49 | Tests moteur et simulations, portée précisée par le développeur | Outil borné livré par PR nº 18 ; lot actuel 601 tests/14 contrôles et 1 000 parties de chaque version. Les millions concernent l’entraînement IA futur sur RTX 5070, pas une validation moteur bloquante |
 | 50 | Le moteur décide, humains/bots/UI proposent | Principe conservé ; ne pas calculer de nouvelles règles dans les contrôles de cohérence Android |
 
 Le mélange utilise RandomSource/Mulberry32Random ; le backend génère une baseSeed via node:crypto.randomInt. Cela ne constitue pas à lui seul un audit d’équité, de prédictibilité ou de sécurité pour une compétition publique. Revue et validation production à prévoir.
@@ -57,14 +57,14 @@ Les sources publiques du bilan n’incluent aucune donnée personnelle de l’an
 
 ## 5. Fonctionnalités et lots restant à livrer
 
-1. **Fiabilité bornée** : PR nº 17 clôturée ; traiter l'écart concret litige précédent + chute documenté dans ENGINE_SIMULATION.md, puis trier les 11 avertissements lint et borner les autres revues selon les risques. Les contrôles de conservation ne déterminent pas à quelle équipe un bonus doit être attribué. Pas d’audit interminable présenté comme une livraison produit.
-2. **Simulations et validation moteur** : terminer la livraison de la campagne reproductible (paliers 1 000/10 000 et CI du code réussis, clôture de PR nº 18 à vérifier), puis planifier les lots massifs avec rapports et budgets ; ne pas confondre tests, donnes et parties. Vérifier le hasard de production ; le rejeu intégral de chaque partie est contrôlé par l'outil.
+1. **Fiabilité bornée** : correctif du litige/versionnement en cours de livraison et validé localement ; trier ensuite les 11 avertissements lint selon leur impact sans transformer les audits sans défaut démontré en blocage produit. Pas d’audit interminable présenté comme une livraison produit.
+2. **Validation moteur** : outils et rapports bornés livrés par PR nº 18 ; lot de compatibilité actuel/legacy pour le litige en cours de livraison. Aucun objectif de millions avant le produit : ils concernent l’IA future. La revue du hasard de production reste distincte.
 3. **Exécution locale Android** : choisir et vérifier l’intégration du moteur TypeScript existant, la parité des résultats et le fonctionnement sans backend ; aucune seconde implémentation divergente des règles créée silencieusement.
 4. **Solo offline complet** : démarrer/jouer/terminer une partie contre bots locaux, reprendre et sauvegarder localement, sans réseau/backend ni compte online requis pour ce parcours. Les scripts PNJ sont des outils de test, pas ce mode produit.
 5. **Expérience solo/utilisateur** : paramètres, tutoriel, progression/statistiques locales et profil. MainActivity contient encore des messages « arrive prochainement » pour profil, classement et paramètres.
 6. **Online produit** : parcours des salons/invitations et matchmaking, classement/rating à définir, modes compétitifs. Les politiques serveur PRIVATE/CASUAL/RANKED et forfaits existants ne sont pas un système de classement utilisateur complet.
 7. **Social et compétitions progressifs** : amis, saisons/tournois et autres parcours à spécifier avant de les déclarer livrés. Pas besoin de tout ce futur périmètre pour une première bêta.
-8. **Replay/IA Lab** : les fondations moteur existent ; outil local d’analyse/expérimentation, interface de replay, support/anti-triche opérationnels et spectateur futur restent des produits distincts à développer. Pas d’entraînement mobile, pas de cartes cachées pour les bots normaux.
+8. **Replay/IA Lab** : fondations moteur présentes ; interfaces de replay/analyse et IA Lab local restent à développer. [Entraînement futur sur PC NVIDIA RTX 5070](AI_LAB_ROADMAP.md), avec millions de parties pour des PNJ de styles/méthodes et niveaux variés, amusants et distrayants. Aucun entraînement mobile ni carte cachée pour les PNJ normaux ; aucun blocage du solo ou de la publication par cette étape future.
 9. **Production online** : backend OVH, HTTPS, configuration/auth de production, exploitation, supervision et sauvegarde/restauration opérationnelle. Aucun déploiement public ou bootstrap exposé implicitement.
 10. **Release Android/Google Play** : URL backend release encore vide ; préparer environnement, APK signé, icône/présentation, essais physiques et grands écrans, puis publication. La CI debug seule ne démontre pas une release connectable.
 11. **Progression visuelle et économie cosmétique** : étapes ultérieures conservant équité et absence de pay-to-win ; stabilité/plaisir prioritaires.
@@ -76,10 +76,10 @@ Les sources publiques du bilan n’incluent aucune donnée personnelle de l’an
 
 Android/Google Play d’abord ; règles correctes, plaisir, fluidité, stabilité, UX, sécurité et équité avant graphismes/monétisation. Solo offline obligatoire. Social, compétition, gamification/cosmétique progressifs, sans pay-to-win. AI Lab local séparé.
 
-L’ordre immédiat est : livraison des premiers paliers de simulations + revue restante bornée ; décision d’intégration locale et première partie solo offline complète ; reprise/paramètres/tutoriel/statistiques ; parcours online et bêta de production. Ne pas remplacer cette progression produit par une suite indéfinie de micro-correctifs.
+L’ordre immédiat est : clôture du litige/versionnement ; décision d’intégration locale et première partie solo offline complète ; reprise/paramètres/tutoriel/statistiques ; parcours online et bêta de production. Ne pas remplacer cette progression produit par une suite indéfinie de micro-correctifs.
 
 ## 7. Qui fait quoi et continuité
 
 L’assistant conduit lecture/conception/code sur branches, tests pertinents, CI, PR, preuves et documentation. Le développeur intervient pour les essais dépendant réellement de son PC/appareil, les arbitrages d’expérience et la publication. Aucun nouvel essai PC requis pour PR nº 17 ; ne pas redemander les validations déjà reçues sans changement concerné.
 
-Maintenir ce bilan, README, AGENTS et REPRISE à chaque étape importante. Distinguer prévu, implémenté, testé en CI, observé sur le PC et prêt à publier. Le suivi récent sous-représentait le solo offline et ne rendait pas visible l’absence de rapport de simulations massives : ce sont des lacunes de pilotage corrigées par ce bilan, pas des fonctionnalités subitement déclarées livrées.
+Maintenir ce bilan, README, AGENTS et REPRISE à chaque étape importante. Distinguer prévu, implémenté, testé en CI, observé sur le PC et prêt à publier. Le suivi récent sous-représentait le solo offline et avait confondu validation moteur et entraînement IA massif. Le développeur a précisé que les millions concernent l’IA future sur son PC RTX 5070, pour des PNJ variés et plaisants par niveau. Cette clarification corrige le cap ; aucun entraînement n’est déclaré livré.

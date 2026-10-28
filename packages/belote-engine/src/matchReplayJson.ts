@@ -12,6 +12,8 @@ import type {
 } from "./matchHistory.js";
 import {
   MATCH_REPLAY_FORMAT_VERSION,
+  LEGACY_MATCH_REPLAY_FORMAT_VERSION,
+  resolveReplayRulesVersion,
   type MatchReplayDocument,
 } from "./matchReplayFormat.js";
 import {
@@ -19,6 +21,7 @@ import {
   type PlayerPosition,
 } from "./players.js";
 import { BELOTE_ENGINE_VERSION } from "./version.js";
+import { resolveMatchRulesVersion } from "./matchRulesVersion.js";
 
 function isRecord(
   value: unknown,
@@ -266,7 +269,7 @@ export function parseMatchReplayDocument(
 
   if (
     parsed.formatVersion !==
-    MATCH_REPLAY_FORMAT_VERSION
+    MATCH_REPLAY_FORMAT_VERSION && parsed.formatVersion !== LEGACY_MATCH_REPLAY_FORMAT_VERSION
   ) {
     throw new Error(
       "Unsupported match replay format version.",
@@ -305,9 +308,15 @@ export function parseMatchReplayDocument(
   const history =
     validateHistory(parsed.history);
 
+  const rulesVersion = Object.hasOwn(parsed, "rulesVersion")
+    ? resolveMatchRulesVersion(parsed.rulesVersion)
+    : undefined;
+  resolveReplayRulesVersion(parsed.formatVersion, rulesVersion);
+
   return Object.freeze({
+    ...(rulesVersion === undefined ? {} : { rulesVersion }),
     formatVersion:
-      MATCH_REPLAY_FORMAT_VERSION,
+      parsed.formatVersion,
 
     engineVersion:
       BELOTE_ENGINE_VERSION,

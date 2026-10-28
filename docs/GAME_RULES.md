@@ -1,6 +1,6 @@
 # Atoutia — Règles du moteur Belote
 
-Version du document : 0.1.2
+Version du document : 0.1.3
 
 Statut : spécification normative du MVP.
 
@@ -713,7 +713,12 @@ Lors d'un litige :
 * le total des preneurs n'est pas inscrit immédiatement ;
 * ce total devient un bonus de litige en attente.
 
-Ce bonus est attribué à l'équipe qui réussit le contrat de la donne suivante.
+Ce bonus est attribué à l'équipe gagnante de la prochaine donne avec contrat :
+
+* les preneurs si le contrat est réussi ;
+* la défense si les preneurs chutent, y compris un capot subi.
+
+Une donne à huit passes conserve le bonus en attente. Le cas d'un nouveau litige est défini à la section 51. Cette précision suit les « vainqueurs de la prise suivante » de RULES_VALIDATION.md. Les parties historiques conservent leur version de règles enregistrée ; aucune réattribution rétroactive de leurs scores.
 
 Le moteur conserve explicitement cette valeur dans l'état de la partie.
 

@@ -26,8 +26,15 @@ import {
   nextPlayer,
   type PlayerPosition,
 } from "./players.js";
+import {
+  CURRENT_MATCH_RULES_VERSION,
+  LEGACY_MATCH_RULES_VERSION,
+  resolveMatchRulesVersion,
+  type MatchRulesVersion,
+} from "./matchRulesVersion.js";
 
 export interface MatchMachineState {
+  readonly rulesVersion?: MatchRulesVersion;
   readonly baseSeed: number;
   readonly firstDealer: PlayerPosition;
   readonly dealNumber: number;
@@ -39,6 +46,7 @@ export interface MatchMachineState {
 }
 
 export interface CreateMatchMachineOptions {
+  readonly rulesVersion?: MatchRulesVersion;
   readonly baseSeed: number;
   readonly firstDealer?: PlayerPosition;
   readonly targetScore?: number;
@@ -120,6 +128,9 @@ export function createMatchMachine(
   options: CreateMatchMachineOptions,
 ): MatchMachineState {
   assertBaseSeed(options.baseSeed);
+  const rulesVersion = options.rulesVersion === undefined
+    ? CURRENT_MATCH_RULES_VERSION
+    : resolveMatchRulesVersion(options.rulesVersion);
 
   const firstDealer =
   options.firstDealer ?? "PLAYER_0";
@@ -145,6 +156,7 @@ const dealer = firstDealer;
   const history = createMatchHistory();
 
   return Object.freeze({
+    ...(rulesVersion === LEGACY_MATCH_RULES_VERSION ? {} : { rulesVersion }),
     baseSeed: options.baseSeed,
     firstDealer,
     dealNumber,
@@ -160,6 +172,7 @@ export function applyMatchBiddingAction(
   state: MatchMachineState,
   action: BiddingAction,
 ): MatchMachineState {
+  resolveMatchRulesVersion(state.rulesVersion);
   if (state.score.completed) {
     throw new Error(
       "Match is already completed.",
@@ -212,6 +225,7 @@ export function applyMatchCardPlay(
       state.currentDeal,
       player,
       card,
+      resolveMatchRulesVersion(state.rulesVersion),
     );
 
   const history =

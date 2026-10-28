@@ -16,6 +16,7 @@ import {
   type LitigeState,
 } from "./litige.js";
 import type { PlayerPosition } from "./players.js";
+import { CURRENT_MATCH_RULES_VERSION, type MatchRulesVersion } from "./matchRulesVersion.js";
 import {
   getPlayerTeam,
   scoreCompletedDealTricks,
@@ -96,6 +97,7 @@ export function resolveCompleteDeal(
   taker: PlayerPosition,
   beloteState: BeloteState,
   litigeState: LitigeState,
+  rulesVersion: MatchRulesVersion = CURRENT_MATCH_RULES_VERSION,
 ): CompleteDealResolution {
   if (beloteState.trumpSuit !== trumpSuit) {
     throw new Error(
@@ -131,6 +133,7 @@ export function resolveCompleteDeal(
   const litigeResolution = resolveLitigeForDeal(
     litigeState,
     dealResult,
+    rulesVersion,
   );
 
   return Object.freeze({

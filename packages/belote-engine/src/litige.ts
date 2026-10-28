@@ -1,5 +1,11 @@
 import type { DealResult } from "./dealResult.js";
 import type { Team, TeamPoints } from "./scoring.js";
+import {
+  CURRENT_MATCH_RULES_VERSION,
+  LEGACY_MATCH_RULES_VERSION,
+  resolveMatchRulesVersion,
+  type MatchRulesVersion,
+} from "./matchRulesVersion.js";
 
 export interface LitigeState {
   readonly pendingPoints: number;
@@ -39,7 +45,9 @@ function addPendingPoints(
 export function resolveLitigeForDeal(
   state: LitigeState,
   dealResult: DealResult,
+  rulesVersion: MatchRulesVersion = CURRENT_MATCH_RULES_VERSION,
 ): LitigeResolution {
+  const rules = resolveMatchRulesVersion(rulesVersion);
   if (state.pendingPoints < 0) {
     throw new Error(
       "Pending litige points cannot be negative.",
@@ -49,7 +57,9 @@ export function resolveLitigeForDeal(
   if (dealResult.status !== "LITIGE") {
     const awardedPoints = addPendingPoints(
       dealResult.awardedPoints,
-      dealResult.takerTeam,
+      rules === LEGACY_MATCH_RULES_VERSION || dealResult.status === "CONTRACT_MADE"
+        ? dealResult.takerTeam
+        : dealResult.defendingTeam,
       state.pendingPoints,
     );
 

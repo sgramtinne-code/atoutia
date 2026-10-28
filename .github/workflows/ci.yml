@@ -67,25 +67,38 @@ jobs:
           pnpm --filter @atoutia/backend test
           pnpm --filter @atoutia/backend build
 
-      - name: Validate complete match simulations
+      - name: Validate current and historical match simulations
         timeout-minutes: 6
         run: |
           pnpm --filter @atoutia/belote-engine test:simulation
           node packages/belote-engine/scripts/simulate-matches.mjs \
-            --matches 1000 --start-seed 20261028 --max-duration-ms 300000 \
+            --matches 1000 --start-seed 20261028 --max-duration-ms 120000 \
             --report "$RUNNER_TEMP/atoutia-engine-simulation.json"
+          node packages/belote-engine/scripts/simulate-matches.mjs \
+            --matches 1000 --start-seed 20261028 --max-duration-ms 120000 \
+            --rules-version CLASSIC_LEGACY_LITIGE_TAKER \
+            --report "$RUNNER_TEMP/atoutia-engine-simulation-legacy.json"
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           import { readFileSync } from 'node:fs';
-          const actual = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/atoutia-engine-simulation.json', 'utf8'));
-          const reference = JSON.parse(readFileSync('docs/reports/engine-simulation-1000.json', 'utf8'));
-          for (const key of ['formatVersion', 'harnessVersion', 'engineVersion', 'targetScore', 'seedStride', 'status', 'matchesCompleted', 'totals', 'transcriptSha256', 'failure', 'incomplete']) {
-            assert.deepEqual(actual[key], reference[key], 'Campaign reference mismatch: ' + key);
+          const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
+          for (const [actualPath, referencePath, rules] of [
+            ['atoutia-engine-simulation.json', 'engine-simulation-winner-1000.json', 'CLASSIC_LITIGE_WINNER'],
+            ['atoutia-engine-simulation-legacy.json', 'engine-simulation-1000.json', 'CLASSIC_LEGACY_LITIGE_TAKER'],
+          ]) {
+            const actual = read(process.env.RUNNER_TEMP + '/' + actualPath);
+            const reference = read('docs/reports/' + referencePath);
+            assert.equal(actual.rulesVersion, rules);
+            assert.equal(actual.config.rulesVersion, rules);
+            if (reference.rulesVersion !== undefined) assert.equal(reference.rulesVersion, rules);
+            for (const key of ['formatVersion', 'harnessVersion', 'engineVersion', 'targetScore', 'seedStride', 'status', 'matchesCompleted', 'totals', 'transcriptSha256', 'failure', 'incomplete']) {
+              assert.deepEqual(actual[key], reference[key], 'Campaign reference mismatch: ' + rules + '/' + key);
+            }
+            for (const key of ['matches', 'startSeed', 'maxActionsPerMatch']) {
+              assert.equal(actual.config[key], reference.config[key], 'Campaign config mismatch: ' + key);
+            }
+            console.log('Campaign matches committed reference: ' + rules + ' ' + actual.transcriptSha256);
           }
-          for (const key of ['matches', 'startSeed', 'maxActionsPerMatch']) {
-            assert.equal(actual.config[key], reference.config[key], 'Campaign config mismatch: ' + key);
-          }
-          console.log('Campaign matches committed 1000-match reference: ' + actual.transcriptSha256);
           NODE
 
       - name: Validate built player snapshot package

@@ -176,7 +176,15 @@ export {
 } from "./version.js";
 
 export {
+  CURRENT_MATCH_RULES_VERSION,
+  LEGACY_MATCH_RULES_VERSION,
+  resolveMatchRulesVersion,
+  type MatchRulesVersion,
+} from "./matchRulesVersion.js";
+
+export {
   MATCH_REPLAY_FORMAT_VERSION,
+  LEGACY_MATCH_REPLAY_FORMAT_VERSION,
   createMatchReplayDocument,
   type MatchReplayDocument,
 } from "./matchReplayFormat.js";
