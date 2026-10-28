@@ -101,14 +101,14 @@ class OfflineSoloInstrumentedTest {
         compose.onNode(hasText("Prendre à", substring = true)).performScrollTo().performClick()
         compose.waitUntil(10_000) { store.value?.let { JSONObject(it).getJSONObject("replay").getJSONArray("history").length() == 1 } == true }
         val save = store.value
-        compose.onNodeWithText("Retour à l’accueil").performScrollTo().performClick()
+        compose.onNodeWithText("Retour à l’accueil").assertIsDisplayed().performClick()
         compose.waitUntil(5_000) { closes.get() == 1 }
         assertEquals(0, onlineStarts.get())
         compose.onNodeWithText("Solo hors ligne").performScrollTo().performClick()
         compose.waitUntil(20_000) { compose.onAllNodesWithTag("player-hand").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("player-hand").assertIsDisplayed()
         assertEquals(save, store.value)
-        compose.onNodeWithText("Retour à l’accueil").performScrollTo().performClick()
+        compose.onNodeWithText("Retour à l’accueil").assertIsDisplayed().performClick()
         compose.waitUntil(5_000) { closes.get() == 2 }
         compose.onNodeWithText("Jouer en ligne").performScrollTo().performClick()
         compose.onNodeWithText("ONLINE TEST").assertIsDisplayed()
