@@ -6,7 +6,7 @@
 
 Un socle de belote multijoueur locale fonctionne : moteur TypeScript, backend autoritaire et Android Kotlin/Compose. Le produit complet, son solo hors ligne et la diffusion publique ne sont pas terminés.
 
-Main stable vérifié : **4148240**, PR nº 18 livrée et récupérée proprement sur le PC. Lot actuel : [litige et compatibilité](LITIGE_RULES_VERSION.md), branche fix/litige-winner-rules-version ; **601 moteur, 620 backend, 14 contrôles et 2 lots de 1 000 réussis localement**, CI à obtenir. La règle corrigée concerne les nouveaux salons ; anciens scores et replays préservés. La [clarification IA du développeur](AI_LAB_ROADMAP.md) réserve les millions à l’entraînement futur sur PC RTX 5070 pour des PNJ variés, amusants et par niveau ; aucun blocage du solo ou de la publication.
+Main stable vérifié : **4148240**, PR nº 18 livrée et récupérée proprement sur le PC. Lot actuel : [litige et compatibilité](LITIGE_RULES_VERSION.md), branche fix/litige-winner-rules-version ; **601 moteur, 620 backend, 14 contrôles et 2 lots de 1 000 réussis localement**, code `3c2ad4a` validé dans moteur/backend `40747230287` et Android Kotlin `40747232842` (231 JVM/APK/lint). Clôture de [PR nº 19](https://github.com/sgramtinne-code/atoutia/pull/19) à vérifier. La règle corrigée concerne les nouveaux salons ; anciens scores et replays préservés. La [clarification IA du développeur](AI_LAB_ROADMAP.md) réserve les millions à l’entraînement futur sur PC RTX 5070 pour des PNJ variés, amusants et par niveau ; aucun blocage du solo ou de la publication.
 
 Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug ou une homologation production. Les instrumentés existants ne testent pas les nouveaux cas HTTP JVM sur le PC du développeur.
 
@@ -36,7 +36,7 @@ Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug
 | 46 | Annonces, Coinche/Contrée, règles privées/régionales, modes rapides/défis | Évolutions futures ; ne pas les introduire silencieusement dans le MVP |
 | 47 | Domaine indépendant des UI, transport, stockage et backend | Séparation moteur/backend/Android existante ; intégration d’exécution locale Android encore à concevoir |
 | 48 | Autorité locale offline ; même moteur côté serveur online | Online implémenté ; moteur local dans l’application Android et solo offline non livrés |
-| 49 | Batterie de tests puis milliers/millions de parties simulées | 588 tests moteur ; rapports 1 000/10 000 parties complètes/replays obtenus dans l'environnement assistant, outil/13 contrôles en cours de livraison. CI du code 106423b réussies ; clarification du développeur : millions réservés à l’entraînement IA futur, pas une validation moteur bloquante |
+| 49 | Tests moteur et simulations, portée précisée par le développeur | Outil borné livré par PR nº 18 ; lot actuel 601 tests/14 contrôles et 1 000 parties de chaque version. Les millions concernent l’entraînement IA futur sur RTX 5070, pas une validation moteur bloquante |
 | 50 | Le moteur décide, humains/bots/UI proposent | Principe conservé ; ne pas calculer de nouvelles règles dans les contrôles de cohérence Android |
 
 Le mélange utilise RandomSource/Mulberry32Random ; le backend génère une baseSeed via node:crypto.randomInt. Cela ne constitue pas à lui seul un audit d’équité, de prédictibilité ou de sécurité pour une compétition publique. Revue et validation production à prévoir.

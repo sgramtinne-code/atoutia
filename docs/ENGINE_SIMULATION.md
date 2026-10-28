@@ -2,7 +2,7 @@
 
 ## État courant
 
-Les rapports PR nº 18 ci-dessous sont historiques (règles legacy). Le [lot du litige versionné](LITIGE_RULES_VERSION.md) ajoute une référence actuelle et compare 1 000 parties actuelles + 1 000 legacy ; 601/620 tests et 14 contrôles de l’outil réussis localement. La CI de ce lot reste à obtenir. `--rules-version` sélectionne la règle ; sa valeur figure dans le rapport. Le millier legacy conserve l’empreinte PR18 ; le millier actuel a pour empreinte 458c11331f5d8d7b5c86069f612e78f08d187c40046c0f62922648ed213dc53b.
+Les rapports PR nº 18 ci-dessous sont historiques (règles legacy). Le [lot du litige versionné](LITIGE_RULES_VERSION.md) ajoute une référence actuelle et compare 1 000 parties actuelles + 1 000 legacy ; 601/620 tests et 14 contrôles de l’outil réussis localement. Le code `3c2ad4a` est validé en CI moteur/backend `40747230287` : les deux lots correspondent exactement à leurs références. Clôture documentaire de PR nº 19 à vérifier avant fusion. `--rules-version` sélectionne la règle ; sa valeur figure dans le rapport. Le millier legacy conserve l’empreinte PR18 ; le millier actuel a pour empreinte 458c11331f5d8d7b5c86069f612e78f08d187c40046c0f62922648ed213dc53b.
 
 ## But et périmètre
 
