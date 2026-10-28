@@ -1,8 +1,8 @@
-# Revue Android Kotlin — 25 octobre 2026
+# Revue Android Kotlin — 28 octobre 2026
 
-Main stable vérifié **`68263e6`**, PR nº 16 intégrée et récupérée proprement sur le PC. Nouvelle livraison : **`fix/android-snapshot-duplicate-cards`**, [PR nº 17](https://github.com/sgramtinne-code/atoutia/pull/17) en brouillon. Reproduction `09f2280` : [Android CI 40731163203](https://github.com/sgramtinne-code/atoutia/actions/runs/40731163203), job `122967549149`, **231 tests JVM : 228 réussis/3 échecs**, zéro erreur/test ignoré. Les trois nouveaux cas échouent parce qu’aucune exception n’est levée pour les doublons internes ; compilation Kotlin réussie. APK/lint ignorés après l’échec attendu. Moteur/backend 40731163078 réussi.
+Main stable vérifié **`68263e6`**, PR nº 16 intégrée et récupérée sur le PC. La [PR nº 17](https://github.com/sgramtinne-code/atoutia/pull/17), branche `fix/android-snapshot-duplicate-cards`, a reçu les validations du code `a85d54c` : doublons internes refusés par liste, ordre et partage entre vues conservés. **231 JVM, 23 instrumentés existants, APK/lint et moteur/backend réussis.** Vérifier les trois CI de clôture puis GitHub avant intégration. [Preuves](ANDROID_SNAPSHOT_DUPLICATES.md).
 
-Le correctif proposé dans la [PR nº 17](https://github.com/sgramtinne-code/atoutia/pull/17) vérifie après lecture de chaque liste que sa taille correspond au nombre de cartes distinctes. Une AtoutiaGameApiException sans statut HTTP signale le doublon. Les listes reçues et leur ordre sont conservés ; aucune comparaison d’unicité entre les différentes vues. Trois tests inchangés, règles/serveur/format/stockage/authentification/UI/sensorLandscape inchangés. Les autres relations entre cartes et phases restent distinctes. Les trois CI du correctif restent à obtenir avant intégration, sans nouvel essai PC requis. Voir [le suivi des doublons](ANDROID_SNAPSHOT_DUPLICATES.md).
+**[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; solo offline, campagnes massives de simulation, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
 ## Portée et statut
 
