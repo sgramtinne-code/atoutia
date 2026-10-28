@@ -1186,6 +1186,12 @@ class HttpAtoutiaGameApi(
                     ),
                 )
             }
+        }.also { cards ->
+            if (cards.toSet().size != cards.size) {
+                throw AtoutiaGameApiException(
+                    "Atoutia game API returned duplicate cards in a card list.",
+                )
+            }
         }
 
     private fun parseCard(

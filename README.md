@@ -2,11 +2,11 @@
 
 Application Android native de belote française à quatre joueurs, avec moteur TypeScript indépendant et backend multijoueur autoritaire.
 
-## État au 25 octobre 2026
+## État au 28 octobre 2026
 
-Branche stable **main `3155084`**, [PR nº 15](https://github.com/sgramtinne-code/atoutia/pull/15) intégrée et récupération PC propre reçue. Trois CI main réussies : moteur/backend `40194389105` (**588/618**), Android Kotlin `40194389067` (**223 JVM**, APK/lint, **11 avertissements/1 suggestion**), Android UI `40194389100` (**8+3+7+5 instrumentés réellement exécutés**). Les validations antérieures restent clôturées.
+Main stable vérifié **`68263e6`**, PR nº 16 intégrée et récupérée sur le PC. La [PR nº 17](https://github.com/sgramtinne-code/atoutia/pull/17), branche `fix/android-snapshot-duplicate-cards`, a reçu les validations du code `a85d54c` : doublons internes refusés par liste, ordre et partage entre vues conservés. **231 JVM, 23 instrumentés existants, APK/lint et moteur/backend réussis.** Vérifier les trois CI de clôture puis GitHub avant intégration. [Preuves](docs/ANDROID_SNAPSHOT_DUPLICATES.md).
 
-La [PR nº 16](https://github.com/sgramtinne-code/atoutia/pull/16), branche **`fix/android-snapshot-legal-card-validation`**, a reçu les validations du code **`f15b0ea`** : les cartes d’action hors main ou contradictoires en PLAY_CARD sont refusées ; les réponses cohérentes restent acceptées avec leur ordre. Reproduction avant correction : **225 JVM réussis/3 échecs** ; après correction **228/228 JVM**, deux APK/lint (**11 avertissements/1 suggestion**), **23 instrumentés existants** et moteur/backend **588/618** réussis. Aucun nouveau scénario PC requis pour ces réponses synthétiques. Vérifier les trois CI de clôture puis GitHub pour l’intégration ; [preuves et limites](docs/ANDROID_SNAPSHOT_CARDS.md).
+**[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; solo offline, campagnes massives de simulation, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
 Test multijoueur : **`node apps/backend/scripts/dev-android-room.mjs`**, N pour PLAYER_0 manuel puis O pour les trois PNJ. Attendre ATTENTE DU NOUVEAU SALON avant de créer ; **aucun identifiant à copier**. Utiliser ce scénario lorsqu’un changement concret exige une nouvelle validation de jeu ; ne pas répéter les essais clôturés pour ces callbacks JVM. Aucune purge ni migration. Les sections datées ci-dessous sont historiques ; l’état courant et le dernier bilan de reprise définissent la suite.
 
@@ -92,7 +92,7 @@ Le document initial de règles 0.1.0 est historique. Les noms des joueurs, les r
 
 Android ne décide ni de la légalité finale d'un coup, ni du score, ni de la victoire. Les mains adverses et le `baseSeed` restent privés. Le moteur ne dépend ni d'Android, ni du réseau, ni du stockage.
 
-Les ambitions offline, sociales et compétitives restent des directions du projet ; ne pas les confondre avec des fonctionnalités toutes déjà livrées dans Android. OVH et le déploiement public sont des étapes ultérieures.
+Le solo offline est une exigence initiale à livrer dans Android. Social et compétition se construisent progressivement ; fondations serveur et fonctions utilisateur terminées sont distinctes. OVH et diffusion publique restent à préparer. Voir [le bilan global](docs/PROJECT_STATUS.md).
 
 ## Environnement du développeur
 

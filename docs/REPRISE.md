@@ -1,4 +1,4 @@
-# Prompt de reprise ATOUTIA — 25 octobre 2026
+# Prompt de reprise ATOUTIA — 28 octobre 2026
 
 Copier le texte ci-dessous dans le nouveau chat. Les informations locales datées sont un état historique à vérifier, pas des mesures en direct.
 
@@ -14,11 +14,13 @@ Dépôt : `https://github.com/sgramtinne-code/atoutia`.
 
 Branche stable : `main`.
 
-État courant prioritaire : Branche stable **main `3155084`**, [PR nº 15](https://github.com/sgramtinne-code/atoutia/pull/15) intégrée et récupération PC propre reçue. Trois CI main réussies : moteur/backend `40194389105` (**588/618**), Android Kotlin `40194389067` (**223 JVM**, APK/lint, **11 avertissements/1 suggestion**), Android UI `40194389100` (**8+3+7+5 instrumentés réellement exécutés**). Les validations antérieures restent clôturées.
+État courant prioritaire : Main stable vérifié **`68263e6`**, PR nº 16 intégrée et récupérée sur le PC. La [PR nº 17](https://github.com/sgramtinne-code/atoutia/pull/17), branche `fix/android-snapshot-duplicate-cards`, a reçu les validations du code `a85d54c` : doublons internes refusés par liste, ordre et partage entre vues conservés. **231 JVM, 23 instrumentés existants, APK/lint et moteur/backend réussis.** Vérifier les trois CI de clôture puis GitHub avant intégration. [Preuves](ANDROID_SNAPSHOT_DUPLICATES.md).
 
-La [PR nº 16](https://github.com/sgramtinne-code/atoutia/pull/16), branche **`fix/android-snapshot-legal-card-validation`**, a reçu les validations du code **`f15b0ea`** : les cartes d’action hors main ou contradictoires en PLAY_CARD sont refusées ; les réponses cohérentes restent acceptées avec leur ordre. Reproduction avant correction : **225 JVM réussis/3 échecs** ; après correction **228/228 JVM**, deux APK/lint (**11 avertissements/1 suggestion**), **23 instrumentés existants** et moteur/backend **588/618** réussis. Aucun nouveau scénario PC requis pour ces réponses synthétiques. Vérifier les trois CI de clôture puis GitHub pour l’intégration ; [preuves et limites](ANDROID_SNAPSHOT_CARDS.md).
+**[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; solo offline, campagnes massives de simulation, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
-CI code : `40195584297`, `40195584302`, `40195584304`. Vérifier les trois CI de clôture, PR/main et ses CI avant annonce d’intégration. Aucun nouveau test PC requis pour ce périmètre. Suite distincte : autres invariants de DTO (unicité, phases) et autres parseurs.
+Le code `a85d54c` est validé : [Android Kotlin 40731689734](https://github.com/sgramtinne-code/atoutia/actions/runs/40731689734), job `122969393918`, **231/231 JVM**, APK/lint (**11 avertissements/1 suggestion**) ; [moteur/backend 40731689470](https://github.com/sgramtinne-code/atoutia/actions/runs/40731689470), job `122969393151`, **588/618**, typechecks/builds/CLI ; [Android UI 40731689330](https://github.com/sgramtinne-code/atoutia/actions/runs/40731689330), job `122969742683`, **OK (8 tests), OK (3 tests), OK (7 tests), OK (5 tests)** sur AVD API36. Reproduction `09f2280` : 231 JVM/3 échecs ; les 228 antérieurs passaient. Trois assertions inchangées après correction.
+
+Suite : contrôler les CI de clôture, intégrer PR nº 17 avec SHA attendu et vérifier main/CI de push. Suivre ensuite PROJECT_STATUS.md. Les textes transmis le 28 octobre sont des références historiques : règles 0.1.0 puis reprise ÉTAPE 2078. Le dépôt utilise la spécification 0.1.2 ; ne pas restaurer les anciens identifiants ni recommencer le bloc snapshot déjà livré. Ne pas confondre scripts PNJ et solo offline Android.
 
 Code applicatif de l’audit SQLite, validé historiquement à distance et sous WSL le 24 octobre 2026 :
 
