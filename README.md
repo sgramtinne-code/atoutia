@@ -6,9 +6,9 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 **Cap PNJ confirmé :** les millions de parties sont prévus plus tard pour l'entraînement local sur le PC NVIDIA RTX 5070, afin de créer des PNJ aux styles et niveaux variés, amusants et distrayants. Ils ne bloquent ni le solo offline ni la publication. Les simulations de la PR nº 18 sont des tests de moteur, sans entraînement. [Feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
-Main stable vérifié **`4148240`**, PR nº 18 fusionnée et récupération propre sur le PC reçue ; moteur/backend `40743606347` et Android Kotlin `40743606530` réussis. Les simulations bornées de la PR nº 18 sont livrées.
+Main stable vérifié **`4d20422`**, [PR nº 19](https://github.com/sgramtinne-code/atoutia/pull/19) fusionnée ; moteur/backend `40748721194` et Android Kotlin `40748721118` réussis. Récupération PC, builds moteur/backend et démarrage local confirmés. Litige versionné livré, anciennes parties/replays conservés.
 
-Travail en cours : branche **`fix/litige-winner-rules-version`**, [litige corrigé et règles par partie](docs/LITIGE_RULES_VERSION.md). Anciennes parties/replays préservés, nouveaux salons corrigés. Validation locale assistant : **601 tests moteur, 620 backend, 14 contrôles**, plus deux lots bornés de 1 000 (actuel/legacy). Code `3c2ad4a` : moteur/backend `40747230287` et Android Kotlin `40747232842` réussis. [PR nº 19](https://github.com/sgramtinne-code/atoutia/pull/19) : vérifier les CI du dernier commit avant fusion. Aucun nouvel essai manuel Android ou audit de base réelle requis.
+Travail en cours : **`feat/android-offline-solo`**, [premier solo Android](docs/ANDROID_OFFLINE.md). Choix solo/en ligne, moteur TypeScript embarqué via AndroidX JavaScriptEngine, humain + trois PNJ de départ, partie à 1 000 points, sauvegarde/reprise locale sans compte ni backend. **11 tests offline réussis localement** ; compilation Kotlin, nouveaux tests JVM et instrumentés réels à obtenir en CI avant intégration. Statistiques/tutoriel/niveaux avancés ne sont pas encore livrés. En multijoueur, choisir d'abord **Jouer en ligne** si le choix des modes apparaît.
 
 **[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; solo offline, plusieurs fonctions utilisateur et diffusion publique restent à terminer ; l’entraînement IA massif est une étape ultérieure. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -79,7 +79,7 @@ Suivre les exécutions dans [GitHub Actions](https://github.com/sgramtinne-code/
 
 - [Directives pour les assistants et contributeurs](AGENTS.md)
 - [Prompt complet pour reprendre dans un nouveau chat](docs/REPRISE.md)
-- [Règles canoniques du moteur — version documentaire 0.1.2](docs/GAME_RULES.md)
+- [Règles canoniques du moteur — version documentaire 0.1.3](docs/GAME_RULES.md)
 - [Validation des règles MVP](docs/RULES_VALIDATION.md)
 - [Diagnostic du cycle de vie des salons](docs/ROOM_LIFECYCLE.md)
 

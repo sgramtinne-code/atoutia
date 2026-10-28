@@ -61,6 +61,13 @@ jobs:
           pnpm --filter @atoutia/belote-engine test
           pnpm --filter @atoutia/belote-engine build
 
+      - name: Validate offline game and committed Android bundle
+        run: |
+          pnpm --filter @atoutia/offline-game typecheck
+          pnpm --filter @atoutia/offline-game bundle:check
+          pnpm --filter @atoutia/offline-game test
+          pnpm --filter @atoutia/offline-game build
+
       - name: Validate and build backend
         run: |
           pnpm --filter @atoutia/backend typecheck

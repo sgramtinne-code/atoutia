@@ -145,6 +145,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.javascriptengine:javascriptengine:1.1.1")
     val composeBom =
         platform(
             "androidx.compose:compose-bom:2026.08.00",

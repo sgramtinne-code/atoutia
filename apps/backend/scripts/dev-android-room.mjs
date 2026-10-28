@@ -951,7 +951,7 @@ async function main() {
   );
 
   log(
-    "Sur Android : Jouer -> Créer une partie",
+    "Sur Android : si le choix des modes apparaît, Jouer en ligne, puis Jouer -> Créer une partie",
   );
 
   log(

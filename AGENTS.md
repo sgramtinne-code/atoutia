@@ -4,6 +4,14 @@
 
 Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ni un prérequis au solo offline, à la bêta ou à la publication. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
 
+## Lot courant : premier solo Android — 28 octobre 2026
+
+Main **4d20422** (PR19) vérifié, CI main moteur/backend 40748721194 et Kotlin 40748721118 réussies. Récupération/builds moteur/backend et démarrage PC reçus. Branche **feat/android-offline-solo** ; lire [ANDROID_OFFLINE.md](docs/ANDROID_OFFLINE.md). Livrer une partie locale jouable contre trois PNJ sans compte/backend avec sauvegarde/reprise ; aucun nouveau chantier d'audit ou million de validation en remplacement.
+
+Même moteur TypeScript, bundle APK reproductible contrôlé en CI, AndroidX JavaScriptEngine 1.1.1, Compose natif et parseur joueur partagé sans affaiblir les contrôles HTTP. Runtime disponible seulement avec WebView compatible/API26+ : tester isSupported et erreur explicite, aucun repli online. Fermer le sandbox à la sortie, y compris connexion tardive ; opérations IO hors UI. Replay complet strictement interne au solo, snapshots humains/PNJ limités aux informations autorisées. Cette exception locale ne modifie jamais la confidentialité du multijoueur. Pas de nouvelle implémentation des règles Kotlin.
+
+11 tests offline passés localement ; six nouveaux JVM et deux instrumentés vrais à obtenir en CI, 231 JVM/23 instrumentés antérieurs conservés. Aucun SDK local assistant. Pas de fusion ni de déclaration Android validée avant les trois CI réelles du dernier commit. Aucun compte/base réelle/Keystore touché par les nouveaux tests. PNJ starter-v1 heuristiques, pas d'IA entraînée ni de difficultés/personnalités livrées. Statistiques/progression/tutoriel/paramètres restent après ce premier lot. Maintenir README/REPRISE/bilan et preuves GitHub ; demander seulement les nouveaux essais appareil nécessaires.
+
 ## Mission et références
 
 Développer une application Android de belote multijoueur fiable, sécurisée et maintenable. Le porteur du projet est débutant : prendre les décisions techniques courantes, expliquer simplement et fournir des commandes exactes, courtes et adaptées à WSL.
