@@ -1,0 +1,74 @@
+{
+  "revision": 0,
+  "document": {
+    "formatVersion": 1,
+    "engineVersion": "0.1.0",
+    "snapshot": {
+      "match": {
+        "public": {
+          "dealNumber": 1,
+          "dealer": "PLAYER_3",
+          "phase": "BIDDING",
+          "score": {
+            "targetScore": 1000,
+            "scores": {
+              "TEAM_0": 0,
+              "TEAM_1": 0
+            },
+            "completed": false,
+            "winner": null
+          },
+          "biddingPlayer": "PLAYER_0",
+          "taker": null,
+          "trumpSuit": null,
+          "turnUpCard": {
+            "suit": "SPADES",
+            "rank": "ACE"
+          },
+          "currentTrick": null
+        },
+        "player": "PLAYER_0",
+        "hand": [
+          {
+            "suit": "SPADES",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "CLUBS",
+            "rank": "ACE"
+          },
+          {
+            "suit": "HEARTS",
+            "rank": "TEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "EIGHT"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "SEVEN"
+          }
+        ],
+        "legalCards": []
+      },
+      "actions": {
+        "player": "PLAYER_0",
+        "mode": "BID",
+        "biddingActions": [
+          {
+            "type": "PASS",
+            "player": "PLAYER_0"
+          },
+          {
+            "type": "TAKE",
+            "player": "PLAYER_0",
+            "suit": "SPADES"
+          }
+        ],
+        "legalCards": []
+      }
+    }
+  },
+  "save": "{\"formatVersion\":1,\"botPolicy\":\"bold-v1\",\"replay\":{\"rulesVersion\":\"CLASSIC_LITIGE_WINNER\",\"formatVersion\":2,\"engineVersion\":\"0.1.0\",\"baseSeed\":37,\"firstDealer\":\"PLAYER_3\",\"targetScore\":1000,\"history\":[]}}"
+}

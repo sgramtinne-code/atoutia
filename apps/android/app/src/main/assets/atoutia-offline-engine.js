@@ -1840,6 +1840,54 @@ var AtoutiaOffline = (() => {
   var MATCH_SESSION_ID_BYTE_LENGTH = 16;
   var MATCH_SESSION_ID_HEX_LENGTH = MATCH_SESSION_ID_BYTE_LENGTH * 2;
 
+  // packages/offline-game/src/botPolicies.ts
+  var OFFLINE_BOT_POLICIES = ["starter-v1", "varied-v1", "careful-v1", "bold-v1"];
+  function isOfflineBotPolicy(value) {
+    return typeof value === "string" && OFFLINE_BOT_POLICIES.some((policy) => policy === value);
+  }
+  function styleFor(policy, player) {
+    if (policy === "careful-v1") return "CAREFUL";
+    if (policy === "bold-v1") return "BOLD";
+    return player === "PLAYER_1" ? "CAREFUL" : player === "PLAYER_2" ? "TEAM" : "BOLD";
+  }
+  function chooseStyledOfflineBot(snapshot, policy) {
+    const { actions, match } = snapshot;
+    if (actions.player === "PLAYER_0") return null;
+    const style = styleFor(policy, actions.player);
+    if (actions.mode === "BID") {
+      const threshold = style === "CAREFUL" ? 46 : style === "TEAM" ? 35 : 22;
+      const candidates = actions.biddingActions.filter((action) => action.type === "TAKE").map((action) => ({
+        action,
+        strength: match.hand.filter((card) => card.suit === action.suit).reduce((total, card) => total + 6 + getCardPoints(card, action.suit), 0)
+      })).sort((a, b) => b.strength - a.strength);
+      const best = candidates[0];
+      if (best && best.strength >= threshold) return { type: "TAKE", suit: best.action.suit };
+      return actions.biddingActions.some((action) => action.type === "PASS") ? { type: "PASS" } : null;
+    }
+    const trump = match.public.trumpSuit;
+    if (actions.mode !== "PLAY_CARD" || trump === null || actions.legalCards.length === 0) return null;
+    const cards = [...actions.legalCards];
+    const plays = match.public.currentTrick?.plays ?? [];
+    const player = actions.player;
+    const points = (card) => getCardPoints(card, trump);
+    const cost = (card) => (card.suit === trump ? 100 : 0) + points(card) * 8 + getCardStrength(card, trump);
+    const cheapest = (options) => [...options].sort((a, b) => cost(a) - cost(b))[0];
+    const winning = cards.filter((card) => getTrickWinner([...plays, { player, card }], trump).player === player);
+    const winner = plays.length ? getTrickWinner(plays, trump).player : null;
+    const partnerWinning = winner !== null && getPlayerTeam(winner) === getPlayerTeam(player);
+    let chosen;
+    if (style === "BOLD") {
+      const attack = (card) => (card.suit === trump ? 100 : 0) + getCardStrength(card, trump) * 12 + points(card);
+      chosen = winning.length ? [...winning].sort((a, b) => attack(b) - attack(a))[0] : cheapest(cards);
+    } else if (style === "TEAM" && partnerWinning) {
+      const gifts = cards.filter((card) => card.suit !== trump && !winning.includes(card));
+      chosen = gifts.sort((a, b) => points(b) - points(a))[0] ?? cheapest(cards);
+    } else if (!partnerWinning && winning.length && (style === "TEAM" || plays.length === 3)) {
+      chosen = cheapest(winning);
+    } else chosen = cheapest(cards);
+    return chosen ? { type: "PLAY_CARD", card: chosen } : null;
+  }
+
   // packages/offline-game/src/index.ts
   var OFFLINE_SAVE_VERSION = 1;
   var OFFLINE_BOT_POLICY = "starter-v1";
@@ -1870,22 +1918,24 @@ var AtoutiaOffline = (() => {
     return null;
   }
   var OfflineGame = class _OfflineGame {
-    constructor(state) {
+    constructor(state, botPolicy) {
       __publicField(this, "state", state);
+      __publicField(this, "botPolicy", botPolicy);
     }
-    static start(seed) {
+    static start(seed, botPolicy = OFFLINE_BOT_POLICY) {
       if (!Number.isSafeInteger(seed) || seed < 0 || seed > 4294967295) throw new Error("Invalid offline seed.");
-      return new _OfflineGame(createMatchMachine({ baseSeed: seed, firstDealer: "PLAYER_3", targetScore: 1e3 }));
+      if (!isOfflineBotPolicy(botPolicy)) throw new Error("Unsupported offline bot policy.");
+      return new _OfflineGame(createMatchMachine({ baseSeed: seed, firstDealer: "PLAYER_3", targetScore: 1e3 }), botPolicy);
     }
     static restore(text) {
       if (text.length > MAX_SAVE_LENGTH) throw new Error("Offline save is too large.");
       const save = JSON.parse(text);
-      if (!save || Array.isArray(save) || save.formatVersion !== OFFLINE_SAVE_VERSION || save.botPolicy !== OFFLINE_BOT_POLICY) {
+      if (!save || Array.isArray(save) || save.formatVersion !== OFFLINE_SAVE_VERSION || !isOfflineBotPolicy(save.botPolicy)) {
         throw new Error("Unsupported offline save.");
       }
       const replay = parseMatchReplayDocument(JSON.stringify(save.replay));
       if (replay.targetScore !== 1e3 || replay.history.length > 2e4) throw new Error("Invalid offline match configuration.");
-      return new _OfflineGame(replayMatchDocument(replay));
+      return new _OfflineGame(replayMatchDocument(replay), save.botPolicy);
     }
     apply(player, command) {
       const document = parsePlayerCommandDocument(JSON.stringify({
@@ -1910,7 +1960,8 @@ var AtoutiaOffline = (() => {
       const player = deal.phase === "BIDDING" ? deal.bidding.currentPlayer : deal.trickSequence?.currentTrick.currentPlayer;
       if (!player) throw new Error("Offline game has no current player.");
       if (player === HUMAN_PLAYER) return;
-      const command = chooseOfflineBot(createPlayerClientSnapshot(this.state, player));
+      const snapshot = createPlayerClientSnapshot(this.state, player);
+      const command = this.botPolicy === OFFLINE_BOT_POLICY ? chooseOfflineBot(snapshot) : chooseStyledOfflineBot(snapshot, this.botPolicy);
       if (!command) throw new Error("Offline bot has no action.");
       this.apply(player, command);
     }
@@ -1918,7 +1969,7 @@ var AtoutiaOffline = (() => {
       return {
         revision: this.state.history.length,
         document: createPlayerClientSnapshotDocument(this.state, HUMAN_PLAYER),
-        save: JSON.stringify({ formatVersion: OFFLINE_SAVE_VERSION, botPolicy: OFFLINE_BOT_POLICY, replay: createMatchReplayDocument(this.state) })
+        save: JSON.stringify({ formatVersion: OFFLINE_SAVE_VERSION, botPolicy: this.botPolicy, replay: createMatchReplayDocument(this.state) })
       };
     }
   };
@@ -1931,7 +1982,8 @@ var AtoutiaOffline = (() => {
     switch (input.method) {
       case "start":
         if (typeof input.seed !== "number") throw new Error("Missing offline seed.");
-        game = OfflineGame.start(input.seed);
+        if (input.botPolicy !== void 0 && !isOfflineBotPolicy(input.botPolicy)) throw new Error("Unsupported offline bot policy.");
+        game = OfflineGame.start(input.seed, input.botPolicy);
         break;
       case "restore":
         if (typeof input.save !== "string") throw new Error("Missing offline save.");

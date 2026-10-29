@@ -90,4 +90,42 @@ class OfflineSoloControllerTest {
         assertThrows(AtoutiaGameApiException::class.java) { OfflineFrame.parse(json.toString()) }
         assertThrows(IllegalArgumentException::class.java) { OfflineFrame.parse(JSONObject(fixture("bid")).put("revision", -1).toString()) }
     }
+
+    @Test fun aFreshGameUsesTheRequestedTableAndReturnsItsActivePolicy() {
+        val runtime = Runtime(fixture("varied-bid"))
+        val store = Store()
+        val controller = OfflineSoloController(runtime, store) { 37 }
+        val result = controller.resumeOrStart(SoloBotTable.MIXED.policy)
+        assertEquals("varied-v1", runtime.requests.single().getString("botPolicy"))
+        assertEquals(SoloBotTable.MIXED, result.botTable)
+        assertEquals("varied-v1", JSONObject(OfflineProgress.decode(store.value).engineSave!!).getString("botPolicy"))
+    }
+
+    @Test fun resumingIgnoresAFuturePreferenceButAnExplicitNewGameCanChangeTheTable() {
+        val runtime = Runtime(fixture("bid"))
+        val saved = OfflineFrame.parse(fixture("bid")).save
+        val store = Store(saved)
+        val controller = OfflineSoloController(runtime, store) { 37 }
+        val resumed = controller.resumeOrStart(SoloBotTable.BOLD.policy)
+        assertEquals("restore", runtime.requests.single().getString("method"))
+        assertFalse(runtime.requests.single().has("botPolicy"))
+        assertEquals(SoloBotTable.CLASSIC, resumed.botTable)
+        runtime.output = fixture("bold-bid")
+        val started = controller.startNew(SoloBotTable.BOLD.policy)
+        assertEquals("bold-v1", runtime.requests.last().getString("botPolicy"))
+        assertEquals(SoloBotTable.BOLD, started.botTable)
+        assertEquals(resumed.statistics, started.statistics)
+    }
+
+    @Test fun anUnknownPolicyInARuntimeFrameCannotOverwriteProgress() {
+        val json = JSONObject(fixture("bid"))
+        val save = JSONObject(json.getString("save")).put("botPolicy", "unknown-v1").toString()
+        json.put("save", save)
+        val original = OfflineFrame.parse(fixture("bid")).save
+        val store = Store(original)
+        assertThrows(IllegalArgumentException::class.java) {
+            OfflineSoloController(Runtime(json.toString()), store) { 37 }.resumeOrStart()
+        }
+        assertEquals(original, store.value)
+    }
 }

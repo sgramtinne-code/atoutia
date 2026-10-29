@@ -120,6 +120,9 @@ internal fun GameScreen(
     onReturnToHome: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     local: Boolean = false,
+    localBotTitle: String? = null,
+    localBotDetails: String? = null,
+    onNewLocalGame: (() -> Unit)? = null,
 ) {
     val document =
         session.document
@@ -398,6 +401,12 @@ internal fun GameScreen(
                     onHome =
                         onHome,
                 )
+            }
+            if (local && localBotTitle != null) {
+                Text(localBotTitle, modifier = Modifier.testTag("solo-active-bots"), style = MaterialTheme.typography.titleSmall)
+                if (localBotDetails != null) Text(localBotDetails)
+                if (!isMatchCompleted && onNewLocalGame != null) OutlinedButton(onClick = onNewLocalGame,
+                    enabled = !isSubmitting, modifier = Modifier.fillMaxWidth().testTag("solo-new-game")) { Text("Nouvelle partie solo") }
             }
         }
 

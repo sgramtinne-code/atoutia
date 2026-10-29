@@ -6,6 +6,8 @@ import {
   type MatchMachineState, type PlayerClientSnapshot, type PlayerCommand,
   type PlayerPosition,
 } from "@atoutia/belote-engine";
+import { chooseStyledOfflineBot, isOfflineBotPolicy, type OfflineBotPolicy } from "./botPolicies.js";
+export { OFFLINE_BOT_POLICIES, type OfflineBotPolicy } from "./botPolicies.js";
 
 export const OFFLINE_SAVE_VERSION = 1;
 export const OFFLINE_BOT_POLICY = "starter-v1";
@@ -40,22 +42,23 @@ export function chooseOfflineBot(snapshot: PlayerClientSnapshot): PlayerCommand 
 }
 
 export class OfflineGame {
-  private constructor(private state: MatchMachineState) {}
+  private constructor(private state: MatchMachineState, private readonly botPolicy: OfflineBotPolicy) {}
 
-  static start(seed: number): OfflineGame {
+  static start(seed: number, botPolicy: OfflineBotPolicy = OFFLINE_BOT_POLICY): OfflineGame {
     if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error("Invalid offline seed.");
-    return new OfflineGame(createMatchMachine({ baseSeed: seed, firstDealer: "PLAYER_3", targetScore: 1000 }));
+    if (!isOfflineBotPolicy(botPolicy)) throw new Error("Unsupported offline bot policy.");
+    return new OfflineGame(createMatchMachine({ baseSeed: seed, firstDealer: "PLAYER_3", targetScore: 1000 }), botPolicy);
   }
 
   static restore(text: string): OfflineGame {
     if (text.length > MAX_SAVE_LENGTH) throw new Error("Offline save is too large.");
     const save = JSON.parse(text) as Record<string, unknown>;
-    if (!save || Array.isArray(save) || save.formatVersion !== OFFLINE_SAVE_VERSION || save.botPolicy !== OFFLINE_BOT_POLICY) {
+    if (!save || Array.isArray(save) || save.formatVersion !== OFFLINE_SAVE_VERSION || !isOfflineBotPolicy(save.botPolicy)) {
       throw new Error("Unsupported offline save.");
     }
     const replay = parseMatchReplayDocument(JSON.stringify(save.replay));
     if (replay.targetScore !== 1000 || replay.history.length > 20000) throw new Error("Invalid offline match configuration.");
-    return new OfflineGame(replayMatchDocument(replay));
+    return new OfflineGame(replayMatchDocument(replay), save.botPolicy);
   }
 
   private apply(player: PlayerPosition, command: unknown): void {
@@ -81,7 +84,8 @@ export class OfflineGame {
     const player = deal.phase === "BIDDING" ? deal.bidding.currentPlayer : deal.trickSequence?.currentTrick.currentPlayer;
     if (!player) throw new Error("Offline game has no current player.");
     if (player === HUMAN_PLAYER) return;
-    const command = chooseOfflineBot(createPlayerClientSnapshot(this.state, player));
+    const snapshot = createPlayerClientSnapshot(this.state, player);
+    const command = this.botPolicy === OFFLINE_BOT_POLICY ? chooseOfflineBot(snapshot) : chooseStyledOfflineBot(snapshot, this.botPolicy);
     if (!command) throw new Error("Offline bot has no action.");
     this.apply(player, command);
   }
@@ -90,7 +94,7 @@ export class OfflineGame {
     return {
       revision: this.state.history.length,
       document: createPlayerClientSnapshotDocument(this.state, HUMAN_PLAYER),
-      save: JSON.stringify({ formatVersion: OFFLINE_SAVE_VERSION, botPolicy: OFFLINE_BOT_POLICY, replay: createMatchReplayDocument(this.state) }),
+      save: JSON.stringify({ formatVersion: OFFLINE_SAVE_VERSION, botPolicy: this.botPolicy, replay: createMatchReplayDocument(this.state) }),
     };
   }
 }

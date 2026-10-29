@@ -1,4 +1,5 @@
 import { OfflineGame } from "./index.js";
+import { isOfflineBotPolicy } from "./botPolicies.js";
 
 let game: OfflineGame | null = null;
 
@@ -9,7 +10,8 @@ export function request(json: string): string {
   switch (input.method) {
     case "start":
       if (typeof input.seed !== "number") throw new Error("Missing offline seed.");
-      game = OfflineGame.start(input.seed);
+      if (input.botPolicy !== undefined && !isOfflineBotPolicy(input.botPolicy)) throw new Error("Unsupported offline bot policy.");
+      game = OfflineGame.start(input.seed, input.botPolicy);
       break;
     case "restore":
       if (typeof input.save !== "string") throw new Error("Missing offline save.");

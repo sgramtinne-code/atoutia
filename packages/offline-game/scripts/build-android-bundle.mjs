@@ -45,7 +45,9 @@ function finish(seed, winner) {
 }
 const won = finish(1, "TEAM_0");
 const lost = finish(10, "TEAM_1");
-for (const [name, value] of [["bid", bid], ["playing", playing], ["wait", wait], ["won", won], ["lost", lost]]) {
+const varied = call({ method: "start", seed: 37, botPolicy: "varied-v1" });
+const bold = call({ method: "start", seed: 37, botPolicy: "bold-v1" });
+for (const [name, value] of [["bid", bid], ["playing", playing], ["wait", wait], ["won", won], ["lost", lost], ["varied-bid", varied], ["bold-bid", bold]]) {
   outputs.push([resolve(root, "apps/android/app/src/test/resources/offline/" + name + ".json"), JSON.stringify(value, null, 2) + "\n"]);
 }
 if (process.argv.includes("--check")) {

@@ -14,3 +14,8 @@ Cette étape vient **plus tard**. Elle ne constitue aucun prérequis à la livra
 4. Après validation technique et ludique, intégrer les stratégies ou modèles retenus dans l'application, avec leurs contraintes d'exécution locale.
 
 Les algorithmes, frameworks et formats de modèles restent à choisir au moment de cette étape, sur des mesures réelles. Aucun entraînement, installation GPU ou volume de millions de parties n'est lancé implicitement aujourd'hui. L'entraînement ne s'effectue pas sur le téléphone. Les PNJ de jeu normal disposent uniquement des informations autorisées, sans accès aux cartes cachées adverses. Préserver une économie sans pay-to-win.
+
+
+## Premier enrichissement sans entraînement — 29 octobre 2026
+
+Le lot [styles PNJ offline](OFFLINE_BOT_STYLES.md) introduit des heuristiques déterministes prudent/solidaire/audacieux et des tables choisies par le joueur. Il ne mesure pas une échelle de force ni un plaisir garanti. Le botPolicy est conservé avec chaque partie pour ne pas changer une reprise. Les PNJ reçoivent seulement leur main, le pli public et leurs actions autorisées ; les règles restent celles du moteur. Ce premier choix de styles peut guider le retour ludique avant l’IA Lab ; aucun entraînement RTX5070 ou modèle appris n’est déclaré livré.

@@ -96,6 +96,18 @@ internal fun SoloSettingsScreen(initial: SoloPreferences, save: (SoloPreferences
         ) {
             Text("Paramètres solo", style = MaterialTheme.typography.headlineMedium)
             OutlinedButton(onClick = onHome, enabled = !saving) { Text("Retour à l’accueil") }
+            Text("Styles des PNJ", style = MaterialTheme.typography.titleLarge)
+            Text("Pour la prochaine nouvelle partie. Une partie reprise garde ses PNJ.")
+            SoloBotTable.entries.forEach { table ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RadioButton(selected = value.botTable == table, onClick = { change(value.copy(botTable = table)) },
+                        enabled = !saving, modifier = Modifier.testTag("solo-bots-${table.name}"))
+                    Column {
+                        Text(table.label, style = MaterialTheme.typography.titleMedium)
+                        Text(table.description)
+                    }
+                }
+            }
             Text("Rythme des PNJ", style = MaterialTheme.typography.titleLarge)
             Text("Le temps entre leurs actions. Leur niveau et leur manière de jouer restent identiques.")
             SoloPace.entries.forEach { pace ->
@@ -113,7 +125,7 @@ internal fun SoloSettingsScreen(initial: SoloPreferences, save: (SoloPreferences
             Text("Demander confirmation avant de jouer une carte en solo. Tu peux annuler et en choisir une autre.")
             if (saving) Text("Enregistrement…")
             if (failed) Text("La modification n’a pas été enregistrée. Réessaie en sélectionnant ton choix.", modifier = Modifier.testTag("solo-settings-error"))
-            Text("Ces réglages sont conservés sur cet appareil et s’appliquent au prochain accès au solo, y compris à une partie reprise.")
+            Text("Réglages conservés sur cet appareil. Le rythme et la confirmation s’appliquent au prochain accès au solo ; les styles s’appliquent à la prochaine nouvelle partie.")
         }
     }
 }

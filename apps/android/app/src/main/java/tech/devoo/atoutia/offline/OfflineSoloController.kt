@@ -18,7 +18,7 @@ internal interface OfflineSaveStore {
     fun write(save: String)
 }
 
-internal data class OfflineFrame(val revision: Int, val document: PlayerClientSnapshotDocument, val save: String) {
+internal data class OfflineFrame(val revision: Int, val document: PlayerClientSnapshotDocument, val save: String, val botTable: SoloBotTable) {
     companion object {
         fun parse(text: String): OfflineFrame {
             require(text.length <= 4 * 1024 * 1024) { "Offline response is too large." }
@@ -29,12 +29,13 @@ internal data class OfflineFrame(val revision: Int, val document: PlayerClientSn
             require(document.snapshot.match.player == PlayerPosition.PLAYER_0)
             val save = json.getString("save")
             require(save.length <= 2 * 1024 * 1024)
-            return OfflineFrame(revision, document, save)
+            val table = SoloBotTable.fromPolicy(JSONObject(save).getString("botPolicy"))
+            return OfflineFrame(revision, document, save, table)
         }
     }
 }
 
-internal data class OfflineUpdate(val view: GameViewState, val saveFailed: Boolean, val statistics: OfflineStatistics)
+internal data class OfflineUpdate(val view: GameViewState, val saveFailed: Boolean, val statistics: OfflineStatistics, val botTable: SoloBotTable)
 
 /** Coordinates only the local runtime/file. It never constructs an account or HTTP API. */
 internal class OfflineSoloController(
@@ -55,15 +56,15 @@ internal class OfflineSoloController(
         progress = updated
         // A command may already have been applied: a save failure must not replay it.
         val saveFailed = try { store.write(updated.encode()); false } catch (_: Exception) { true }
-        return OfflineUpdate(GameViewState(frame.revision, PlayerPosition.PLAYER_0, frame.document), saveFailed, updated.statistics)
+        return OfflineUpdate(GameViewState(frame.revision, PlayerPosition.PLAYER_0, frame.document), saveFailed, updated.statistics, frame.botTable)
     }
 
-    fun resumeOrStart(): OfflineUpdate {
+    fun resumeOrStart(newGamePolicy: String = SoloBotTable.CLASSIC.policy): OfflineUpdate {
         val save = loadProgress().engineSave
-        return if (save == null) startNew() else execute(JSONObject().put("method", "restore").put("save", save))
+        return if (save == null) startNew(newGamePolicy) else execute(JSONObject().put("method", "restore").put("save", save))
     }
 
-    fun startNew(): OfflineUpdate = execute(JSONObject().put("method", "start").put("seed", nextSeed()), newGame = true)
+    fun startNew(botPolicy: String = SoloBotTable.CLASSIC.policy): OfflineUpdate = execute(JSONObject().put("method", "start").put("seed", nextSeed()).put("botPolicy", botPolicy), newGame = true)
     fun snapshot(): OfflineUpdate = execute(JSONObject().put("method", "snapshot"))
     fun stepBot(revision: Int): OfflineUpdate = execute(JSONObject().put("method", "bot").put("revision", revision))
 
