@@ -21,10 +21,34 @@ class SoloPreferencesTest {
     @Test fun unknownOrDamagedSettingsAreRejectedInsteadOfSilentlyReplacingChoices() {
         val valid = SoloPreferences().encode()
         val invalid = listOf("", "{}", valid.replace("NORMAL", "FUTURE"),
-            valid.replace("\"formatVersion\":1", "\"formatVersion\":2"),
-            valid.replace("\"formatVersion\":1", "\"formatVersion\":1.0"),
+            valid.replace("\"formatVersion\":2", "\"formatVersion\":3"),
+            valid.replace("\"formatVersion\":2", "\"formatVersion\":2.0"),
             valid.replace("false", "\"false\""), valid.replace("false", "null"),
             valid.dropLast(1) + ",\"extra\":true}", " ".repeat(1025))
         for (text in invalid) assertThrows(Exception::class.java) { SoloPreferences.decode(text) }
+    }
+
+    @Test fun legacySettingsKeepTheirChoicesAndOriginalBotsUntilAnExplicitChange() {
+        val legacy = "{\"formatVersion\":1,\"pace\":\"FAST\",\"confirmCards\":true}"
+        val decoded = SoloPreferences.decode(legacy)
+        assertEquals(SoloPreferences(SoloPace.FAST, true, SoloBotTable.CLASSIC), decoded)
+        assertEquals(decoded, SoloPreferences.decode(decoded.encode()))
+    }
+
+    @Test fun allBotTablesRoundTripWithTheirVersionedPolicy() {
+        assertEquals(SoloBotTable.MIXED, SoloPreferences.decode(null).botTable)
+        for (table in SoloBotTable.entries) {
+            val preferences = SoloPreferences(botTable = table)
+            assertEquals(preferences, SoloPreferences.decode(preferences.encode()))
+            assertEquals(table, SoloBotTable.fromPolicy(table.policy))
+        }
+    }
+
+    @Test fun unknownTablesAndPoliciesCannotSilentlySelectDifferentBots() {
+        val saved = SoloPreferences().encode()
+        for (value in listOf(saved.replace("MIXED", "FUTURE"), saved.replace("\"MIXED\"", "123"))) {
+            assertThrows(Exception::class.java) { SoloPreferences.decode(value) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { SoloBotTable.fromPolicy("future-v1") }
     }
 }

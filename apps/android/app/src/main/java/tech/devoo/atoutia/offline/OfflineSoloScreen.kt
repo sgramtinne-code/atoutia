@@ -44,6 +44,7 @@ import tech.devoo.atoutia.ui.game.GameViewState
 internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, preferences: SoloPreferences = SoloPreferences(), onHome: () -> Unit) {
     var controller by remember { mutableStateOf(controllerFactory()) }
     var view by remember { mutableStateOf<GameViewState?>(null) }
+    var botTable by remember { mutableStateOf(SoloBotTable.CLASSIC) }
     var busy by remember { mutableStateOf(false) }
     var issue by remember { mutableStateOf<String?>(null) }
     var unavailable by remember { mutableStateOf(false) }
@@ -64,6 +65,7 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, p
             try {
                 val result = withContext(Dispatchers.IO) { action() }
                 view = result.view
+                botTable = result.botTable
                 saveWarning = result.saveFailed
                 issue = null
                 unavailable = false
@@ -81,14 +83,14 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, p
     fun reopen() {
         controller.close()
         controller = controllerFactory()
-        perform { controller.resumeOrStart() }
+        perform { controller.resumeOrStart(preferences.botTable.policy) }
     }
 
-    LaunchedEffect(Unit) { perform { controller.resumeOrStart() } }
+    LaunchedEffect(Unit) { perform { controller.resumeOrStart(preferences.botTable.policy) } }
     LaunchedEffect(view?.revision) { pendingCard = null }
-    LaunchedEffect(view?.revision, busy, issue, saveWarning, preferences.pace) {
+    LaunchedEffect(view?.revision, busy, issue, saveWarning, preferences.pace, confirmNew) {
         val current = view
-        if (!busy && issue == null && !saveWarning && current?.document?.snapshot?.actions?.mode == PlayerActionMode.WAIT) {
+        if (!busy && !confirmNew && issue == null && !saveWarning && current?.document?.snapshot?.actions?.mode == PlayerActionMode.WAIT) {
             delay(preferences.pace.delayMillis)
             perform { controller.stepBot(current.revision) }
         }
@@ -116,6 +118,9 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, p
         GameScreen(
             session = current,
             local = true,
+            localBotTitle = "PNJ actuels : ${botTable.label}",
+            localBotDetails = botTable.description,
+            onNewLocalGame = { if (!busy) confirmNew = true },
             biddingState = if (busy) GameBiddingUiState.Submitting else GameBiddingUiState.Idle,
             playCardState = if (busy) GamePlayCardUiState.Submitting else GamePlayCardUiState.Idle,
             onBiddingAction = { action ->
@@ -129,7 +134,7 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, p
                 if (preferences.confirmCards) pendingCard = current.revision to card
                 else perform { controller.human(current.revision, PlayerGameCommand.PlayCard(card)) }
             },
-            onReplay = { confirmNew = true },
+            onReplay = { if (!busy) confirmNew = true },
             onHome = onHome,
             onReturnToHome = onHome,
         )
@@ -159,8 +164,8 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, p
     if (confirmNew) AlertDialog(
         onDismissRequest = { confirmNew = false },
         title = { Text("Nouvelle partie solo ?") },
-        text = { Text("La partie solo enregistrée sera remplacée.") },
-        confirmButton = { TextButton(onClick = { confirmNew = false; perform { controller.startNew() } }) { Text("Nouvelle partie") } },
+        text = { Text("La partie solo enregistrée sera remplacée. Les statistiques sont conservées. PNJ choisis : ${preferences.botTable.label}.") },
+        confirmButton = { TextButton(enabled = !busy, onClick = { confirmNew = false; perform { controller.startNew(preferences.botTable.policy) } }) { Text("Nouvelle partie") } },
         dismissButton = { TextButton(onClick = { confirmNew = false }) { Text("Annuler") } },
     )
 }

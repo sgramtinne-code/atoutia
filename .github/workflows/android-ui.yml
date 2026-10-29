@@ -218,6 +218,23 @@ jobs:
               raise SystemExit("The four solo profile tests did not all pass.")
           PYTHON
 
+      - name: Run real offline bot styles and compatibility checks
+        timeout-minutes: 5
+        run: |
+          timeout 240s adb -s emulator-5554 shell am instrument -w \
+            -e class tech.devoo.atoutia.offline.OfflineBotStylesInstrumentedTest \
+            tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-bots-result.txt"
+          python3 - <<'PYTHON'
+          import os, re
+          from pathlib import Path
+          result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-bots-result.txt").read_text()
+          passed = bool(re.search(r"^OK \(3 tests\)\s*$", result, re.MULTILINE))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("Offline bot styles and saved policy: " + ("3/3 passed" if passed else "FAILED") + "\n")
+          if not passed:
+              raise SystemExit("The three offline bot style tests did not all pass.")
+          PYTHON
+
       - name: Report failures and stop emulator
         timeout-minutes: 1
         if: ${{ !cancelled() }}
