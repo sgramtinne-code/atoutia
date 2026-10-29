@@ -123,9 +123,10 @@ class MainActivity :
 
         setContent {
             AtoutiaTheme {
-                OfflineEntryHost(applicationContext) { openSoloSettings ->
+                OfflineEntryHost(applicationContext) { actions ->
                     AtoutiaApp(
-                        onOpenSoloSettings = openSoloSettings,
+                        onOpenSoloSettings = actions.openSoloSettings,
+                        onOpenSoloProfile = actions.openSoloProfile,
                         checkBackend =
                             ::checkBackend,
 
@@ -2550,6 +2551,7 @@ internal fun AtoutiaApp(
         ) -> Unit,
     connectLobbyRealtime: ((RoomSessionMembership, RoomLobbyRealtimeCoordinator.Listener) -> AutoCloseable)? = null,
     onOpenSoloSettings: (() -> Unit)? = null,
+    onOpenSoloProfile: (() -> Unit)? = null,
 ) {
     var backendState by
         remember {
@@ -2911,8 +2913,8 @@ internal fun AtoutiaApp(
                                 }
 
                                 HomeAction.Profile -> {
-                                    notice =
-                                        "Le profil joueur arrive prochainement."
+                                    if (onOpenSoloProfile != null) onOpenSoloProfile()
+                                    else notice = "Le profil solo est disponible depuis Statistiques solo."
                                 }
 
                                 HomeAction.Leaderboard -> {
