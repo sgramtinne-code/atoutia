@@ -31,7 +31,7 @@ import androidx.compose.ui.window.DialogProperties
 import java.io.File
 import java.security.SecureRandom
 
-internal data class OnlineModeActions(val openSoloSettings: () -> Unit, val openSoloProfile: () -> Unit)
+internal data class OnlineModeActions(val openSoloSettings: () -> Unit, val openSoloProfile: () -> Unit, val openModes: () -> Unit)
 
 @Composable
 internal fun OfflineEntryHost(context: Context, onlineContent: @Composable (OnlineModeActions) -> Unit) {
@@ -83,7 +83,7 @@ internal fun GameModeHost(
             // Child game handlers still take precedence; Back at the online home opens modes.
             BackHandler { select("MENU") }
             var overlay by rememberSaveable { mutableStateOf<String?>(null) }
-            onlineContent(OnlineModeActions(openSoloSettings = { overlay = "SETTINGS" }, openSoloProfile = { overlay = "PROFILE" }))
+            onlineContent(OnlineModeActions(openSoloSettings = { overlay = "SETTINGS" }, openSoloProfile = { overlay = "PROFILE" }, openModes = { select("MENU") }))
             if (overlay != null) Dialog(onDismissRequest = { overlay = null },
                 properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                 if (overlay == "PROFILE") OfflineProfileScreen(loadStatistics = statisticsLoader, onBack = { overlay = null }, backLabel = "Fermer le profil")

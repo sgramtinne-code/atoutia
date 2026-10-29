@@ -235,6 +235,23 @@ jobs:
               raise SystemExit("The three offline bot style tests did not all pass.")
           PYTHON
 
+      - name: Run isolated online exit and offline access checks
+        timeout-minutes: 5
+        run: |
+          timeout 240s adb -s emulator-5554 shell am instrument -w \
+            -e class tech.devoo.atoutia.offline.OnlineModeExitInstrumentedTest \
+            tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-mode-exit-result.txt"
+          python3 - <<'PYTHON'
+          import os, re
+          from pathlib import Path
+          result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-mode-exit-result.txt").read_text()
+          passed = bool(re.search(r"^OK \(4 tests\)\s*$", result, re.MULTILINE))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("Online exit and offline access: " + ("4/4 passed" if passed else "FAILED") + "\n")
+          if not passed:
+              raise SystemExit("The four online exit and offline access tests did not all pass.")
+          PYTHON
+
       - name: Report failures and stop emulator
         timeout-minutes: 1
         if: ${{ !cancelled() }}
