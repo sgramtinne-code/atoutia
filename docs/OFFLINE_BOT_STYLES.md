@@ -51,3 +51,5 @@ Après intégration : installer l’APK main, ouvrir Paramètres/Styles des PNJ 
 ## Installation PC reçue et accès au menu
 
 29 octobre 2026 : récupération explicite de main 72e7c11, build/install/lancement réussis. La capture suivante montre l’erreur du parcours online, sans accès visible aux modes ; elle ne valide pas encore les styles en jeu. Le correctif [ANDROID_MODE_EXIT.md](ANDROID_MODE_EXIT.md) ajoute le retour explicite, sans modifier les politiques ou les sauvegardes. Retour Android permet déjà de retrouver le menu sur cet APK.
+
+Retour PC complémentaire : le menu est retrouvé, les paramètres affichent les quatre tables avec Variés sélectionné, et une partie affiche PNJ actuels : Variés puis progresse jusqu’à la donne suivante, avec icône avion. L’accès aux réglages et le jeu solo avec cette table sont observés sur l’émulateur. Pas de nouveau journal de fin de match, de comparaison de toutes les tables ou de mesure de plaisir déduit ; aucun nouveau match complet requis. Le geste exact de sortie de l’écran online n’est pas confirmé par ces seules captures. Le correctif de bouton reste une livraison séparée en validation.
