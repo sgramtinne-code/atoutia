@@ -23,6 +23,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -32,13 +33,15 @@ import kotlinx.coroutines.withContext
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
 import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerGameCommand
+import tech.devoo.atoutia.network.game.PlayerCard
+import tech.devoo.atoutia.ui.game.BeloteCard
 import tech.devoo.atoutia.ui.game.GameBiddingUiState
 import tech.devoo.atoutia.ui.game.GamePlayCardUiState
 import tech.devoo.atoutia.ui.game.GameScreen
 import tech.devoo.atoutia.ui.game.GameViewState
 
 @Composable
-internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, onHome: () -> Unit) {
+internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, preferences: SoloPreferences = SoloPreferences(), onHome: () -> Unit) {
     var controller by remember { mutableStateOf(controllerFactory()) }
     var view by remember { mutableStateOf<GameViewState?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -46,6 +49,7 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, o
     var unavailable by remember { mutableStateOf(false) }
     var saveWarning by remember { mutableStateOf(false) }
     var confirmNew by remember { mutableStateOf(false) }
+    var pendingCard by remember { mutableStateOf<Pair<Int, PlayerCard>?>(null) }
     val scope = rememberCoroutineScope()
     DisposableEffect(controller) {
         val owned = controller
@@ -81,10 +85,11 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, o
     }
 
     LaunchedEffect(Unit) { perform { controller.resumeOrStart() } }
-    LaunchedEffect(view?.revision, busy, issue, saveWarning) {
+    LaunchedEffect(view?.revision) { pendingCard = null }
+    LaunchedEffect(view?.revision, busy, issue, saveWarning, preferences.pace) {
         val current = view
         if (!busy && issue == null && !saveWarning && current?.document?.snapshot?.actions?.mode == PlayerActionMode.WAIT) {
-            delay(350)
+            delay(preferences.pace.delayMillis)
             perform { controller.stepBot(current.revision) }
         }
     }
@@ -120,10 +125,28 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, o
                 }
                 perform { controller.human(current.revision, command) }
             },
-            onPlayCard = { card -> perform { controller.human(current.revision, PlayerGameCommand.PlayCard(card)) } },
+            onPlayCard = { card ->
+                if (preferences.confirmCards) pendingCard = current.revision to card
+                else perform { controller.human(current.revision, PlayerGameCommand.PlayCard(card)) }
+            },
             onReplay = { confirmNew = true },
             onHome = onHome,
             onReturnToHome = onHome,
+        )
+        val pending = pendingCard
+        if (pending != null) AlertDialog(
+            modifier = Modifier.testTag("solo-card-confirmation"),
+            onDismissRequest = { pendingCard = null },
+            title = { Text("Jouer cette carte ?") },
+            text = { BeloteCard(card = pending.second) },
+            confirmButton = { TextButton(onClick = {
+                pendingCard = null
+                if (pending.first == current.revision && current.document.snapshot.actions.mode == PlayerActionMode.PLAY_CARD &&
+                    pending.second in current.document.snapshot.actions.legalCards) {
+                    perform { controller.human(pending.first, PlayerGameCommand.PlayCard(pending.second)) }
+                }
+            }, enabled = !busy) { Text("Jouer la carte") } },
+            dismissButton = { TextButton(onClick = { pendingCard = null }) { Text("Annuler") } },
         )
         if (issue != null || saveWarning) AlertDialog(
             onDismissRequest = { issue = null; saveWarning = false },

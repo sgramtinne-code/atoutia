@@ -26,13 +26,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import java.io.File
 import java.security.SecureRandom
 
 @Composable
-internal fun OfflineEntryHost(context: Context, onlineContent: @Composable () -> Unit) {
+internal fun OfflineEntryHost(context: Context, onlineContent: @Composable (() -> Unit) -> Unit) {
     val app = context.applicationContext
     val preferences = remember { app.getSharedPreferences("atoutia_game_mode", Context.MODE_PRIVATE) }
     val saveStore = remember(app) { AndroidOfflineSaveStore(app) }
+    val settingsStore = remember(app) { AndroidOfflineSaveStore(File(app.filesDir, "offline/preferences.json")) }
     GameModeHost(
         initialMode = preferences.getString("mode", "MENU") ?: "MENU",
         onModeChanged = { preferences.edit().putString("mode", it).apply() },
@@ -42,6 +46,8 @@ internal fun OfflineEntryHost(context: Context, onlineContent: @Composable () ->
             }
         },
         statisticsLoader = { OfflineProgress.decode(saveStore.read()).statistics },
+        preferencesLoader = { SoloPreferences.decode(settingsStore.read()) },
+        preferencesWriter = { settingsStore.write(it.encode()) },
         onlineContent = onlineContent,
     )
 }
@@ -52,12 +58,20 @@ internal fun GameModeHost(
     onModeChanged: (String) -> Unit = {},
     controllerFactory: () -> OfflineSoloController,
     statisticsLoader: () -> OfflineStatistics = { OfflineStatistics() },
-    onlineContent: @Composable () -> Unit,
+    preferencesLoader: () -> SoloPreferences = { SoloPreferences() },
+    preferencesWriter: (SoloPreferences) -> Unit = {},
+    onlineContent: @Composable (() -> Unit) -> Unit,
 ) {
-    var mode by rememberSaveable { mutableStateOf(initialMode.takeIf { it in setOf("SOLO", "ONLINE", "STATS") } ?: "MENU") }
+    var mode by rememberSaveable { mutableStateOf(initialMode.takeIf { it in setOf("SOLO", "ONLINE", "STATS", "SETTINGS", "LEARN") } ?: "MENU") }
     fun select(value: String) { mode = value; onModeChanged(value) }
     when (mode) {
-        "SOLO" -> OfflineSoloScreen(controllerFactory = controllerFactory, onHome = { select("MENU") })
+        "SOLO" -> SoloPreferencesGate(load = preferencesLoader, onHome = { select("MENU") }) { preferences ->
+            OfflineSoloScreen(controllerFactory = controllerFactory, preferences = preferences, onHome = { select("MENU") })
+        }
+        "SETTINGS" -> SoloPreferencesGate(load = preferencesLoader, onHome = { select("MENU") }) { preferences ->
+            SoloSettingsScreen(initial = preferences, save = preferencesWriter, onHome = { select("MENU") })
+        }
+        "LEARN" -> BeloteTutorialScreen(onHome = { select("MENU") })
         "STATS" -> {
             BackHandler { select("MENU") }
             OfflineStatisticsScreen(loadStatistics = statisticsLoader, onHome = { select("MENU") })
@@ -65,7 +79,14 @@ internal fun GameModeHost(
         "ONLINE" -> {
             // Child game handlers still take precedence; Back at the online home opens modes.
             BackHandler { select("MENU") }
-            onlineContent()
+            var settingsVisible by rememberSaveable { mutableStateOf(false) }
+            onlineContent { settingsVisible = true }
+            if (settingsVisible) Dialog(onDismissRequest = { settingsVisible = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                SoloPreferencesGate(load = preferencesLoader, onHome = { settingsVisible = false }) { preferences ->
+                    SoloSettingsScreen(initial = preferences, save = preferencesWriter, onHome = { settingsVisible = false })
+                }
+            }
         }
         else -> Surface(Modifier.fillMaxSize().testTag("game-mode-menu")) {
             Column(
@@ -79,7 +100,11 @@ internal fun GameModeHost(
                     Button(onClick = { select("SOLO") }, modifier = Modifier.weight(1f)) { Text("Solo hors ligne") }
                     OutlinedButton(onClick = { select("ONLINE") }, modifier = Modifier.weight(1f)) { Text("Jouer en ligne") }
                 }
-                OutlinedButton(onClick = { select("STATS") }) { Text("Statistiques solo") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { select("STATS") }, modifier = Modifier.weight(1f)) { Text("Statistiques solo") }
+                    OutlinedButton(onClick = { select("SETTINGS") }, modifier = Modifier.weight(1f)) { Text("Paramètres") }
+                    OutlinedButton(onClick = { select("LEARN") }, modifier = Modifier.weight(1f)) { Text("Tutoriel") }
+                }
             }
         }
     }
