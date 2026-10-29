@@ -123,8 +123,9 @@ class MainActivity :
 
         setContent {
             AtoutiaTheme {
-                OfflineEntryHost(applicationContext) {
+                OfflineEntryHost(applicationContext) { openSoloSettings ->
                     AtoutiaApp(
+                        onOpenSoloSettings = openSoloSettings,
                         checkBackend =
                             ::checkBackend,
 
@@ -2548,6 +2549,7 @@ internal fun AtoutiaApp(
             ) -> Unit,
         ) -> Unit,
     connectLobbyRealtime: ((RoomSessionMembership, RoomLobbyRealtimeCoordinator.Listener) -> AutoCloseable)? = null,
+    onOpenSoloSettings: (() -> Unit)? = null,
 ) {
     var backendState by
         remember {
@@ -2929,8 +2931,8 @@ internal fun AtoutiaApp(
                                 }
 
                                 HomeAction.Settings -> {
-                                    notice =
-                                        "Les paramètres Atoutia arrivent prochainement."
+                                    if (onOpenSoloSettings != null) onOpenSoloSettings()
+                                    else notice = "Les réglages solo sont disponibles depuis le choix des modes."
                                 }
                             }
                         },
