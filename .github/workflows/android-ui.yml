@@ -177,11 +177,11 @@ jobs:
           import os, re
           from pathlib import Path
           result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-offline-result.txt").read_text()
-          passed = bool(re.search(r"^OK \(2 tests\)\s*$", result, re.MULTILINE))
+          passed = bool(re.search(r"^OK \(3 tests\)\s*$", result, re.MULTILINE))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Real offline solo engine and UI: " + ("2/2 passed" if passed else "FAILED") + "\n")
+              summary.write("Real offline solo engine and UI: " + ("3/3 passed" if passed else "FAILED") + "\n")
           if not passed:
-              raise SystemExit("The two offline solo tests did not both pass.")
+              raise SystemExit("The three offline solo tests did not all pass.")
           PYTHON
 
       - name: Report failures and stop emulator

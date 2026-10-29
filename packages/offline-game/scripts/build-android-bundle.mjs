@@ -28,7 +28,24 @@ const bid = call({ method: "start", seed: 37 });
 const take = bid.document.snapshot.actions.biddingActions.find((action) => action.type === "TAKE");
 const playing = call({ method: "human", revision: bid.revision, command: { type: "TAKE", suit: take.suit } });
 const wait = call({ method: "human", revision: playing.revision, command: { type: "PLAY_CARD", card: playing.document.snapshot.actions.legalCards[0] } });
-for (const [name, value] of [["bid", bid], ["playing", playing], ["wait", wait]]) {
+function finish(seed, winner) {
+  let frame = call({ method: "start", seed });
+  for (let step = 0; step < 2000; step += 1) {
+    const actions = frame.document.snapshot.actions;
+    if (actions.mode === "MATCH_FINISHED") {
+      if (frame.document.snapshot.match.public.score.winner !== winner) throw new Error("Unexpected offline fixture winner.");
+      return frame;
+    }
+    const command = actions.mode === "BID" ? actions.biddingActions.find((action) => action.type === "TAKE")
+      : { type: "PLAY_CARD", card: actions.legalCards[0] };
+    frame = actions.mode === "WAIT" ? call({ method: "bot", revision: frame.revision })
+      : call({ method: "human", revision: frame.revision, command });
+  }
+  throw new Error("Offline fixture did not complete.");
+}
+const won = finish(1, "TEAM_0");
+const lost = finish(10, "TEAM_1");
+for (const [name, value] of [["bid", bid], ["playing", playing], ["wait", wait], ["won", won], ["lost", lost]]) {
   outputs.push([resolve(root, "apps/android/app/src/test/resources/offline/" + name + ".json"), JSON.stringify(value, null, 2) + "\n"]);
 }
 if (process.argv.includes("--check")) {

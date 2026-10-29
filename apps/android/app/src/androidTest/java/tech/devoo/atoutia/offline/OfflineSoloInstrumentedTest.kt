@@ -3,8 +3,17 @@ package tech.devoo.atoutia.offline
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -18,11 +27,14 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import tech.devoo.atoutia.network.game.MatchTeam
 import tech.devoo.atoutia.network.game.BiddingActionSnapshot
 import tech.devoo.atoutia.network.game.PlayerActionMode
 import tech.devoo.atoutia.network.game.PlayerGameCommand
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
 import java.io.File
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /** Real packaged JS engine, no backend/account; files are confined to a temporary test directory. */
@@ -43,10 +55,14 @@ class OfflineSoloInstrumentedTest {
                 assertFalse("Every accepted action must save", result.saveFailed)
                 if (step == 12) {
                     val before = result.view
+                    val legacy = requireNotNull(OfflineProgress.decode(store.read()).engineSave)
                     controller.close()
+                    store.write(legacy)
                     controller = open()
                     result = controller.resumeOrStart()
                     assertEquals(before, result.view)
+                    assertEquals(0L, result.statistics.completed)
+                    assertEquals(2, JSONObject(store.read()!!).getInt("formatVersion"))
                 }
                 val actions = result.view.document.snapshot.actions
                 if (actions.mode == PlayerActionMode.MATCH_FINISHED) { completed = true; break }
@@ -63,9 +79,20 @@ class OfflineSoloInstrumentedTest {
             assertTrue(score.completed)
             assertNotNull(score.winner)
             assertTrue(maxOf(score.scores.team0, score.scores.team1) >= 1000)
+            assertEquals(1L, result.statistics.completed)
+            assertEquals(if (score.winner == MatchTeam.TEAM_0) 1L else 0L, result.statistics.wins)
+            assertEquals(if (score.winner == MatchTeam.TEAM_1) 1L else 0L, result.statistics.losses)
             controller.close()
             controller = open()
-            assertEquals(result.view, controller.resumeOrStart().view)
+            val resumed = controller.resumeOrStart()
+            assertEquals(result.view, resumed.view)
+            assertEquals(result.statistics, resumed.statistics)
+            assertEquals(result.statistics, controller.snapshot().statistics)
+            val next = controller.startNew()
+            assertFalse(next.saveFailed)
+            assertFalse(next.view.document.snapshot.match.publicMatch.score.completed)
+            assertEquals(result.statistics, next.statistics)
+            assertEquals(next.statistics, OfflineProgress.decode(store.read()).statistics)
         } finally {
             controller.close()
             directory.deleteRecursively()
@@ -92,26 +119,79 @@ class OfflineSoloInstrumentedTest {
                         override fun close() { closes.incrementAndGet(); runtime.close() }
                     }
                     OfflineSoloController(counted, store) { 37 }
-                }, onlineContent = { onlineStarts.incrementAndGet(); Text("ONLINE TEST") })
+                }, statisticsLoader = { OfflineProgress.decode(store.read()).statistics },
+                    onlineContent = { onlineStarts.incrementAndGet(); Text("ONLINE TEST") })
             }
         }
-        compose.onNodeWithText("Solo hors ligne").performScrollTo().performClick()
+        compose.onNodeWithText("Solo hors ligne").assertIsDisplayed().performClick()
         compose.waitUntil(20_000) { store.value != null }
         compose.onNodeWithTag("player-hand").assertIsDisplayed()
         compose.onNode(hasText("Prendre à", substring = true)).performScrollTo().performClick()
-        compose.waitUntil(10_000) { store.value?.let { JSONObject(it).getJSONObject("replay").getJSONArray("history").length() == 1 } == true }
+        compose.waitUntil(10_000) { store.value?.let { JSONObject(requireNotNull(OfflineProgress.decode(it).engineSave)).getJSONObject("replay").getJSONArray("history").length() == 1 } == true }
         val save = store.value
         compose.onNodeWithText("Retour à l’accueil").assertIsDisplayed().performClick()
         compose.waitUntil(5_000) { closes.get() == 1 }
         assertEquals(0, onlineStarts.get())
-        compose.onNodeWithText("Solo hors ligne").performScrollTo().performClick()
+        compose.onNodeWithText("Statistiques solo").assertIsDisplayed().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("offline-statistics-ready").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Parties terminées : 0").assertIsDisplayed()
+        assertEquals(save, store.value)
+        compose.onNodeWithText("Retour à l’accueil").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Solo hors ligne").assertIsDisplayed().performClick()
         compose.waitUntil(20_000) { compose.onAllNodesWithTag("player-hand").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("player-hand").assertIsDisplayed()
         assertEquals(save, store.value)
         compose.onNodeWithText("Retour à l’accueil").assertIsDisplayed().performClick()
         compose.waitUntil(5_000) { closes.get() == 2 }
-        compose.onNodeWithText("Jouer en ligne").performScrollTo().performClick()
+        compose.onNodeWithText("Jouer en ligne").assertIsDisplayed().performClick()
         compose.onNodeWithText("ONLINE TEST").assertIsDisplayed()
         assertTrue(onlineStarts.get() > 0)
     }
+
+    @Test fun statisticsRouteDoesNotStartServicesAndCanRetryAReadFailure() {
+        compose.runOnUiThread { compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+        compose.waitUntil(5_000) { compose.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+        val fail = AtomicBoolean(true)
+        val runtimeStarts = AtomicInteger()
+        val onlineStarts = AtomicInteger()
+        val expected = OfflineStatistics(2, 1, OfflineMatchSummary(814, 1007, MatchTeam.TEAM_1))
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.3f)) {
+                AtoutiaTheme {
+                    Box(Modifier.requiredSize(640.dp, 320.dp).testTag("statistics-test-viewport")) {
+                        GameModeHost(
+                            controllerFactory = { runtimeStarts.incrementAndGet(); error("Statistics must not start a game") },
+                            statisticsLoader = { if (fail.get()) throw IOException("Unavailable"); expected },
+                            onlineContent = { onlineStarts.incrementAndGet(); Text("ONLINE TEST") },
+                        )
+                    }
+                }
+            }
+        }
+        val viewport = compose.onNodeWithTag("statistics-test-viewport").getUnclippedBoundsInRoot()
+        for (label in listOf("Solo hors ligne", "Jouer en ligne", "Statistiques solo")) {
+            val node = compose.onNodeWithText(label).assertIsDisplayed()
+            val bounds = node.getUnclippedBoundsInRoot()
+            assertTrue("Menu action must be fully visible: $label / $bounds / $viewport",
+                bounds.left >= viewport.left && bounds.right <= viewport.right &&
+                    bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
+        }
+        compose.onNodeWithText("Statistiques solo").assertIsDisplayed().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText("Les statistiques n’ont pas pu être chargées.")).fetchSemanticsNodes().isNotEmpty()
+        }
+        fail.set(false)
+        compose.onNodeWithText("Réessayer").performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("offline-statistics-ready").fetchSemanticsNodes().isNotEmpty() }
+        for (text in listOf("Parties terminées : 3", "Victoires : 2", "Défaites : 1", "Taux de victoire : 67 %",
+            "Dernière partie : défaite", "Votre équipe : 814 · Adversaires : 1007")) {
+            compose.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+        }
+        assertEquals(0, runtimeStarts.get())
+        assertEquals(0, onlineStarts.get())
+        compose.onNodeWithText("Retour à l’accueil").performScrollTo().performClick()
+        compose.onNodeWithTag("game-mode-menu").assertIsDisplayed()
+    }
+
 }
