@@ -59,10 +59,14 @@ fun AuthenticatedHomeScreen(
     modifier:
         Modifier =
             Modifier,
+    onOpenModes: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
+        topBar = {
+            if (onOpenModes != null) ModeMenuBar(onOpenModes, enabled = signOutState !is SignOutUiState.Loading)
+        },
     ) { innerPadding ->
         Column(
             modifier =

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +87,7 @@ import tech.devoo.atoutia.ui.history.MatchHistoryScreen
 import tech.devoo.atoutia.ui.history.MatchHistoryUiState
 import tech.devoo.atoutia.ui.home.AuthenticatedHomeScreen
 import tech.devoo.atoutia.ui.home.HomeAction
+import tech.devoo.atoutia.ui.home.ModeMenuBar
 import tech.devoo.atoutia.ui.home.SignOutUiState
 import tech.devoo.atoutia.ui.lobby.RoomLobbyLeaveUiState
 import tech.devoo.atoutia.ui.lobby.RoomLobbyScreen
@@ -127,6 +130,7 @@ class MainActivity :
                     AtoutiaApp(
                         onOpenSoloSettings = actions.openSoloSettings,
                         onOpenSoloProfile = actions.openSoloProfile,
+                        onOpenModes = actions.openModes,
                         checkBackend =
                             ::checkBackend,
 
@@ -2552,6 +2556,7 @@ internal fun AtoutiaApp(
     connectLobbyRealtime: ((RoomSessionMembership, RoomLobbyRealtimeCoordinator.Listener) -> AutoCloseable)? = null,
     onOpenSoloSettings: (() -> Unit)? = null,
     onOpenSoloProfile: (() -> Unit)? = null,
+    onOpenModes: (() -> Unit)? = null,
 ) {
     var backendState by
         remember {
@@ -2669,9 +2674,10 @@ internal fun AtoutiaApp(
         }
 
     var historyRequest by remember { mutableStateOf<Any?>(null) }
+    var appActive by remember { mutableStateOf(true) }
 
     DisposableEffect(Unit) {
-        onDispose { historyRequest = null }
+        onDispose { appActive = false; historyRequest = null }
     }
 
     fun requestMatchHistory() {
@@ -2752,14 +2758,16 @@ internal fun AtoutiaApp(
         authenticatedState:
             AuthStartupState.Authenticated,
     ) {
+        if (!appActive) return
         historyRequest = null
         authState =
             AuthStartupState.Loading
 
         restoreActiveRoomSession(
             authenticatedState.accountId,
-        ) {
+        ) recoveryReply@ {
             recoveryResult ->
+            if (!appActive) return@recoveryReply
             roomActionState =
                 RoomActionUiState.Idle
 
@@ -2851,8 +2859,9 @@ internal fun AtoutiaApp(
     LaunchedEffect(
         Unit,
     ) {
-        restoreAuth {
+        restoreAuth authReply@ {
             restoredState ->
+            if (!appActive) return@authReply
             when (
                 restoredState
             ) {
@@ -2881,6 +2890,7 @@ internal fun AtoutiaApp(
             ) {
                 AuthenticatedDestination.Home -> {
                     AuthenticatedHomeScreen(
+                        onOpenModes = onOpenModes,
                         signOutState =
                             signOutState,
 
@@ -4193,6 +4203,7 @@ internal fun AtoutiaApp(
 
         else -> {
             SignedOutOrLoadingScreen(
+                onOpenModes = onOpenModes,
                 authState =
                     currentAuthState,
 
@@ -4212,8 +4223,9 @@ internal fun AtoutiaApp(
                     googleSignInState =
                         GoogleSignInUiState.Loading
 
-                    signInWithGoogle {
+                    signInWithGoogle signInReply@ {
                         result ->
+                        if (!appActive) return@signInReply
                         when (
                             result
                         ) {
@@ -4250,8 +4262,7 @@ internal fun AtoutiaApp(
                         BackendCheckState.Loading
 
                     checkBackend {
-                        backendState =
-                            it
+                        if (appActive) backendState = it
                     }
                 },
             )
@@ -4415,10 +4426,12 @@ private fun SignedOutOrLoadingScreen(
     modifier:
         Modifier =
         Modifier,
+    onOpenModes: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
+        topBar = { if (onOpenModes != null) ModeMenuBar(onOpenModes) },
     ) {
         innerPadding ->
         Column(
@@ -4428,10 +4441,8 @@ private fun SignedOutOrLoadingScreen(
                     .padding(
                         innerPadding,
                     )
-                    .padding(
-                        horizontal =
-                            24.dp,
-                    ),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
 
             verticalArrangement =
                 Arrangement.Center,
