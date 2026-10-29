@@ -121,6 +121,48 @@ class LandscapeGameScreenInstrumentedTest {
         }
     }
 
+    @Test fun soloBidIsFullyVisibleBeforeScrollAndPassKeepsTheHandFixed() {
+        val session = fixture(PlayerActionMode.BID)
+        val bidsState = mutableStateOf<GameBiddingUiState>(GameBiddingUiState.Idle)
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.3f)) {
+                AtoutiaTheme {
+                    Box(Modifier.requiredSize(640.dp, 360.dp).testTag("test-viewport")) {
+                        GameScreen(
+                            session = GameViewState(session.revision, session.player, session.document),
+                            biddingState = bidsState.value,
+                            local = true,
+                            onBiddingAction = { bids.add(it) },
+                            onReturnToHome = {},
+                        )
+                    }
+                }
+            }
+        }
+        assertHandVisible(session)
+        val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
+        val take = compose.onNodeWithText("Prendre à carreau")
+        take.assertIsDisplayed()
+        val bounds = take.getUnclippedBoundsInRoot()
+        val controls = compose.onNodeWithTag("game-secondary-controls").getUnclippedBoundsInRoot()
+        assertTrue("First bid must be fully visible before scrolling: $bounds / $controls / $viewport",
+            bounds.top >= controls.top && bounds.bottom <= controls.bottom &&
+                bounds.left >= viewport.left && bounds.right <= viewport.right)
+        take.performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(BiddingActionSnapshot.Take(session.player, CardSuit.DIAMONDS)), bids)
+            bidsState.value = GameBiddingUiState.Submitting
+        }
+        take.assertIsNotEnabled()
+        compose.runOnIdle { bidsState.value = GameBiddingUiState.Idle }
+        val before = compose.onNodeWithTag("player-hand").getUnclippedBoundsInRoot()
+        compose.onNodeWithText("Passer").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(before, compose.onNodeWithTag("player-hand").getUnclippedBoundsInRoot())
+        assertHandVisible(session)
+        compose.runOnIdle { assertEquals(BiddingActionSnapshot.Pass(session.player), bids.last()) }
+    }
+
     @Test fun completedMatchHidesHandAndKeepsReplayReachable() {
         submitted.value = GamePlayCardUiState.Failed("Ancienne erreur de carte")
         show(fixture(PlayerActionMode.MATCH_FINISHED))

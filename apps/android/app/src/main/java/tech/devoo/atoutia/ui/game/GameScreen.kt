@@ -539,82 +539,21 @@ private fun BiddingPanel(
     enabled: Boolean,
     onAction: (BiddingActionSnapshot) -> Unit,
 ) {
-    OutlinedCard(
-        modifier =
-            Modifier.fillMaxWidth(),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
-            modifier =
-                Modifier.padding(
-                    16.dp,
-                ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    10.dp,
-                ),
-        ) {
-            Text(
-                text =
-                    "À vous d’enchérir",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
+        actions.forEach { action ->
+            BiddingActionButton(
+                action = action,
+                enabled = enabled,
+                onClick = { onAction(action) },
             )
-
-            Text(
-                text =
-                    "Les choix ci-dessous viennent directement du serveur.",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-            )
-
-            actions.forEach {
-                action ->
-                BiddingActionButton(
-                    action =
-                        action,
-
-                    enabled =
-                        enabled,
-
-                    onClick = {
-                        onAction(
-                            action,
-                        )
-                    },
-                )
-            }
-
-            when (
-                state
-            ) {
-                GameBiddingUiState.Idle -> {
-                    Unit
-                }
-
-                GameBiddingUiState.Submitting -> {
-                    CommandSubmittingRow(
-                        message =
-                            "Envoi de l’enchère...",
-                    )
-                }
-
-                is GameBiddingUiState.Failed -> {
-                    CommandFailureText(
-                        message =
-                            state.message,
-                    )
-                }
-            }
+        }
+        when (state) {
+            GameBiddingUiState.Idle -> Unit
+            GameBiddingUiState.Submitting -> CommandSubmittingRow("Validation de l’enchère…")
+            is GameBiddingUiState.Failed -> CommandFailureText(state.message)
         }
     }
 }
@@ -1036,7 +975,7 @@ private fun createActionStatus(
                 currentPlayer ==
                     null
             ) {
-                "En attente du serveur"
+                "Préparation du prochain tour"
             } else if (
                 currentPlayer ==
                     localPlayer
