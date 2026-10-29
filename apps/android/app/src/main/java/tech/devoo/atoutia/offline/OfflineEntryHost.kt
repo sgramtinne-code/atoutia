@@ -31,8 +31,10 @@ import androidx.compose.ui.window.DialogProperties
 import java.io.File
 import java.security.SecureRandom
 
+internal data class OnlineModeActions(val openSoloSettings: () -> Unit, val openSoloProfile: () -> Unit)
+
 @Composable
-internal fun OfflineEntryHost(context: Context, onlineContent: @Composable (() -> Unit) -> Unit) {
+internal fun OfflineEntryHost(context: Context, onlineContent: @Composable (OnlineModeActions) -> Unit) {
     val app = context.applicationContext
     val preferences = remember { app.getSharedPreferences("atoutia_game_mode", Context.MODE_PRIVATE) }
     val saveStore = remember(app) { AndroidOfflineSaveStore(app) }
@@ -60,9 +62,9 @@ internal fun GameModeHost(
     statisticsLoader: () -> OfflineStatistics = { OfflineStatistics() },
     preferencesLoader: () -> SoloPreferences = { SoloPreferences() },
     preferencesWriter: (SoloPreferences) -> Unit = {},
-    onlineContent: @Composable (() -> Unit) -> Unit,
+    onlineContent: @Composable (OnlineModeActions) -> Unit,
 ) {
-    var mode by rememberSaveable { mutableStateOf(initialMode.takeIf { it in setOf("SOLO", "ONLINE", "STATS", "SETTINGS", "LEARN") } ?: "MENU") }
+    var mode by rememberSaveable { mutableStateOf(initialMode.takeIf { it in setOf("SOLO", "ONLINE", "STATS", "PROFILE", "SETTINGS", "LEARN") } ?: "MENU") }
     fun select(value: String) { mode = value; onModeChanged(value) }
     when (mode) {
         "SOLO" -> SoloPreferencesGate(load = preferencesLoader, onHome = { select("MENU") }) { preferences ->
@@ -74,17 +76,19 @@ internal fun GameModeHost(
         "LEARN" -> BeloteTutorialScreen(onHome = { select("MENU") })
         "STATS" -> {
             BackHandler { select("MENU") }
-            OfflineStatisticsScreen(loadStatistics = statisticsLoader, onHome = { select("MENU") })
+            OfflineStatisticsScreen(loadStatistics = statisticsLoader, onHome = { select("MENU") }, onProfile = { select("PROFILE") })
         }
+        "PROFILE" -> OfflineProfileScreen(loadStatistics = statisticsLoader, onBack = { select("STATS") })
         "ONLINE" -> {
             // Child game handlers still take precedence; Back at the online home opens modes.
             BackHandler { select("MENU") }
-            var settingsVisible by rememberSaveable { mutableStateOf(false) }
-            onlineContent { settingsVisible = true }
-            if (settingsVisible) Dialog(onDismissRequest = { settingsVisible = false },
+            var overlay by rememberSaveable { mutableStateOf<String?>(null) }
+            onlineContent(OnlineModeActions(openSoloSettings = { overlay = "SETTINGS" }, openSoloProfile = { overlay = "PROFILE" }))
+            if (overlay != null) Dialog(onDismissRequest = { overlay = null },
                 properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-                SoloPreferencesGate(load = preferencesLoader, onHome = { settingsVisible = false }) { preferences ->
-                    SoloSettingsScreen(initial = preferences, save = preferencesWriter, onHome = { settingsVisible = false })
+                if (overlay == "PROFILE") OfflineProfileScreen(loadStatistics = statisticsLoader, onBack = { overlay = null }, backLabel = "Fermer le profil")
+                else SoloPreferencesGate(load = preferencesLoader, onHome = { overlay = null }) { preferences ->
+                    SoloSettingsScreen(initial = preferences, save = preferencesWriter, onHome = { overlay = null })
                 }
             }
         }

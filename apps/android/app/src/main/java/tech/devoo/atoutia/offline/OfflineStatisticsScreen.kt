@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -30,11 +31,13 @@ import kotlinx.coroutines.withContext
 import tech.devoo.atoutia.network.game.MatchTeam
 import kotlin.math.roundToInt
 
+internal data class OfflineStatisticsRead(val value: OfflineStatistics?, val failed: Boolean, val retry: () -> Unit)
+
 @Composable
-internal fun OfflineStatisticsScreen(loadStatistics: () -> OfflineStatistics, onHome: () -> Unit) {
+internal fun rememberOfflineStatistics(loadStatistics: () -> OfflineStatistics): OfflineStatisticsRead {
     var statistics by remember { mutableStateOf<OfflineStatistics?>(null) }
     var failed by remember { mutableStateOf(false) }
-    var attempt by remember { mutableStateOf(0) }
+    var attempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(attempt) {
         statistics = null
         failed = false
@@ -46,6 +49,12 @@ internal fun OfflineStatisticsScreen(loadStatistics: () -> OfflineStatistics, on
             failed = true
         }
     }
+    return OfflineStatisticsRead(statistics, failed) { attempt++ }
+}
+
+@Composable
+internal fun OfflineStatisticsScreen(loadStatistics: () -> OfflineStatistics, onHome: () -> Unit, onProfile: (() -> Unit)? = null) {
+    val read = rememberOfflineStatistics(loadStatistics)
     Surface(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -53,10 +62,11 @@ internal fun OfflineStatisticsScreen(loadStatistics: () -> OfflineStatistics, on
         ) {
             Text("Statistiques solo", style = MaterialTheme.typography.headlineMedium)
             OutlinedButton(onClick = onHome) { Text("Retour à l’accueil") }
-            val current = statistics
-            if (failed) {
+            if (onProfile != null) OutlinedButton(onClick = onProfile) { Text("Mon profil solo") }
+            val current = read.value
+            if (read.failed) {
                 Text("Les statistiques n’ont pas pu être chargées.")
-                Button(onClick = { attempt++ }) { Text("Réessayer") }
+                Button(onClick = read.retry) { Text("Réessayer") }
             } else if (current == null) {
                 CircularProgressIndicator()
             } else {

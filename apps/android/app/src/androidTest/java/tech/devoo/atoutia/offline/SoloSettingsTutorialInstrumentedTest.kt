@@ -159,10 +159,10 @@ class SoloSettingsTutorialInstrumentedTest {
         compose.setContent {
             AtoutiaTheme {
                 GameModeHost(initialMode = "ONLINE", controllerFactory = { error("No solo runtime") },
-                    onlineContent = { openSettings ->
+                    onlineContent = { actions ->
                         val instance = remember { starts.incrementAndGet() }
                         DisposableEffect(Unit) { onDispose { closes.incrementAndGet() } }
-                        Button(onClick = openSettings) { Text("Online instance $instance") }
+                        Button(onClick = actions.openSoloSettings) { Text("Online instance $instance") }
                     })
             }
         }
