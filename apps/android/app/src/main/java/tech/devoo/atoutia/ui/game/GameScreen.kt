@@ -63,6 +63,12 @@ sealed interface GamePlayCardUiState {
     ) : GamePlayCardUiState
 }
 
+internal data class GameViewState(
+    val revision: Int,
+    val player: PlayerPosition,
+    val document: tech.devoo.atoutia.network.game.PlayerClientSnapshotDocument,
+)
+
 @Composable
 fun GameScreen(
     session: PlayerGameSession,
@@ -79,6 +85,41 @@ fun GameScreen(
     onHome: (() -> Unit)? = null,
     onReturnToHome: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+) {
+    GameScreen(GameViewState(session.revision, session.player, session.document),
+        biddingState = biddingState,
+        playCardState = playCardState,
+        syncState = syncState,
+        presence = presence,
+        adjudication = adjudication,
+        onBiddingAction = onBiddingAction,
+        onPlayCard = onPlayCard,
+        onRefresh = onRefresh,
+        onReplay = onReplay,
+        onHistory = onHistory,
+        onHome = onHome,
+        onReturnToHome = onReturnToHome,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun GameScreen(
+    session: GameViewState,
+    biddingState: GameBiddingUiState = GameBiddingUiState.Idle,
+    playCardState: GamePlayCardUiState = GamePlayCardUiState.Idle,
+    syncState: GameSyncState = GameSyncState(),
+    presence: GameRealtimePresence? = null,
+    adjudication: GameRealtimeAdjudicationEvent? = null,
+    onBiddingAction: ((BiddingActionSnapshot) -> Unit)? = null,
+    onPlayCard: ((PlayerCard) -> Unit)? = null,
+    onRefresh: (() -> Unit)? = null,
+    onReplay: (() -> Unit)? = null,
+    onHistory: (() -> Unit)? = null,
+    onHome: (() -> Unit)? = null,
+    onReturnToHome: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    local: Boolean = false,
 ) {
     val document =
         session.document
@@ -150,6 +191,8 @@ fun GameScreen(
 
             score.completed ->
                 "Partie terminée"
+
+            local -> "Solo hors ligne"
 
             else ->
                 "Partie Atoutia"
@@ -365,7 +408,7 @@ fun GameScreen(
     }
 
     val syncContent: @Composable () -> Unit = {
-        if (!isMatchCompleted) GameSyncPanel(
+        if (!local && !isMatchCompleted) GameSyncPanel(
             state = syncState,
             commandSubmitting = isSubmitting,
             onRetry = onRefresh,
@@ -374,7 +417,7 @@ fun GameScreen(
 
     val footerContent:
         @Composable () -> Unit = {
-            Text(
+            if (!local) Text(
                 text =
                     "Révision serveur ${session.revision} • moteur ${document.engineVersion}",
 

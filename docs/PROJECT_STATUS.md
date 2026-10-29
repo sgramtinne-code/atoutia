@@ -1,12 +1,12 @@
 # ATOUTIA — bilan global, exigences et feuille de route
 
-**28 octobre 2026.** Bilan fondé sur le code, les preuves de CI/essais reçus et les deux textes transmis : règles initiales 0.1.0 (50 rubriques) et ancien prompt de reprise (19 rubriques). Le cap produit historique complète ces textes techniques. Aucun pourcentage global non mesuré n’est annoncé.
+**29 octobre 2026.** Bilan fondé sur le code, les preuves de CI/essais reçus et les deux textes transmis : règles initiales 0.1.0 (50 rubriques) et ancien prompt de reprise (19 rubriques). Le cap produit historique complète ces textes techniques. Aucun pourcentage global non mesuré n’est annoncé.
 
 ## 1. État réel
 
 Un socle de belote multijoueur locale fonctionne : moteur TypeScript, backend autoritaire et Android Kotlin/Compose. Le produit complet, son solo hors ligne et la diffusion publique ne sont pas terminés.
 
-Main stable vérifié : **4148240**, PR nº 18 livrée et récupérée proprement sur le PC. Lot actuel : [litige et compatibilité](LITIGE_RULES_VERSION.md), branche fix/litige-winner-rules-version ; **601 moteur, 620 backend, 14 contrôles et 2 lots de 1 000 réussis localement**, code `3c2ad4a` validé dans moteur/backend `40747230287` et Android Kotlin `40747232842` (231 JVM/APK/lint). Clôture de [PR nº 19](https://github.com/sgramtinne-code/atoutia/pull/19) à vérifier. La règle corrigée concerne les nouveaux salons ; anciens scores et replays préservés. La [clarification IA du développeur](AI_LAB_ROADMAP.md) réserve les millions à l’entraînement futur sur PC RTX 5070 pour des PNJ variés, amusants et par niveau ; aucun blocage du solo ou de la publication.
+Main stable vérifié : **4d20422**, PR nº 19 livrée et récupérée sur le PC, builds moteur/backend et démarrage local reçus. CI main moteur/backend 40748721194 (601/620) et Android Kotlin 40748721118 (231 JVM/APK/lint) réussies. Litige/versionnement livrés avec anciennes parties/replays préservés. Lot actif **feat/android-offline-solo** : [première partie Android sans compte/backend](ANDROID_OFFLINE.md), moteur embarqué, trois PNJ de départ, sauvegarde et reprise locales. Code 34d4ed3 validé dans trois CI : 601 moteur/620 backend/11 offline (40756019124), 237 JVM/APK/lint (40756019046), 25 instrumentés AVD API36 dont les deux nouveaux avec vrai moteur et reprise (40756018978). [PR nº 20](https://github.com/sgramtinne-code/atoutia/pull/20) : clôture documentaire puis intégration à vérifier sur GitHub. La [clarification IA](AI_LAB_ROADMAP.md) réserve les millions à l'entraînement futur sur PC RTX5070, aucun blocage du produit.
 
 Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug ou une homologation production. Les instrumentés existants ne testent pas les nouveaux cas HTTP JVM sur le PC du développeur.
 
@@ -34,8 +34,8 @@ Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug
 | 39–43 | Revalidation des actions, erreurs sans mutation, phases/invariants, déterminisme | Machines/commandes/DTO et tests présents ; revue des invariants et erreurs restants à borner |
 | 44–45 | Replay et versionnement | Modules matchReplay*, validation/intégrité/hash et tests présents ; interfaces utilisateur de replay/analyse et exploitation support/anti-triche non livrées comme produit complet |
 | 46 | Annonces, Coinche/Contrée, règles privées/régionales, modes rapides/défis | Évolutions futures ; ne pas les introduire silencieusement dans le MVP |
-| 47 | Domaine indépendant des UI, transport, stockage et backend | Séparation moteur/backend/Android existante ; intégration d’exécution locale Android encore à concevoir |
-| 48 | Autorité locale offline ; même moteur côté serveur online | Online implémenté ; moteur local dans l’application Android et solo offline non livrés |
+| 47 | Domaine indépendant des UI, transport, stockage et backend | Séparation moteur/backend/Android existante ; intégration locale partagée en cours de validation (ANDROID_OFFLINE.md) |
+| 48 | Autorité locale offline ; même moteur côté serveur online | Online implémenté ; premier solo moteur local validé en CI sur feat/android-offline-solo, intégration PR20 à vérifier |
 | 49 | Tests moteur et simulations, portée précisée par le développeur | Outil borné livré par PR nº 18 ; lot actuel 601 tests/14 contrôles et 1 000 parties de chaque version. Les millions concernent l’entraînement IA futur sur RTX 5070, pas une validation moteur bloquante |
 | 50 | Le moteur décide, humains/bots/UI proposent | Principe conservé ; ne pas calculer de nouvelles règles dans les contrôles de cohérence Android |
 
@@ -46,7 +46,7 @@ Le mélange utilise RandomSource/Mulberry32Random ; le backend génère une base
 | Rubriques | Sujet | État / suite |
 | --- | --- | --- |
 | 1–2 | Méthode et environnement local | WSL/Android/loopback conservés ; versions et workflow actuels à vérifier plutôt que recopier la baseline ancienne. GitHub/PR actuels prioritaires |
-| 3–4 | Architecture et baseline | Architecture conservée ; anciennes valeurs 583/455 historiques, CI actuelles 588/618. Tests ciblés, globaux et builds en place |
+| 3–4 | Architecture et baseline | Architecture conservée ; anciennes valeurs 583/455 historiques, CI main 601/620 et 231 JVM. Tests ciblés, globaux et builds en place |
 | 5 | Google, access/refresh rotatif, logout, bootstrap | Implémentés/testés pour leurs périmètres ; coordination des sessions et stockage renforcés. Bootstrap réservé au local, désactivé par défaut. Ne pas rouvrir les essais acquis sans changement |
 | 6–10 | Endpoints salons, start authentifié hôte, lobby temps réel, test réel à quatre, builds Android | Développés et validés pour les périmètres reçus ; scripts automatiques existants évitent la copie d’ID |
 | 11–16 | Partie active, HTTP snapshot Bearer, DTO stricts/types, main privée/actions autorisées | Développés : écran, enchères/cartes/scores/pli, commandes, parsing, fin/historique ; correctifs PR nº 7–17 selon statut GitHub. Ne pas recevoir les mains adverses, MatchMachineState ou baseSeed |
@@ -57,10 +57,10 @@ Les sources publiques du bilan n’incluent aucune donnée personnelle de l’an
 
 ## 5. Fonctionnalités et lots restant à livrer
 
-1. **Fiabilité bornée** : correctif du litige/versionnement en cours de livraison et validé localement ; trier ensuite les 11 avertissements lint selon leur impact sans transformer les audits sans défaut démontré en blocage produit. Pas d’audit interminable présenté comme une livraison produit.
-2. **Validation moteur** : outils et rapports bornés livrés par PR nº 18 ; lot de compatibilité actuel/legacy pour le litige en cours de livraison. Aucun objectif de millions avant le produit : ils concernent l’IA future. La revue du hasard de production reste distincte.
-3. **Exécution locale Android** : choisir et vérifier l’intégration du moteur TypeScript existant, la parité des résultats et le fonctionnement sans backend ; aucune seconde implémentation divergente des règles créée silencieusement.
-4. **Solo offline complet** : démarrer/jouer/terminer une partie contre bots locaux, reprendre et sauvegarder localement, sans réseau/backend ni compte online requis pour ce parcours. Les scripts PNJ sont des outils de test, pas ce mode produit.
+1. **Fiabilité bornée** : correctif du litige/versionnement livré par PR19 ; trier ensuite les 11 avertissements lint selon leur impact sans transformer les audits sans défaut démontré en blocage produit. Pas d’audit interminable présenté comme une livraison produit.
+2. **Validation moteur** : outils et rapports bornés livrés par PR nº 18 ; compatibilité actuel/legacy pour le litige livrée par PR19. Aucun objectif de millions avant le produit : ils concernent l’IA future. La revue du hasard de production reste distincte.
+3. **Exécution locale Android** : solution choisie et implémentée sur feat/android-offline-solo (AndroidX JavaScriptEngine, même moteur, bundle contrôlé) ; parité TypeScript et exécution réelle AVD API36 réussies ; compatibilité des appareils visés à vérifier avant diffusion.
+4. **Premier solo jouable** : démarrer/jouer/terminer à 1 000 points avec trois bots locaux, sauvegarder/reprendre ; implémentation et CI validées dans PR20, intégration à vérifier puis premier essai sur l’émulateur du développeur. AVD : match complet, reprise fichier et parcours solo passés. Statistiques/tutoriel/niveaux restent distincts. Les scripts PNJ multijoueur restent des outils de test.
 5. **Expérience solo/utilisateur** : paramètres, tutoriel, progression/statistiques locales et profil. MainActivity contient encore des messages « arrive prochainement » pour profil, classement et paramètres.
 6. **Online produit** : parcours des salons/invitations et matchmaking, classement/rating à définir, modes compétitifs. Les politiques serveur PRIVATE/CASUAL/RANKED et forfaits existants ne sont pas un système de classement utilisateur complet.
 7. **Social et compétitions progressifs** : amis, saisons/tournois et autres parcours à spécifier avant de les déclarer livrés. Pas besoin de tout ce futur périmètre pour une première bêta.
@@ -76,10 +76,17 @@ Les sources publiques du bilan n’incluent aucune donnée personnelle de l’an
 
 Android/Google Play d’abord ; règles correctes, plaisir, fluidité, stabilité, UX, sécurité et équité avant graphismes/monétisation. Solo offline obligatoire. Social, compétition, gamification/cosmétique progressifs, sans pay-to-win. AI Lab local séparé.
 
-L’ordre immédiat est : clôture du litige/versionnement ; décision d’intégration locale et première partie solo offline complète ; reprise/paramètres/tutoriel/statistiques ; parcours online et bêta de production. Ne pas remplacer cette progression produit par une suite indéfinie de micro-correctifs.
+L’ordre immédiat est : intégration du premier solo offline validé avec reprise et retour d’expérience sur appareil ; paramètres/tutoriel/statistiques ; parcours online et bêta de production. Ne pas remplacer cette progression produit par une suite indéfinie de micro-correctifs.
 
 ## 7. Qui fait quoi et continuité
 
 L’assistant conduit lecture/conception/code sur branches, tests pertinents, CI, PR, preuves et documentation. Le développeur intervient pour les essais dépendant réellement de son PC/appareil, les arbitrages d’expérience et la publication. Aucun nouvel essai PC requis pour PR nº 17 ; ne pas redemander les validations déjà reçues sans changement concerné.
 
 Maintenir ce bilan, README, AGENTS et REPRISE à chaque étape importante. Distinguer prévu, implémenté, testé en CI, observé sur le PC et prêt à publier. Le suivi récent sous-représentait le solo offline et avait confondu validation moteur et entraînement IA massif. Le développeur a précisé que les millions concernent l’IA future sur son PC RTX 5070, pour des PNJ variés et plaisants par niveau. Cette clarification corrige le cap ; aucun entraînement n’est déclaré livré.
+
+
+## 8. Preuves du premier solo hors ligne — 29 octobre 2026
+
+Code **`34d4ed3`** validé dans les trois CI : [moteur/backend 40756019124](https://github.com/sgramtinne-code/atoutia/actions/runs/40756019124), job **123055012584**, **601 moteur/620 backend/11 offline**, typechecks/builds/bundle et références de simulation inchangées ; [Android Kotlin 40756019046](https://github.com/sgramtinne-code/atoutia/actions/runs/40756019046), job **123055012659**, **237 JVM, zéro échec/ignoré**, deux APK et lint (**13 avertissements/1 suggestion**, dont deux avertissements de style ajoutés par le lot) ; [Android UI 40756018978](https://github.com/sgramtinne-code/atoutia/actions/runs/40756018978), job **123055012437**, **OK (8 tests), OK (3 tests), OK (7 tests), OK (5 tests), OK (2 tests)** réellement exécutés sur AVD API36. Les deux nouveaux contrôles utilisent le vrai JavaScriptSandbox et le bundle APK : partie à 1 000 points avec reprise intermédiaire/finale AtomicFile ; choix solo, prise, main visible, retour/reprise et construction online seulement après sélection. Le premier échec était un geste de défilement du test sur un bouton fixe, corrigé sans enlever les assertions.
+
+Cette clôture ne change que des documents : sources/fixtures/bundle/tests identiques au code validé. Liens/blocs shell/YAML/diff à vérifier ; aucune nouvelle exécution Android locale assistant revendiquée. Vérifier les trois CI du dernier commit de la PR nº 20 avant de la rendre prête et de l'intégrer avec SHA attendu ; vérifier ensuite PR/main/arbre et CI de push. Inscrire SHA de fusion et CI main dans la PR sans nouveau commit destiné à inscrire son propre SHA. Donner la récupération complète de main et le build/install Android ; le solo ne demande ni compte ni backend ni PNJ de script. L'essai sur l'émulateur du développeur reste distinct des preuves AVD et sera utile pour sa compatibilité WebView et l'expérience en mode avion, sans bloquer artificiellement la livraison déjà testée. Compatibilité de tous les appareils, release Google Play et plaisir des PNJ non attestés par ces tests. Suite produit : statistiques/progression locales, paramètres et tutoriel ; entraînement RTX5070 futur conservé, aucun million de validation requis.

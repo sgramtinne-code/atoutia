@@ -167,6 +167,23 @@ jobs:
               raise SystemExit("The five start callback tests did not all pass.")
           PYTHON
 
+      - name: Run offline solo with the real packaged engine
+        timeout-minutes: 6
+        run: |
+          timeout 300s adb -s emulator-5554 shell am instrument -w \
+            -e class tech.devoo.atoutia.offline.OfflineSoloInstrumentedTest \
+            tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-offline-result.txt"
+          python3 - <<'PYTHON'
+          import os, re
+          from pathlib import Path
+          result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-offline-result.txt").read_text()
+          passed = bool(re.search(r"^OK \(2 tests\)\s*$", result, re.MULTILINE))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("Real offline solo engine and UI: " + ("2/2 passed" if passed else "FAILED") + "\n")
+          if not passed:
+              raise SystemExit("The two offline solo tests did not both pass.")
+          PYTHON
+
       - name: Report failures and stop emulator
         timeout-minutes: 1
         if: ${{ !cancelled() }}

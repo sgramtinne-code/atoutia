@@ -92,6 +92,7 @@ import tech.devoo.atoutia.ui.lobby.RoomLobbyStartUiState
 import tech.devoo.atoutia.ui.play.PlayScreen
 import tech.devoo.atoutia.ui.play.RoomActionUiState
 import tech.devoo.atoutia.ui.theme.AtoutiaTheme
+import tech.devoo.atoutia.offline.OfflineEntryHost
 import java.io.IOException
 
 private const val GAME_AUTO_REFRESH_INTERVAL_MS =
@@ -122,58 +123,60 @@ class MainActivity :
 
         setContent {
             AtoutiaTheme {
-                AtoutiaApp(
-                    checkBackend =
-                        ::checkBackend,
+                OfflineEntryHost(applicationContext) {
+                    AtoutiaApp(
+                        checkBackend =
+                            ::checkBackend,
 
-                    restoreAuth =
-                        ::restoreAuth,
+                        restoreAuth =
+                            ::restoreAuth,
 
-                    restoreActiveRoomSession =
-                        ::restoreActiveRoomSession,
+                        restoreActiveRoomSession =
+                            ::restoreActiveRoomSession,
 
-                    rememberActiveRoomSession =
-                        ::rememberActiveRoomSession,
+                        rememberActiveRoomSession =
+                            ::rememberActiveRoomSession,
 
-                    clearActiveRoomSession =
-                        ::clearActiveRoomSession,
+                        clearActiveRoomSession =
+                            ::clearActiveRoomSession,
 
-                    signInWithGoogle =
-                        ::signInWithGoogle,
+                        signInWithGoogle =
+                            ::signInWithGoogle,
 
-                    signOut =
-                        ::signOut,
+                        signOut =
+                            ::signOut,
 
-                    createPrivateRoom =
-                        ::createPrivateRoom,
+                        createPrivateRoom =
+                            ::createPrivateRoom,
 
-                    joinRoom =
-                        ::joinRoom,
+                        joinRoom =
+                            ::joinRoom,
 
-                    startRoom =
-                        ::startRoom,
+                        startRoom =
+                            ::startRoom,
 
-                    loadGameSession =
-                        ::loadGameSession,
+                        loadGameSession =
+                            ::loadGameSession,
 
-                    refreshGameSession =
-                        ::refreshGameSession,
+                        refreshGameSession =
+                            ::refreshGameSession,
 
-                    subscribeGameRealtime =
-                        ::subscribeGameRealtime,
+                        subscribeGameRealtime =
+                            ::subscribeGameRealtime,
 
-                    submitBiddingAction =
-                        ::submitBiddingAction,
+                        submitBiddingAction =
+                            ::submitBiddingAction,
 
-                    submitPlayCard =
-                        ::submitPlayCard,
+                        submitPlayCard =
+                            ::submitPlayCard,
 
-                    loadMatchHistory =
-                        ::loadMatchHistory,
+                        loadMatchHistory =
+                            ::loadMatchHistory,
 
-                    leaveRoom =
-                        ::leaveRoom,
-                )
+                        leaveRoom =
+                            ::leaveRoom,
+                    )
+                }
             }
         }
     }

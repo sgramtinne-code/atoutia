@@ -1,0 +1,21 @@
+{
+  "name": "@atoutia/offline-game",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "bundle": "node scripts/build-android-bundle.mjs",
+    "bundle:check": "node scripts/build-android-bundle.mjs --check"
+  },
+  "dependencies": { "@atoutia/belote-engine": "workspace:*" },
+  "devDependencies": {
+    "@types/node": "24.13.4",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

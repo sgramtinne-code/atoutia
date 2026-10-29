@@ -1,0 +1,145 @@
+{
+  "revision": 1,
+  "document": {
+    "formatVersion": 1,
+    "engineVersion": "0.1.0",
+    "snapshot": {
+      "match": {
+        "public": {
+          "dealNumber": 1,
+          "dealer": "PLAYER_3",
+          "phase": "PLAYING",
+          "score": {
+            "targetScore": 1000,
+            "scores": {
+              "TEAM_0": 0,
+              "TEAM_1": 0
+            },
+            "completed": false,
+            "winner": null
+          },
+          "biddingPlayer": null,
+          "taker": "PLAYER_0",
+          "trumpSuit": "SPADES",
+          "turnUpCard": {
+            "suit": "SPADES",
+            "rank": "ACE"
+          },
+          "currentTrick": {
+            "currentPlayer": "PLAYER_0",
+            "plays": []
+          }
+        },
+        "player": "PLAYER_0",
+        "hand": [
+          {
+            "suit": "SPADES",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "CLUBS",
+            "rank": "ACE"
+          },
+          {
+            "suit": "HEARTS",
+            "rank": "TEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "EIGHT"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "SEVEN"
+          },
+          {
+            "suit": "SPADES",
+            "rank": "ACE"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "TEN"
+          }
+        ],
+        "legalCards": [
+          {
+            "suit": "SPADES",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "CLUBS",
+            "rank": "ACE"
+          },
+          {
+            "suit": "HEARTS",
+            "rank": "TEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "EIGHT"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "SEVEN"
+          },
+          {
+            "suit": "SPADES",
+            "rank": "ACE"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "TEN"
+          }
+        ]
+      },
+      "actions": {
+        "player": "PLAYER_0",
+        "mode": "PLAY_CARD",
+        "biddingActions": [],
+        "legalCards": [
+          {
+            "suit": "SPADES",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "CLUBS",
+            "rank": "ACE"
+          },
+          {
+            "suit": "HEARTS",
+            "rank": "TEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "EIGHT"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "SEVEN"
+          },
+          {
+            "suit": "SPADES",
+            "rank": "ACE"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "QUEEN"
+          },
+          {
+            "suit": "DIAMONDS",
+            "rank": "TEN"
+          }
+        ]
+      }
+    }
+  },
+  "save": "{\"formatVersion\":1,\"botPolicy\":\"starter-v1\",\"replay\":{\"rulesVersion\":\"CLASSIC_LITIGE_WINNER\",\"formatVersion\":2,\"engineVersion\":\"0.1.0\",\"baseSeed\":37,\"firstDealer\":\"PLAYER_3\",\"targetScore\":1000,\"history\":[{\"index\":0,\"type\":\"BIDDING_ACTION\",\"dealNumber\":1,\"action\":{\"type\":\"TAKE\",\"player\":\"PLAYER_0\",\"suit\":\"SPADES\"}}]}}"
+}
