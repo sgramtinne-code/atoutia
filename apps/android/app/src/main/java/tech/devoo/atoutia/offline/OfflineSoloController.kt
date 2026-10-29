@@ -34,7 +34,7 @@ internal data class OfflineFrame(val revision: Int, val document: PlayerClientSn
     }
 }
 
-internal data class OfflineUpdate(val view: GameViewState, val saveFailed: Boolean)
+internal data class OfflineUpdate(val view: GameViewState, val saveFailed: Boolean, val statistics: OfflineStatistics)
 
 /** Coordinates only the local runtime/file. It never constructs an account or HTTP API. */
 internal class OfflineSoloController(
@@ -43,20 +43,27 @@ internal class OfflineSoloController(
     private val nextSeed: () -> Int,
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
-    private fun execute(input: JSONObject): OfflineUpdate {
+    private var progress: OfflineProgress? = null
+    private fun loadProgress(): OfflineProgress = progress ?: OfflineProgress.decode(store.read()).also { progress = it }
+
+    private fun execute(input: JSONObject, newGame: Boolean = false): OfflineUpdate {
         check(!closed.get()) { "Offline controller is closed." }
+        val before = loadProgress()
         val frame = OfflineFrame.parse(runtime.request(input.toString()))
+        check(!closed.get()) { "Offline controller was closed during the request." }
+        val updated = before.accept(frame, newGame)
+        progress = updated
         // A command may already have been applied: a save failure must not replay it.
-        val saveFailed = try { store.write(frame.save); false } catch (_: Exception) { true }
-        return OfflineUpdate(GameViewState(frame.revision, PlayerPosition.PLAYER_0, frame.document), saveFailed)
+        val saveFailed = try { store.write(updated.encode()); false } catch (_: Exception) { true }
+        return OfflineUpdate(GameViewState(frame.revision, PlayerPosition.PLAYER_0, frame.document), saveFailed, updated.statistics)
     }
 
     fun resumeOrStart(): OfflineUpdate {
-        val save = store.read()
+        val save = loadProgress().engineSave
         return if (save == null) startNew() else execute(JSONObject().put("method", "restore").put("save", save))
     }
 
-    fun startNew(): OfflineUpdate = execute(JSONObject().put("method", "start").put("seed", nextSeed()))
+    fun startNew(): OfflineUpdate = execute(JSONObject().put("method", "start").put("seed", nextSeed()), newGame = true)
     fun snapshot(): OfflineUpdate = execute(JSONObject().put("method", "snapshot"))
     fun stepBot(revision: Int): OfflineUpdate = execute(JSONObject().put("method", "bot").put("revision", revision))
 

@@ -6,28 +6,33 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 
 internal class AndroidOfflineSaveStore(private val file: File) : OfflineSaveStore {
     constructor(context: Context) : this(File(context.filesDir, "offline/solo.json"))
+    private val lock = locks.computeIfAbsent(file.absoluteFile.normalize().path) { Any() }
 
-    override fun read(): String? {
-        val input = try { AtomicFile(file).openRead() } catch (_: FileNotFoundException) { return null }
-        return input.use {
+    override fun read(): String? = synchronized(lock) {
+        val input = try { AtomicFile(file).openRead() } catch (error: FileNotFoundException) {
+            if (file.exists() || File(file.path + ".bak").exists()) throw error
+            return@synchronized null
+        }
+        input.use {
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
             while (true) {
                 val count = it.read(buffer)
                 if (count < 0) break
-                if (output.size() + count > MAX_SAVE_BYTES) throw IOException("Offline save is too large.")
+                if (output.size() + count > OfflineProgress.MAX_FILE_BYTES) throw IOException("Offline save is too large.")
                 output.write(buffer, 0, count)
             }
             output.toString(Charsets.UTF_8.name())
         }
     }
 
-    override fun write(save: String) {
+    override fun write(save: String): Unit = synchronized(lock) {
         val bytes = save.toByteArray(Charsets.UTF_8)
-        if (bytes.size > MAX_SAVE_BYTES) throw IOException("Offline save is too large.")
+        if (bytes.size > OfflineProgress.MAX_FILE_BYTES) throw IOException("Offline save is too large.")
         val parent = file.parentFile ?: throw IOException("Offline save directory is missing.")
         if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Offline save directory is unavailable.")
         val atomic = AtomicFile(file)
@@ -41,5 +46,5 @@ internal class AndroidOfflineSaveStore(private val file: File) : OfflineSaveStor
         }
     }
 
-    private companion object { const val MAX_SAVE_BYTES = 2 * 1024 * 1024 }
+    private companion object { val locks = ConcurrentHashMap<String, Any>() }
 }

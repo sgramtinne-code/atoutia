@@ -128,7 +128,7 @@ internal fun OfflineSoloScreen(controllerFactory: () -> OfflineSoloController, o
         if (issue != null || saveWarning) AlertDialog(
             onDismissRequest = { issue = null; saveWarning = false },
             title = { Text(if (saveWarning) "Sauvegarde indisponible" else "Partie solo") },
-            text = { Text(if (saveWarning) "Ton action a été jouée, mais la sauvegarde a échoué. Tu peux continuer ou réessayer la sauvegarde." else issue.orEmpty()) },
+            text = { Text(if (saveWarning) "La sauvegarde de la partie et des statistiques a échoué. Réessaie pour conserver les derniers changements avant de quitter." else issue.orEmpty()) },
             confirmButton = { TextButton(onClick = { perform { controller.snapshot() } }) { Text("Réessayer") } },
             dismissButton = { TextButton(onClick = { issue = null; saveWarning = false }) { Text("Continuer") } },
         )

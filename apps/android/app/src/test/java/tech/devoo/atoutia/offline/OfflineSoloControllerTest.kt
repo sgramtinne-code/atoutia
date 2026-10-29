@@ -29,7 +29,7 @@ class OfflineSoloControllerTest {
         assertFalse(first.saveFailed)
         assertEquals("start", runtime.requests.single().getString("method"))
         assertEquals(37, runtime.requests.single().getInt("seed"))
-        val save = store.value
+        val save = OfflineProgress.decode(store.value).engineSave
         val secondRuntime = Runtime(fixture("bid"))
         val second = OfflineSoloController(secondRuntime, store) { error("Must resume") }.resumeOrStart()
         assertEquals(first, second)
