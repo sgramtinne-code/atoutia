@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
 
@@ -44,6 +46,26 @@ val atoutiaTestAutoplayPlayer0 =
         ?: error(
             "ATOUTIA_TEST_AUTOPLAY_PLAYER_0 must be true or false.",
         )
+
+fun releaseApiBaseUrl(value: String): String {
+    if (value.isEmpty()) return ""
+    val uri = runCatching { URI(value) }.getOrNull()
+    require(
+        uri != null && uri.scheme == "https" && !uri.host.isNullOrEmpty() &&
+            uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null &&
+            uri.rawPath in listOf("", "/") && (uri.port == -1 || uri.port in 1..65535),
+    ) {
+        "ATOUTIA_RELEASE_API_BASE_URL must be an HTTPS origin without credentials, path, query or fragment, or empty for offline-only configuration."
+    }
+    return value.removeSuffix("/")
+}
+
+val atoutiaReleaseApiBaseUrl = providers
+    .gradleProperty("ATOUTIA_RELEASE_API_BASE_URL")
+    .orElse(providers.environmentVariable("ATOUTIA_RELEASE_API_BASE_URL"))
+    .orElse("")
+    .map(::releaseApiBaseUrl)
+    .get()
 
 android {
     namespace =
@@ -102,7 +124,7 @@ android {
             buildConfigField(
                 "String",
                 "ATOUTIA_API_BASE_URL",
-                "\"\"",
+                atoutiaReleaseApiBaseUrl.asBuildConfigString(),
             )
 
             buildConfigField(
