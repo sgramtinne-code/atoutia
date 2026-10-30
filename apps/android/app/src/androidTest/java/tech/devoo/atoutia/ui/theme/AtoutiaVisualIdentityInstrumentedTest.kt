@@ -64,7 +64,7 @@ class AtoutiaVisualIdentityInstrumentedTest {
             val node = compose.onNodeWithTag(tag).assertIsDisplayed().assertHasClickAction()
             val bounds = node.getUnclippedBoundsInRoot()
             assertTrue("Choice outside viewport: $tag, $bounds", bounds.left >= viewport.left && bounds.right <= viewport.right && bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
-            assertTrue("Touch target below 48 dp: $tag", bounds.width >= 48.dp && bounds.height >= 48.dp)
+            assertTrue("Touch target below 48 dp: $tag", bounds.right - bounds.left >= 48.dp && bounds.bottom - bounds.top >= 48.dp)
             node.performClick()
         }
         compose.runOnIdle { assertEquals(modes, selected) }
