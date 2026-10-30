@@ -177,13 +177,14 @@ class RoomInvitationInstrumentedTest {
         compose.onNodeWithTag("share-room-invitation").assertIsNotEnabled()
         compose.runOnIdle { start.value = RoomLobbyStartUiState.Idle; leave.value = RoomLobbyLeaveUiState.Leaving }
         compose.onNodeWithTag("copy-room-invitation").assertIsNotEnabled()
+        val previousListener = compose.runOnIdle { listener.get() }
         compose.runOnIdle { leave.value = RoomLobbyLeaveUiState.Idle }
-        compose.waitUntil(5_000) { listener.get() != null }
+        compose.waitUntil(5_000) { listener.get() != null && listener.get() !== previousListener }
         compose.runOnIdle { listener.get()!!.onRoomUpdated(RoomSessionMembership(room.copy(revision = 4, phase = "READY", occupiedSeats = 4,
             seats = LiveRoomSeats(true, true, true, true)), PlayerPosition.PLAYER_0)) }
         compose.onNodeWithTag("copy-room-invitation").assertIsNotEnabled()
         compose.onNodeWithTag("share-room-invitation").assertIsNotEnabled()
-        compose.runOnIdle { listener.get()!!.onRoomUpdated(RoomSessionMembership(room.copy(mode = MatchMode.CASUAL), PlayerPosition.PLAYER_0)) }
+        compose.runOnIdle { listener.get()!!.onRoomUpdated(RoomSessionMembership(room.copy(mode = MatchMode.CASUAL, revision = 5), PlayerPosition.PLAYER_0)) }
         compose.onNodeWithTag("copy-room-invitation").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, sends) }
     }
