@@ -128,6 +128,8 @@ fun RoomLobbyScreen(
         )? =
             null,
     connectRealtime: ((RoomSessionMembership, RoomLobbyRealtimeCoordinator.Listener) -> AutoCloseable)? = null,
+    onCopyInvitation: ((String) -> Unit)? = null,
+    onShareInvitation: ((String) -> Unit)? = null,
 ) {
     val applicationContext =
         LocalContext.current
@@ -415,6 +417,8 @@ fun RoomLobbyScreen(
     }
 
     RoomLobbyContent(
+        onCopyInvitation = onCopyInvitation,
+        onShareInvitation = onShareInvitation,
         membership =
             currentMembership,
 
@@ -476,6 +480,8 @@ fun RoomLobbyScreen(
 
 @Composable
 private fun RoomLobbyContent(
+    onCopyInvitation: ((String) -> Unit)?,
+    onShareInvitation: ((String) -> Unit)?,
     membership:
         RoomSessionMembership,
 
@@ -649,13 +655,23 @@ private fun RoomLobbyContent(
                             ),
 
                         text =
-                            "Appui long sur l’identifiant pour le sélectionner et le copier.",
+                            "Partage ce code avec les joueurs que tu souhaites inviter.",
 
                         style =
                             MaterialTheme
                                 .typography
                                 .bodySmall,
                     )
+
+                    if (room.mode == MatchMode.PRIVATE && room.phase in setOf("WAITING_FOR_PLAYERS", "READY")) {
+                        RoomInvitationPanel(
+                            sessionId = room.sessionId,
+                            enabled = room.phase == "WAITING_FOR_PLAYERS" && room.occupiedSeats in 1..3 && !isStarting && !isLeaving,
+                            modifier = Modifier.padding(top = 12.dp),
+                            onCopy = onCopyInvitation,
+                            onShare = onShareInvitation,
+                        )
+                    }
 
                     Text(
                         modifier =

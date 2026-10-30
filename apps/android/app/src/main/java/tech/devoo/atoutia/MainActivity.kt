@@ -75,6 +75,7 @@ import tech.devoo.atoutia.network.room.AtoutiaRoomApiException
 import tech.devoo.atoutia.network.room.HttpAtoutiaRoomApi
 import tech.devoo.atoutia.network.room.RoomLobbyRealtimeCoordinator
 import tech.devoo.atoutia.network.room.RoomSessionCoordinator
+import tech.devoo.atoutia.network.room.RoomInvitation
 import tech.devoo.atoutia.network.room.RoomSessionFullException
 import tech.devoo.atoutia.network.room.RoomSessionMembership
 import tech.devoo.atoutia.network.room.PlayerPosition
@@ -830,7 +831,7 @@ class MainActivity :
             onResult(
                 JoinRoomResult.Failed(
                     message =
-                        "Saisis l’identifiant de la partie.",
+                        "Colle un code de salon ou une invitation Atoutia valide.",
                 ),
             )
 
@@ -3128,10 +3129,10 @@ internal fun AtoutiaApp(
 
                         onJoinRoom = {
                             val normalizedSessionId =
-                                joinSessionId.trim()
+                                RoomInvitation.parse(joinSessionId)
 
                             if (
-                                normalizedSessionId.isBlank()
+                                normalizedSessionId == null
                             ) {
                                 roomActionState =
                                     RoomActionUiState.Failed(

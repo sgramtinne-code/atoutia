@@ -252,6 +252,23 @@ jobs:
               raise SystemExit("The four online exit and offline access tests did not all pass.")
           PYTHON
 
+      - name: Run isolated private room invitation checks
+        timeout-minutes: 6
+        run: |
+          timeout 300s adb -s emulator-5554 shell am instrument -w \
+            -e class tech.devoo.atoutia.ui.lobby.RoomInvitationInstrumentedTest \
+            tech.devoo.atoutia.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/atoutia-invitations-result.txt"
+          python3 - <<'PYTHON'
+          import os, re
+          from pathlib import Path
+          result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-invitations-result.txt").read_text()
+          passed = bool(re.search(r"^OK \(6 tests\)\s*$", result, re.MULTILINE))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("Private room invitations: " + ("6/6 passed" if passed else "FAILED") + "\n")
+          if not passed:
+              raise SystemExit("The six private room invitation tests did not all pass.")
+          PYTHON
+
       - name: Report failures and stop emulator
         timeout-minutes: 1
         if: ${{ !cancelled() }}
