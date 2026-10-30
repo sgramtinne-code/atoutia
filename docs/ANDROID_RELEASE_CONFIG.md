@@ -1,6 +1,6 @@
 # Configuration HTTPS de la version Android release
 
-30 octobre 2026 — branche feat/android-release-endpoint, base main 5dde517.
+30 octobre 2026 — [PR nº 28](https://github.com/sgramtinne-code/atoutia/pull/28), branche feat/android-release-endpoint, base main 5dde517.
 
 L’application de diffusion peut recevoir l’origine de son backend au build, sans modifier MainActivity ni les clients HTTP/WebSocket. Fournir ATOUTIA_RELEASE_API_BASE_URL comme propriété Gradle, sinon comme variable d’environnement. La propriété est prioritaire, y compris vide. Sans valeur, l’URL reste vide comme auparavant : solo disponible, online non configuré. Le debug conserve http://127.0.0.1:3000 et son reverse ADB habituel.
 
@@ -30,3 +30,9 @@ Un assembleRelease complet produit ensuite l’APK non signé et son manifeste f
 ## Étape suivante pour la bêta
 
 Choisir l’origine réelle du backend, préparer DNS/TLS et reverse proxy HTTP/WebSocket, authentification Google de production et bootstrap désactivé, puis signature et distribution de l’application. Prévoir les essais entre comptes/appareils réels, la supervision et la sauvegarde/restauration opérationnelle. Ce lot n’installe aucun service, ne modifie pas la vraie SQLite et n’exécute aucune commande sur le VPS. Les invitations restent des messages à coller ; leur texte ne choisit pas le serveur et les participants doivent utiliser le même backend.
+
+## Preuves de validation du code
+
+Code **65f5450** de la [PR nº 28](https://github.com/sgramtinne-code/atoutia/pull/28) : [moteur/backend 41112884393](https://github.com/sgramtinne-code/atoutia/actions/runs/41112884393), job **124259513968**, **601 moteur/620 backend/26 offline**, typechecks/builds/bundle et scénarios synthétiques réussis ; [Kotlin/release 41112884438](https://github.com/sgramtinne-code/atoutia/actions/runs/41112884438), job **124259513706**, **264 JVM sans échec/erreur/ignoré**, APK debug/instrumenté et **release non signé** compilés, lint **13 avertissements/1 suggestion** conservés ; [AVD 41112884409](https://github.com/sgramtinne-code/atoutia/actions/runs/41112884409), job **124259513875**, **49/49 instrumentés debug API36** (9+3+7+5+3+5+4+3+4+6). Les trois lectures du vrai BuildConfig release et les neuf rejets sont réussis ; le manifeste release vérifie HTTP clair/debug interdits, backup false et sensorLandscape. Aucun test d’exécution de l’APK release sur appareil revendiqué. Bundle solo inchangé **6e83cc765603d43c8a1307b3ba9b4bcb69b6b459c562dc25b1842b90351c2650**. Les trois workflows du code sont conclus success ; vérifier aussi les trois CI du dernier commit de clôture avant intégration.
+
+La clôture ne modifie que les documents ; les CI du dernier commit restent requises avant fusion. Les preuves de fusion/main sont consignées dans la PR, sans commit supplémentaire destiné à inscrire son propre SHA. Aucun SDK Android local assistant ni nouvelle observation PC publiée.
