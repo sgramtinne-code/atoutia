@@ -51,6 +51,9 @@ jobs:
       - name: Run Android lint
         run: ./gradlew --no-daemon --max-workers=2 :app:lintDebug -PATOUTIA_TEST_AUTOPLAY_PLAYER_0=false
 
+      - name: Validate release endpoint configuration and compile unsigned APK
+        run: bash scripts/check-release-config.sh
+
       - name: Summarize Android checks
         if: always()
         run: |
