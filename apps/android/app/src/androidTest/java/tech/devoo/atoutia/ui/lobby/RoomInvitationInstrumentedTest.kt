@@ -155,7 +155,10 @@ class RoomInvitationInstrumentedTest {
             compose.runOnIdle { clipboard().setPrimaryClip(ClipData.newPlainText("Invalid", "$code\n$code")) }
             compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
             compose.runOnIdle { assertEquals(code, value.value); assertEquals(0, joins) }
-            compose.onNodeWithText("Rejoindre la partie").performScrollTo().performClick()
+            compose.onNodeWithText("Rejoindre la partie").performScrollTo().assertIsNotEnabled()
+            compose.runOnIdle { RoomInvitationActions.copy(compose.activity, RoomInvitation.create(code)) }
+            compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
+            compose.onNodeWithText("Rejoindre la partie").performScrollTo().assertIsEnabled().performClick()
             compose.runOnIdle { assertEquals(1, joins) }
         } finally { clearClipboard() }
     }
@@ -200,9 +203,9 @@ class RoomInvitationInstrumentedTest {
                 onShareInvitation = { if (fail.value) error("Unavailable") else { assertEquals(code, RoomInvitation.parse(it)); shares++ } }) }
         }
         compose.onNodeWithTag("copy-room-invitation").performScrollTo().performClick()
-        compose.onNodeWithTag("room-invitation-feedback").performScrollTo().assertTextContains("Impossible de copier")
+        compose.onNodeWithTag("room-invitation-feedback").performScrollTo().assertTextEquals("Impossible de copier l’invitation. Tu peux sélectionner le code du salon.")
         compose.onNodeWithTag("share-room-invitation").performScrollTo().performClick()
-        compose.onNodeWithTag("room-invitation-feedback").performScrollTo().assertTextContains("Impossible d’ouvrir")
+        compose.onNodeWithTag("room-invitation-feedback").performScrollTo().assertTextEquals("Impossible d’ouvrir le partage. Tu peux copier l’invitation.")
         compose.runOnIdle { fail.value = false }
         compose.onNodeWithTag("copy-room-invitation").performScrollTo().performClick()
         compose.onNodeWithTag("share-room-invitation").performScrollTo().performClick()

@@ -87,7 +87,7 @@ fun PlayScreen(
             RoomActionUiState.Joining
 
     val canJoin =
-        !busy &&
+        !busy && pasteIssue == null &&
             RoomInvitation.parse(joinSessionId) != null
 
     Scaffold(
@@ -222,7 +222,11 @@ fun PlayScreen(
 
                 onValueChange = { value ->
                     if (value.length > RoomInvitation.MAX_INPUT_LENGTH) pasteIssue = "L’invitation est trop longue."
-                    else { pasteIssue = null; onJoinSessionIdChange(value) }
+                    else if (value != joinSessionId) {
+                        // An IME echo of the rejected value must not dismiss the length warning.
+                        pasteIssue = null
+                        onJoinSessionIdChange(value)
+                    }
                 },
 
                 enabled =
@@ -230,9 +234,10 @@ fun PlayScreen(
 
                 minLines = 1,
                 maxLines = 3,
-                isError = joinSessionId.isNotBlank() && RoomInvitation.parse(joinSessionId) == null,
+                isError = pasteIssue != null || (joinSessionId.isNotBlank() && RoomInvitation.parse(joinSessionId) == null),
                 supportingText = {
-                    if (joinSessionId.isNotBlank() && RoomInvitation.parse(joinSessionId) == null) Text("Code ou invitation Atoutia non reconnu.")
+                    if (pasteIssue != null) Text(pasteIssue!!, modifier = Modifier.testTag("invitation-paste-issue"))
+                    else if (joinSessionId.isNotBlank() && RoomInvitation.parse(joinSessionId) == null) Text("Code ou invitation Atoutia non reconnu.")
                 },
 
                 label = {
@@ -301,8 +306,6 @@ fun PlayScreen(
                         },
                 )
             }
-
-            if (pasteIssue != null) Text(pasteIssue!!, modifier = Modifier.padding(top = 12.dp).testTag("invitation-paste-issue"))
 
             if (
                 busy
