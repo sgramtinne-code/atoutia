@@ -1,9 +1,7 @@
 package tech.devoo.atoutia.ui.game
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,10 +12,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.unit.sp
+import tech.devoo.atoutia.ui.theme.AtoutiaCardPalette
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.game.CardRank
@@ -85,50 +86,13 @@ fun BeloteCard(
         card.suit
             .toCardColor()
 
-    val containerColor =
-        if (
-            highlighted
-        ) {
-            MaterialTheme
-                .colorScheme
-                .primaryContainer
-        } else {
-            MaterialTheme
-                .colorScheme
-                .surface
-        }
-
-    val borderColor =
-        if (
-            highlighted
-        ) {
-            MaterialTheme
-                .colorScheme
-                .primary
-        } else {
-            MaterialTheme
-                .colorScheme
-                .outlineVariant
-        }
-
-    val cardModifier =
-        modifier
-            .size(
-                width =
-                    size.width,
-
-                height =
-                    size.height,
-            )
-            .alpha(
-                if (
-                    enabled
-                ) {
-                    1f
-                } else {
-                    0.45f
-                },
-            )
+    val containerColor = if (enabled) AtoutiaCardPalette.paper else AtoutiaCardPalette.unavailablePaper
+    val borderColor = if (highlighted) AtoutiaCardPalette.selected else AtoutiaCardPalette.outline
+    val cardModifier = modifier.size(size.width, size.height).semantics(mergeDescendants = true) {
+        contentDescription = "${card.rank.toSpokenRank()} de ${card.suit.toSpokenSuit()}"
+        if (!enabled) { disabled(); stateDescription = "Carte non disponible" }
+        else if (highlighted) stateDescription = "Carte autorisée"
+    }
 
     if (
         onClick !=
@@ -146,7 +110,7 @@ fun BeloteCard(
 
             shape =
                 RoundedCornerShape(
-                    12.dp,
+                    8.dp,
                 ),
 
             color =
@@ -161,7 +125,7 @@ fun BeloteCard(
                         if (
                             highlighted
                         ) {
-                            2.dp
+                            3.dp
                         } else {
                             1.dp
                         },
@@ -185,6 +149,7 @@ fun BeloteCard(
 
                 foregroundColor =
                     foregroundColor,
+                size = size,
             )
         }
     } else {
@@ -194,7 +159,7 @@ fun BeloteCard(
 
             shape =
                 RoundedCornerShape(
-                    12.dp,
+                    8.dp,
                 ),
 
             color =
@@ -209,7 +174,7 @@ fun BeloteCard(
                         if (
                             highlighted
                         ) {
-                            2.dp
+                            3.dp
                         } else {
                             1.dp
                         },
@@ -233,162 +198,44 @@ fun BeloteCard(
 
                 foregroundColor =
                     foregroundColor,
+                size = size,
             )
         }
     }
 }
 
 @Composable
-private fun BeloteCardFace(
-    card:
-        PlayerCard,
-
-    foregroundColor:
-        Color,
-) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    6.dp,
-                ),
-    ) {
-        Column(
-            modifier =
-                Modifier.align(
-                    Alignment.TopStart,
-                ),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    0.dp,
-                ),
-        ) {
-            Text(
-                text =
-                    card.rank
-                        .toCardRankLabel(),
-
-                color =
-                    foregroundColor,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
-            Text(
-                text =
-                    card.suit
-                        .toCardSuitSymbol(),
-
-                color =
-                    foregroundColor,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-        }
-
-        Text(
-            text =
-                card.suit
-                    .toCardSuitSymbol(),
-
-            modifier =
-                Modifier.align(
-                    Alignment.Center,
-                ),
-
-            color =
-                foregroundColor,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .headlineLarge,
-
-            fontWeight =
-                FontWeight.Bold,
-
-            textAlign =
-                TextAlign.Center,
-        )
-
-        Column(
-            modifier =
-                Modifier.align(
-                    Alignment.BottomEnd,
-                ),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    0.dp,
-                ),
-        ) {
-            Text(
-                text =
-                    card.suit
-                        .toCardSuitSymbol(),
-
-                color =
-                    foregroundColor,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
-            Text(
-                text =
-                    card.rank
-                        .toCardRankLabel(),
-
-                color =
-                    foregroundColor,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-        }
+private fun BeloteCardFace(card: PlayerCard, foregroundColor: Color, size: BeloteCardSize) {
+    val compact = size == BeloteCardSize.SMALL
+    val indexSize = if (compact) 14.sp else 18.sp
+    val symbolSize = if (compact) 20.sp else 30.sp
+    val index = "${card.rank.toCardRankLabel()}${card.suit.toCardSuitSymbol()}"
+    Box(Modifier.fillMaxSize().padding(6.dp).clearAndSetSemantics {}) {
+        Text(index, modifier = Modifier.align(Alignment.TopStart), color = foregroundColor,
+            fontSize = indexSize, lineHeight = indexSize, fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelLarge.copy(platformStyle = PlatformTextStyle(includeFontPadding = false)))
+        Text(card.suit.toCardSuitSymbol(), modifier = Modifier.align(Alignment.Center), color = foregroundColor,
+            fontSize = symbolSize, lineHeight = symbolSize, fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineLarge.copy(platformStyle = PlatformTextStyle(includeFontPadding = false)))
+        Text(index, modifier = Modifier.align(Alignment.BottomEnd).rotate(180f), color = foregroundColor,
+            fontSize = indexSize, lineHeight = indexSize, fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelLarge.copy(platformStyle = PlatformTextStyle(includeFontPadding = false)))
     }
+}
+
+private fun CardRank.toSpokenRank(): String = when (this) {
+    CardRank.JACK -> "Valet"
+    CardRank.QUEEN -> "Dame"
+    CardRank.KING -> "Roi"
+    CardRank.ACE -> "As"
+    else -> toCardRankLabel()
+}
+
+private fun CardSuit.toSpokenSuit(): String = when (this) {
+    CardSuit.CLUBS -> "trèfle"
+    CardSuit.DIAMONDS -> "carreau"
+    CardSuit.HEARTS -> "cœur"
+    CardSuit.SPADES -> "pique"
 }
 
 private fun CardSuit.toCardColor():
@@ -399,16 +246,12 @@ private fun CardSuit.toCardColor():
         CardSuit.HEARTS,
         CardSuit.DIAMONDS,
         ->
-            Color(
-                0xFFB3261E,
-            )
+            AtoutiaCardPalette.red
 
         CardSuit.CLUBS,
         CardSuit.SPADES,
         ->
-            Color(
-                0xFF1B1B1F,
-            )
+            AtoutiaCardPalette.ink
     }
 
 private fun CardSuit.toCardSuitSymbol():
@@ -417,16 +260,16 @@ private fun CardSuit.toCardSuitSymbol():
         this
     ) {
         CardSuit.CLUBS ->
-            "♣"
+            "♣\uFE0E"
 
         CardSuit.DIAMONDS ->
-            "♦"
+            "♦\uFE0E"
 
         CardSuit.HEARTS ->
-            "♥"
+            "♥\uFE0E"
 
         CardSuit.SPADES ->
-            "♠"
+            "♠\uFE0E"
     }
 
 private fun CardRank.toCardRankLabel():
