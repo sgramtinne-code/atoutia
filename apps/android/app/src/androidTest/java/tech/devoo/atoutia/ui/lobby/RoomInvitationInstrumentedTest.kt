@@ -147,7 +147,7 @@ class RoomInvitationInstrumentedTest {
         try {
             compose.runOnIdle { clipboard().setPrimaryClip(ClipData.newRawUri("Fausse invitation", Uri.parse("https://invalid.test/invitation"))) }
             compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
-            compose.onNodeWithTag("invitation-paste-issue").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("invitation-paste-issue", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
             compose.runOnIdle { assertEquals("", value.value); assertEquals(0, joins) }
             compose.runOnIdle { RoomInvitationActions.copy(compose.activity, RoomInvitation.create(code)) }
             compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
@@ -226,7 +226,7 @@ class RoomInvitationInstrumentedTest {
         input().performScrollTo().performTextInput("https://invalid.test/$code")
         compose.onNodeWithText("Rejoindre la partie").performScrollTo().assertIsNotEnabled()
         input().performScrollTo().performTextReplacement("x".repeat(RoomInvitation.MAX_INPUT_LENGTH + 1))
-        compose.onNodeWithTag("invitation-paste-issue").performScrollTo().assertTextEquals("L’invitation est trop longue.")
+        compose.onNodeWithTag("invitation-paste-issue", useUnmergedTree = true).performScrollTo().assertTextEquals("L’invitation est trop longue.")
         compose.runOnIdle { assertEquals(0, joins); assertEquals(0, reads) }
         input().performScrollTo().performTextReplacement(code)
         input().performImeAction()
