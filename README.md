@@ -4,7 +4,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 30 octobre 2026
 
-**Cap PNJ confirmé :** les millions de parties sont prévus plus tard pour l'entraînement local sur le PC NVIDIA RTX 5070, afin de créer des PNJ aux styles et niveaux variés, amusants et distrayants. Ils concernent l’apprentissage, sans bloquer rétroactivement le solo livré ; le chantier IA est maintenant prioritaire avant la reprise du déploiement. Les simulations de la PR nº 18 sont des tests de moteur, sans entraînement. [Feuille de route IA](docs/AI_LAB_ROADMAP.md).
+**Cap PNJ confirmé :** les millions de parties sont prévus pour l'entraînement local sur le PC NVIDIA RTX 5070, afin de créer des PNJ aux styles et niveaux variés, amusants et distrayants. Ils concernent l’apprentissage, sans bloquer rétroactivement le solo livré ; le chantier IA est maintenant prioritaire avant la reprise du déploiement. Les simulations de la PR nº 18 sont des tests de moteur, sans entraînement. [Feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Travailler d’abord le look professionnel, la lisibilité et l’ergonomie pour les personnes âgées, puis préparer/exécuter l’entraînement des PNJ sur la RTX 5070 avant de reprendre le déploiement. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
@@ -14,7 +14,7 @@ Lot courant **feat/visual-identity-accessibility** : premier socle visuel natif,
 
 Deux JVM de contraste et trois nouveaux AVD ajoutés ; les 49 instrumentés antérieurs restent requis. La CI produit des PNG synthétiques de l’accueil et des cartes pour inspection avant fusion, avec upload-artifact v7.0.2 épinglé au commit officiel cf430e030ddbb5b0abf93d22962f4752f3646cd9. Ces images ne proviennent d’aucun appareil, compte ou partie réel. Résultats et rendus à vérifier avant intégration ; ne pas présenter ce premier lot comme une refonte complète ou une certification d’accessibilité. Les preuves de fusion/main seront dans la PR, sans commit destiné à inscrire son propre SHA.
 
-**[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; l’entraînement IA massif est une étape ultérieure. Le hors-ligne est une exigence, pas une option abandonnée.
+**[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; le chantier IA précède désormais la reprise du déploiement. Le hors-ligne est une exigence, pas une option abandonnée.
 
 ## Architecture et fonctionnalités
 
@@ -23,7 +23,7 @@ Deux JVM de contraste et trois nouveaux AVD ajoutés ; les 49 instrumentés ant�
 - `packages/offline-game` : même moteur pour le solo local, politiques PNJ versionnées et bundle Android contrôlé.
 - `apps/android` : Kotlin/Compose en sensorLandscape, parties et reprise online, solo hors connexion avec reprise AtomicFile, statistiques, profil, paramètres, tutoriel et styles PNJ. Le choix des modes reste accessible depuis les états de connexion ou d’erreur online.
 
-Le solo et les simulations actuels n’entraînent aucun modèle. La feuille de route IA vise ultérieurement des PNJ amusants aux styles et niveaux variés. La version documentaire des règles est 0.1.3 ; elle est distincte de la version du paquet moteur et de la version des règles enregistrée dans chaque replay.
+Le solo et les simulations actuels n’entraînent aucun modèle. La feuille de route IA place maintenant avant déploiement des PNJ amusants aux styles et niveaux variés. La version documentaire des règles est 0.1.3 ; elle est distincte de la version du paquet moteur et de la version des règles enregistrée dans chaque replay.
 
 ## Développement local
 

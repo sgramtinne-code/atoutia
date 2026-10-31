@@ -16,7 +16,7 @@ Le thème partagé, l’accueil des modes et les faces de cartes sont concernés
 
 Deux tests JVM vérifient les couleurs essentielles et les encres de cartes, y compris indisponibles. Trois contrôles instrumentés vérifient l’accueil 640 × 320 dp à police 1,3, les cibles tactiles et les cinq callbacks ; l’accès aux commandes à police 2 ; le nom et l’état des cartes, le clic autorisé et l’absence d’envoi au toucher d’une carte indisponible. Les 49 instrumentés antérieurs restent requis. Résultats à obtenir en CI avant intégration.
 
-La CI produit trois captures synthétiques de l’accueil et des cartes dans un AVD isolé, puis un artefact temporaire atoutia-visual-qa. Aucune image, invitation, compte ou partie du PC du développeur n’y est introduite. Vérifier ces rendus avant fusion ; une compilation seule ne prouve pas la qualité visuelle. Aucun SDK Android local assistant.
+La CI produit quatre captures synthétiques de l’accueil et des cartes dans un AVD isolé, puis un artefact temporaire atoutia-visual-qa. Aucune image, invitation, compte ou partie du PC du développeur n’y est introduite. Vérifier ces rendus avant fusion ; une compilation seule ne prouve pas la qualité visuelle. Aucun SDK Android local assistant.
 
 ## Suite visuelle et IA
 

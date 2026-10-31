@@ -283,7 +283,7 @@ jobs:
               raise SystemExit("The three visual identity tests did not all pass.")
           PYTHON
           mkdir -p "$RUNNER_TEMP/atoutia-visuals"
-          for screenshot in home-dark.png home-large-text.png cards-dark.png; do
+          for screenshot in home-dark.png home-light.png home-large-text.png cards-dark.png; do
             adb -s emulator-5554 exec-out run-as tech.devoo.atoutia cat "cache/visual-qa/$screenshot" > "$RUNNER_TEMP/atoutia-visuals/$screenshot"
           done
           python3 - <<'PYTHON'

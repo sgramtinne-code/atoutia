@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
@@ -55,7 +56,8 @@ class AtoutiaVisualIdentityInstrumentedTest {
     }
     @Test fun darkMenuKeepsEveryChoiceVisibleAndLargeAtIncreasedFontSize() {
         val selected = mutableListOf<String>()
-        compose.setContent { Viewport(true, 1.3f) { AtoutiaHomeScreen { selected.add(it) } } }
+        val dark = mutableStateOf(true)
+        compose.setContent { Viewport(dark.value, 1.3f) { AtoutiaHomeScreen { selected.add(it) } } }
         val viewport = compose.onNodeWithTag("visual-viewport").getUnclippedBoundsInRoot()
         val modes = listOf("SOLO", "ONLINE", "STATS", "SETTINGS", "LEARN")
         val tags = listOf("home-solo", "home-online", "home-STATS", "home-SETTINGS", "home-LEARN")
@@ -67,11 +69,17 @@ class AtoutiaVisualIdentityInstrumentedTest {
             assertTrue("Touch target below 48 dp: $tag", bounds.right - bounds.left >= 48.dp && bounds.bottom - bounds.top >= 48.dp)
             node.performClick()
         }
-        compose.runOnIdle { assertEquals(modes, selected) }
+        compose.runOnIdle { assertEquals(modes, selected); dark.value = false }
+        capture("home-light.png")
     }
     @Test fun lightMenuPreservesTwoTimesSystemTextAndEveryChoiceRemainsReachable() {
         val selected = mutableListOf<String>()
         compose.setContent { Viewport(false, 2f) { AtoutiaHomeScreen { selected.add(it) } } }
+        val viewport = compose.onNodeWithTag("visual-viewport").getUnclippedBoundsInRoot()
+        for (tag in listOf("home-solo", "home-online")) {
+            val bounds = compose.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("Main choice must be visible at font 2: $tag, $bounds", bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
+        }
         capture("home-large-text.png")
         val tags = listOf("home-solo", "home-online", "home-STATS", "home-SETTINGS", "home-LEARN")
         for (tag in tags) compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().performClick()

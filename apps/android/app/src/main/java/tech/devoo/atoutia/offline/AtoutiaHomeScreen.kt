@@ -36,14 +36,18 @@ internal fun AtoutiaHomeScreen(modifier: Modifier = Modifier, onSelect: (String)
                 .background(Brush.linearGradient(listOf(colors.background, colors.surfaceVariant)))
                 .safeDrawingPadding().verticalScroll(rememberScrollState()).padding(padding)
             if (columns) {
-                Row(contentModifier, horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(0.36f)) { BrandPanel(compact) }
-                    Box(Modifier.weight(0.64f)) { HomeChoices(compact, onSelect) }
+                Column(contentModifier, verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(0.36f)) { BrandPanel(compact) }
+                        Box(Modifier.weight(0.64f)) { HomePrimaryChoices(compact, onSelect) }
+                    }
+                    HomeUtilityChoices(onSelect)
                 }
             } else {
-                Column(contentModifier, verticalArrangement = Arrangement.spacedBy(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(contentModifier, verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     BrandPanel(compact)
-                    HomeChoices(compact, onSelect)
+                    HomePrimaryChoices(compact, onSelect)
+                    HomeUtilityChoices(onSelect)
                 }
             }
         }
@@ -53,15 +57,18 @@ internal fun AtoutiaHomeScreen(modifier: Modifier = Modifier, onSelect: (String)
 @Composable
 private fun BrandPanel(compact: Boolean) {
     val colors = MaterialTheme.colorScheme
+    if (LocalDensity.current.fontScale > 1.5f) {
+        BrandWordmark(compact)
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.clearAndSetSemantics {}.size(if (compact) 48.dp else 80.dp)
-            .background(colors.primaryContainer, RoundedCornerShape(18.dp))
-            .border(1.dp, colors.primary, RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
-            Text("♠\uFE0E", color = colors.onPrimaryContainer, fontSize = if (compact) 28.sp else 46.sp)
+        if (compact) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            BrandEmblem(32)
+            BrandWordmark(true)
+        } else {
+            BrandEmblem(80)
+            BrandWordmark(false)
         }
-        Text("ATOUTIA", color = colors.onBackground, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
-            fontSize = if (compact) 28.sp else 40.sp, lineHeight = if (compact) 34.sp else 46.sp,
-            modifier = Modifier.semantics { heading() })
         Text("La belote,\nà votre rythme.", color = colors.onBackground,
             fontSize = if (compact) 20.sp else 28.sp, lineHeight = if (compact) 26.sp else 34.sp,
             fontWeight = FontWeight.Medium)
@@ -71,7 +78,24 @@ private fun BrandPanel(compact: Boolean) {
 }
 
 @Composable
-private fun HomeChoices(compact: Boolean, onSelect: (String) -> Unit) {
+private fun BrandEmblem(size: Int) {
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.clearAndSetSemantics {}.size(size.dp)
+        .background(colors.primaryContainer, RoundedCornerShape(if (size < 48) 10.dp else 18.dp))
+        .border(1.dp, colors.primary, RoundedCornerShape(if (size < 48) 10.dp else 18.dp)), contentAlignment = Alignment.Center) {
+        Text("♠\uFE0E", color = colors.onPrimaryContainer, fontSize = if (size < 48) 18.sp else 46.sp)
+    }
+}
+
+@Composable
+private fun BrandWordmark(compact: Boolean) {
+    Text("ATOUTIA", color = MaterialTheme.colorScheme.onBackground, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
+        fontSize = if (compact) 28.sp else 40.sp, lineHeight = if (compact) 34.sp else 46.sp,
+        modifier = Modifier.semantics { heading() })
+}
+
+@Composable
+private fun HomePrimaryChoices(compact: Boolean, onSelect: (String) -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(onClick = { onSelect("SOLO") }, modifier = Modifier.fillMaxWidth().heightIn(min = if (compact) 64.dp else 96.dp)
             .testTag("home-solo"), shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(16.dp, 12.dp)) {
@@ -89,15 +113,19 @@ private fun HomeChoices(compact: Boolean, onSelect: (String) -> Unit) {
                 if (!compact) Text("Partagez une table avec vos amis.", style = MaterialTheme.typography.bodyMedium)
             }
         }
-        val utility = listOf("Statistiques solo" to "STATS", "Paramètres" to "SETTINGS", "Tutoriel" to "LEARN")
-        if (LocalDensity.current.fontScale > 1.5f) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                utility.forEach { (label, mode) -> HomeUtilityChoice(label, mode, onSelect, Modifier.fillMaxWidth().heightIn(min = 64.dp)) }
-            }
-        } else {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                utility.forEach { (label, mode) -> HomeUtilityChoice(label, mode, onSelect, Modifier.weight(1f).heightIn(min = 80.dp)) }
-            }
+    }
+}
+
+@Composable
+private fun HomeUtilityChoices(onSelect: (String) -> Unit) {
+    val utility = listOf("Statistiques solo" to "STATS", "Paramètres" to "SETTINGS", "Tutoriel" to "LEARN")
+    if (LocalDensity.current.fontScale > 1.5f) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            utility.forEach { (label, mode) -> HomeUtilityChoice(label, mode, onSelect, Modifier.fillMaxWidth().heightIn(min = 64.dp)) }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            utility.forEach { (label, mode) -> HomeUtilityChoice(label, mode, onSelect, Modifier.weight(1f).heightIn(min = 64.dp)) }
         }
     }
 }
