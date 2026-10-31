@@ -2,30 +2,12 @@ package tech.devoo.atoutia.offline
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import java.io.File
@@ -92,24 +74,6 @@ internal fun GameModeHost(
                 }
             }
         }
-        else -> Surface(Modifier.fillMaxSize().testTag("game-mode-menu")) {
-            Column(
-                Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-            ) {
-                Text("ATOUTIA", style = MaterialTheme.typography.headlineMedium)
-                Text("Solo sans connexion, sauvegardé sur cet appareil.")
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = { select("SOLO") }, modifier = Modifier.weight(1f)) { Text("Solo hors ligne") }
-                    OutlinedButton(onClick = { select("ONLINE") }, modifier = Modifier.weight(1f)) { Text("Jouer en ligne") }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { select("STATS") }, modifier = Modifier.weight(1f)) { Text("Statistiques solo") }
-                    OutlinedButton(onClick = { select("SETTINGS") }, modifier = Modifier.weight(1f)) { Text("Paramètres") }
-                    OutlinedButton(onClick = { select("LEARN") }, modifier = Modifier.weight(1f)) { Text("Tutoriel") }
-                }
-            }
-        }
+        else -> AtoutiaHomeScreen(onSelect = ::select)
     }
 }

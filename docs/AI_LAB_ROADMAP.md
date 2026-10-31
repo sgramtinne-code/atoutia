@@ -1,21 +1,23 @@
 # IA Lab et personnalités des PNJ
 
-## Cap confirmé par le développeur — 28 octobre 2026
+## Priorité révisée — 30 octobre 2026
 
-Les **millions de parties** correspondent à l'entraînement futur de l'IA sur son **PC équipé d'une NVIDIA RTX 5070**. Le but est de proposer des PNJ de niveaux différents, avec des méthodes de jeu et des personnalités variées, amusantes et distrayantes. La seule maximisation du taux de victoire ne suffit pas à cet objectif.
+Le développeur demande de reporter le déploiement OVH. Les priorités sont maintenant la qualité visuelle, la lisibilité pour les personnes âgées et l’entraînement des PNJ sur le PC NVIDIA RTX 5070, avant de reprendre la diffusion serveur. Cette décision remplace l’ancien ordre « bêta/déploiement puis IA plus tard ». Les millions de parties restent des données d’apprentissage, jamais une validation moteur ou une CI massive obligatoire.
 
-Cette étape vient **plus tard**. Elle ne constitue aucun prérequis à la livraison du moteur, du solo offline, de la bêta ou de la publication. Les essais reproductibles de 1 000/10 000 parties déjà livrés restent des outils bornés de validation du moteur ; ils ne sont ni un entraînement GPU ni un jeu de modèles entraînés.
+L’objectif est double : des niveaux de force mesurés et des manières de jouer variées, amusantes et distrayantes. La personnalité ne doit pas être réduite à une force plus faible ; la maximisation du taux de victoire ne suffit pas à mesurer le plaisir.
 
-## Progression prévue
+## Lots de travail avant déploiement
 
-1. Livrer un solo offline complet avec des PNJ locaux utilisables sans infrastructure d'entraînement.
-2. Définir les styles de jeu, niveaux et critères de plaisir/diversité ; séparer personnalité et force de jeu.
-3. Construire l'IA Lab local : génération de parties, apprentissage, comparaison des profils et évaluations reproductibles sur le PC RTX 5070.
-4. Après validation technique et ludique, intégrer les stratégies ou modèles retenus dans l'application, avec leurs contraintes d'exécution locale.
+1. **Identifier l’environnement GPU réel** : VRAM disponible, pilote, visibilité de la RTX dans l’environnement choisi et versions d’outils. Mesurer un petit benchmark avant de choisir framework, précision, taille de modèle ou lots. Ne pas changer globalement les pilotes ou environnements des autres projets. L’assistant ne dispose pas du GPU du PC : l’exécution locale doit être lancée sur celui-ci.
+2. **Préparer les observations et actions** : même moteur TypeScript, historique public et main du PNJ uniquement ; schéma versionné, masque des actions légales et récompense d’équipe. Aucune carte adverse cachée dans les entrées du PNJ normal. Séparer entraînement, validation et évaluation reproductible.
+3. **Construire le laboratoire local** : génération de parties par lots, premier entraînement borné sur GPU, checkpoints et reprise, mesures VRAM/débit/durée. Augmenter progressivement vers les campagnes massives après vérification, sans annoncer un délai ou un nombre de parties à la seconde avant mesure.
+4. **Comparer force et styles** : confrontations contre les politiques actuelles, mêmes distributions avec permutations de positions, parties hors entraînement, actions toujours légales. Mesurer les résultats, la variété et les prises de risque ; recueillir séparément le retour des joueurs sur le plaisir et le rythme.
+5. **Intégrer les modèles retenus** : export compatible avec le solo Android hors ligne, budget mémoire/latence/énergie mesuré, politique et manifeste versionnés, tests de reprise et de compatibilité. Le téléphone exécute une stratégie retenue ; il n’effectue pas les millions de parties d’entraînement.
 
-Les algorithmes, frameworks et formats de modèles restent à choisir au moment de cette étape, sur des mesures réelles. Aucun entraînement, installation GPU ou volume de millions de parties n'est lancé implicitement aujourd'hui. L'entraînement ne s'effectue pas sur le téléphone. Les PNJ de jeu normal disposent uniquement des informations autorisées, sans accès aux cartes cachées adverses. Préserver une économie sans pay-to-win.
+Les frameworks et formats restent à choisir à partir des compatibilités officielles et de mesures réelles. Un modèle entraîné sur le PC n’est pas automatiquement exécutable dans le runtime mobile actuel. Les jeux de données, checkpoints et journaux locaux restent hors du Git public ; publier seulement les scripts, schémas, fixtures synthétiques et résultats autorisés.
 
+## Base disponible
 
-## Premier enrichissement sans entraînement — 29 octobre 2026
+Le [solo offline](ANDROID_OFFLINE.md), les replays et les [simulations bornées](ENGINE_SIMULATION.md) fournissent les fondations. Les [styles PNJ actuels](OFFLINE_BOT_STYLES.md) sont des heuristiques déterministes prudent/solidaire/audacieux et des tables choisies par le joueur. Ils ne constituent pas des modèles entraînés ou une échelle de difficulté mesurée.
 
-Le lot [styles PNJ offline](OFFLINE_BOT_STYLES.md) introduit des heuristiques déterministes prudent/solidaire/audacieux et des tables choisies par le joueur. Il ne mesure pas une échelle de force ni un plaisir garanti. Le botPolicy est conservé avec chaque partie pour ne pas changer une reprise. Les PNJ reçoivent seulement leur main, le pli public et leurs actions autorisées ; les règles restent celles du moteur. Ce premier choix de styles peut guider le retour ludique avant l’IA Lab ; aucun entraînement RTX5070 ou modèle appris n’est déclaré livré.
+La politique est conservée avec chaque partie : une nouvelle préférence ou un nouveau modèle ne doit pas modifier silencieusement une reprise. Préserver les sauvegardes legacy, l’autorité du moteur et une économie sans pay-to-win. Le chantier visuel courant ne lance aucun entraînement et n’installe aucune dépendance GPU ; le diagnostic du PC sera la prochaine entrée concrète du lot IA Lab.
