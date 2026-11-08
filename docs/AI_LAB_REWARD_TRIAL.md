@@ -32,3 +32,29 @@ Sur CPU, les deux modes ont entraîné 24 parties chacun et le banc a terminé 8
 Pour le jeu de carte, confirmer un gain reproductible contre les heuristiques sur un autre lot et vérifier qu’il ne dépend pas d’un seul siège ou style. Ensuite, automatiser les paliers avec suivi des checkpoints, évaluation et arrêt si la qualité se dégrade. L’apprentissage des enchères, les partenaires variables et l’évaluation sur Android restent des jalons distincts.
 
 Pour les interactions, préparer un corpus de situations publiques et de répliques validées, étiquetées par personnage, pertinence, ton et répétition. Commencer par un classement des répliques adaptées au contexte avec un jeu de validation réservé. Vérifier la lisibilité et la cadence avec des joueurs. Un modèle appris de répliques ne doit accéder ni aux mains cachées ni à la décision du moteur.
+
+## Comparaison pour l’audacieux avec mémoire
+
+Le [renforcement de l’audacieux](AI_LAB_SELF_PLAY.md#renforcement-de-laudacieux-avec-mémoire) fait tourner le siège entraîné à chaque partie. On peut réutiliser sa campagne en mode `match` et entraîner une campagne `deal` à partir du même checkpoint d’imitation. Avec 32 lots de 48 parties, les deux modes utilisent les mêmes indices d’apprentissage et la même rotation.
+
+Depuis la racine du dépôt, renseigner le checkpoint d’imitation et le checkpoint final de la campagne `match`. Cette procédure construit le moteur et le solo, entraîne le modèle par donne sur CUDA et évalue les deux modèles sur CPU.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_INITIAL="$PWD/ai-lab/data/bold-memory.EXEMPLE/run/seed-1234/on/checkpoint.pt" &&
+ATOUTIA_MATCH="$PWD/ai-lab/data/bold-reinforcement.EXEMPLE/run/latest.pt" &&
+test -s "$ATOUTIA_INITIAL" &&
+test -s "$ATOUTIA_MATCH" &&
+ATOUTIA_TRIAL=$(mktemp -d "$PWD/ai-lab/data/bold-reward.XXXXXX") &&
+ai-lab/.venv/bin/python ai-lab/self-play.py \
+  --initial "$ATOUTIA_INITIAL" --output "$ATOUTIA_TRIAL/deal" \
+  --device cuda --rounds 32 --matches 48 --reward deal &&
+ai-lab/.venv/bin/python ai-lab/export-policy.py "$ATOUTIA_MATCH" > "$ATOUTIA_TRIAL/match.json" &&
+ai-lab/.venv/bin/python ai-lab/export-policy.py "$ATOUTIA_TRIAL/deal/latest.pt" > "$ATOUTIA_TRIAL/deal.json" &&
+node ai-lab/benchmark-bold-memory.mjs --match "$ATOUTIA_TRIAL/match.json" --deal "$ATOUTIA_TRIAL/deal.json" \
+  > "$ATOUTIA_TRIAL/report.json" &&
+cat "$ATOUTIA_TRIAL/report.json"
+```
+
+Le banc vérifie la mémoire active, l’empreinte du checkpoint de départ, le mode de récompense et le budget. Il réserve les indices 29952 à 30207, distincts du banc avant/après et de l’apprentissage. Chaque indice et chaque place donnent trois parties, avec l’heuristique audacieuse, le modèle récompensé par match et celui récompensé par donne. Le rapport donne `referenceWins`, `matchWins`, `dealWins`, les bascules de victoire et la variation moyenne de marge du modèle par donne par rapport au modèle par match. Les résultats des trois places partagent les mêmes indices.
