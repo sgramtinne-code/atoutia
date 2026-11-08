@@ -6,11 +6,11 @@ import json
 import os
 import pickle
 import subprocess
-import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from time import perf_counter
 
+from export_policy import export
 from train import create_model, tensors, validate_rows
 
 
@@ -35,11 +35,10 @@ def command_json(command):
 
 
 def export_policy(checkpoint, output):
-    with output.open("wb") as destination:
-        subprocess.run(
-            [sys.executable, LAB / "export-policy.py", checkpoint],
-            stdout=destination, check=True,
-        )
+    output.write_text(
+        json.dumps(export(checkpoint), allow_nan=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
 
 
 def benchmark(policy):
@@ -75,6 +74,9 @@ def update(torch, model, optimizer, rollout, round_number, matches, device):
         weights.extend([reward / len(decisions)] * len(decisions))
 
     x, legal, chosen = tensors(torch, rows, device)
+    parameter_device = next(model.parameters()).device
+    if any(tensor.device != parameter_device for tensor in (x, legal, chosen)):
+        raise RuntimeError("Training tensors and model parameters are on different devices")
     model.train()
     optimizer.zero_grad(set_to_none=True)
     logits = model(x).masked_fill(~legal, -torch.inf)
@@ -85,6 +87,8 @@ def update(torch, model, optimizer, rollout, round_number, matches, device):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0, error_if_nonfinite=True)
     optimizer.step()
+    if device == "cuda":
+        torch.cuda.synchronize()
     return {
         "round": round_number,
         "matches": matches,
@@ -94,6 +98,16 @@ def update(torch, model, optimizer, rollout, round_number, matches, device):
 
 
 def run(args, torch, temporary):
+    started = perf_counter()
+    timings = dict.fromkeys(("policyExport", "simulation", "trainingUpdate", "checkpointSave", "benchmark"), 0.0)
+
+    def timed(phase, action, *values):
+        start = perf_counter()
+        result = action(*values)
+        duration = perf_counter() - start
+        timings[phase] += duration
+        return result, duration
+
     latest = args.output / "latest.pt"
     policy = temporary / "policy.json"
     model = create_model(torch.nn).to(args.device)
@@ -113,13 +127,14 @@ def run(args, torch, temporary):
         checkpoint = load(torch, args.initial)
         if "selfPlay" in checkpoint:
             raise ValueError("Use --resume for a self-play checkpoint")
-        export_policy(args.initial, policy)
+        timed("policyExport", export_policy, args.initial, policy)
+        initial_benchmark, _ = timed("benchmark", benchmark, policy)
         matches = args.matches or 12
         progress = {
             "format": FORMAT,
             "device": args.device,
             "matchesPerRound": matches,
-            "initialBenchmark": benchmark(policy),
+            "initialBenchmark": initial_benchmark,
             "history": [],
         }
     history = progress["history"]
@@ -138,23 +153,22 @@ def run(args, torch, temporary):
         }, destination))
 
     if not args.resume:
-        save()
-    print(f"Starting at {len(history)}/{args.rounds} rounds on {args.device}.", flush=True)
-    for round_number in range(len(history) + 1, args.rounds + 1):
-        export_policy(latest, policy)
-        start = perf_counter()
-        rollout = command_json([
+        timed("checkpointSave", save)
+    starting_round = len(history)
+    print(f"Starting at {starting_round}/{args.rounds} rounds on {args.device}.", flush=True)
+    model_device = str(next(model.parameters()).device)
+    print(f"Model parameters: {model_device} | simulation and evaluation: CPU", flush=True)
+    for round_number in range(starting_round + 1, args.rounds + 1):
+        timed("policyExport", export_policy, latest, policy)
+        rollout, simulation_seconds = timed("simulation", command_json, [
             "node", LAB / "rollout.mjs", "--policy", policy,
             "--round", str(round_number), "--matches", str(matches),
         ])
-        simulation_seconds = perf_counter() - start
-        start = perf_counter()
-        result = update(torch, model, optimizer, rollout, round_number, matches, args.device)
-        if args.device == "cuda":
-            torch.cuda.synchronize()
-        update_seconds = perf_counter() - start
+        result, update_seconds = timed(
+            "trainingUpdate", update, torch, model, optimizer, rollout, round_number, matches, args.device,
+        )
         history.append(result)
-        save()
+        timed("checkpointSave", save)
         print(
             f"Saved round {round_number}/{args.rounds}: {result['wins']}/{matches} wins, "
             f"{result['decisions']} decisions | simulation {simulation_seconds:.2f}s, "
@@ -162,16 +176,23 @@ def run(args, torch, temporary):
             flush=True,
         )
 
-    export_policy(latest, policy)
+    timed("policyExport", export_policy, latest, policy)
+    trained_benchmark, _ = timed("benchmark", benchmark, policy)
     report = {
         "format": FORMAT,
         "device": args.device,
+        "modelDevice": model_device,
         "rounds": len(history),
+        "roundsCompletedThisRun": len(history) - starting_round,
+        "timingsSecondsThisRun": {
+            **{phase: round(seconds, 6) for phase, seconds in timings.items()},
+            "total": round(perf_counter() - started, 6),
+        },
         "trainingMatches": sum(item["matches"] for item in history),
         "trainingDecisions": sum(item["decisions"] for item in history),
         "history": history,
         "initialBenchmark": progress["initialBenchmark"],
-        "trainedBenchmark": benchmark(policy),
+        "trainedBenchmark": trained_benchmark,
     }
     if args.device == "cuda":
         report["deviceName"] = torch.cuda.get_device_name()
