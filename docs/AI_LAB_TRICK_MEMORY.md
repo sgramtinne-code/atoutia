@@ -27,3 +27,22 @@ Le banc joue 896 parties sur 128 nouvelles distributions à partir de l’indice
 ## Vérifications en développement
 
 Le générateur historique, l’export v1 et son rapport de banc sont identiques octet pour octet aux versions précédentes. Sur un jeu de données réduit de 16 matchs d’apprentissage et 4 de validation, 2 601 décisions incluent des plis terminés. Pour chaque ligne, les cartes légales, la cible et les entrées de base correspondent au jeu historique. Les deux modèles CPU ont terminé deux époques et 896 parties d’évaluation. Le banc refuse des jeux de données différents et l’entraînement par renforcement v1 refuse un checkpoint avec mémoire. La première mesure CUDA avec le budget complet reste à faire.
+
+## Confirmer avec les mêmes checkpoints
+
+Le mode `--history-confirmation` rejoue les deux politiques exportées sur 512 distributions inédites. Les quatre blocs de 128 commencent aux indices 16384, 16512, 16640 et 16768, après les indices utilisés par les campagnes actuelles. Réserver ces indices hors de tout futur entraînement. Chaque distribution produit sept parties, soit 3 584 au total. Les modèles sont figés pendant l’évaluation.
+
+Depuis la racine du dépôt, renseigner le dossier du premier essai, qui contient déjà les deux exports. Le calcul se fait sur CPU.
+
+```bash
+ATOUTIA_MEMORY='ai-lab/data/trick-memory.EXEMPLE'
+test -s "$ATOUTIA_MEMORY/off.json" &&
+test -s "$ATOUTIA_MEMORY/on.json" &&
+ATOUTIA_CONFIRM=$(mktemp -d "$PWD/ai-lab/data/history-confirmation.XXXXXX") &&
+node ai-lab/benchmark.mjs --history-confirmation \
+  --policy "$ATOUTIA_MEMORY/off.json" --candidate "$ATOUTIA_MEMORY/on.json" \
+  > "$ATOUTIA_CONFIRM/report.json" &&
+cat "$ATOUTIA_CONFIRM/report.json"
+```
+
+Comparer `byStyle` pour le total et `byBlock` pour la répartition. Un gain concentré dans un seul bloc mérite davantage de prudence qu’un écart qui se retrouve dans plusieurs blocs. Ce rapport confirme ou nuance un résultat sur deux checkpoints précis. La variabilité entre plusieurs entraînements s’évalue séparément.

@@ -75,34 +75,7 @@ function benchmark(policy, seeds) {
   };
 }
 
-function compare(initial, candidate, seeds, trial) {
-  if (trial === "history") {
-    assert(initial.source.historyMode === "off" && candidate.source.historyMode === "on",
-      "Supply the masked-history policy first and the history policy second");
-    assert(initial.imitation.datasetSha256 === candidate.imitation.datasetSha256
-      && initial.imitation.epochs === candidate.imitation.epochs,
-      "History trials must use the same dataset and epoch count");
-  } else if (trial === "reward") {
-    assert(initial.initialCheckpointSha256 && initial.initialCheckpointSha256 === candidate.initialCheckpointSha256,
-      "Reward trials must start from the same checkpoint");
-    const match = initial.training;
-    const deal = candidate.training;
-    assert(match?.rewardMode === "match" && deal?.rewardMode === "deal",
-      "Supply the match-reward policy first and the deal-reward policy second");
-    assert(Number.isInteger(match.rounds) && match.rounds > 0 && match.rounds === deal.rounds
-      && Number.isInteger(match.matchesPerRound) && match.matchesPerRound > 0
-      && match.matchesPerRound === deal.matchesPerRound, "Reward trials must use the same training budget");
-  } else {
-    assert(candidate.initialCheckpointSha256 === initial.checkpointSha256,
-      "Candidate campaign does not originate from the supplied initial checkpoint");
-  }
-  // Separate from the first held-out set, the development benchmark and all training rounds.
-  const firstSeedIndex = { history: 3584, reward: 3328, checkpoint: 3072 }[trial];
-  const reportFormat = {
-    history: "atoutia-card-history-trial-v1",
-    reward: "atoutia-card-reward-trial-v1",
-    checkpoint: "atoutia-card-held-out-comparison-v1",
-  }[trial];
+function compareBlock(initial, candidate, firstSeedIndex, seeds) {
   const groups = styles.map((style, index) => {
     const seat = PLAYER_POSITIONS[index + 1];
     return {
@@ -126,21 +99,79 @@ function compare(initial, candidate, seeds, trial) {
       group.marginChange += margin(after, group.team) - margin(before, group.team);
     }
   }
+  return groups;
+}
+
+function summarize(groups, seeds) {
+  return groups.map(({ marginChange, ...group }) => ({
+    ...group,
+    meanMarginChange: marginChange / seeds,
+  }));
+}
+
+function compare(initial, candidate, seeds, trial) {
+  const historyTrial = trial === "history" || trial === "history-confirmation";
+  if (historyTrial) {
+    assert(initial.source.historyMode === "off" && candidate.source.historyMode === "on",
+      "Supply the masked-history policy first and the history policy second");
+    assert(initial.imitation.datasetSha256 === candidate.imitation.datasetSha256
+      && initial.imitation.epochs === candidate.imitation.epochs,
+      "History trials must use the same dataset and epoch count");
+  } else if (trial === "reward") {
+    assert(initial.initialCheckpointSha256 && initial.initialCheckpointSha256 === candidate.initialCheckpointSha256,
+      "Reward trials must start from the same checkpoint");
+    const match = initial.training;
+    const deal = candidate.training;
+    assert(match?.rewardMode === "match" && deal?.rewardMode === "deal",
+      "Supply the match-reward policy first and the deal-reward policy second");
+    assert(Number.isInteger(match.rounds) && match.rounds > 0 && match.rounds === deal.rounds
+      && Number.isInteger(match.matchesPerRound) && match.matchesPerRound > 0
+      && match.matchesPerRound === deal.matchesPerRound, "Reward trials must use the same training budget");
+  } else {
+    assert(candidate.initialCheckpointSha256 === initial.checkpointSha256,
+      "Candidate campaign does not originate from the supplied initial checkpoint");
+  }
+  // Confirmation starts beyond the last self-play seed index (4096 + 128 * 96 - 1).
+  const firstSeedIndex = { history: 3584, "history-confirmation": 16384, reward: 3328, checkpoint: 3072 }[trial];
+  const reportFormat = {
+    history: "atoutia-card-history-trial-v1",
+    "history-confirmation": "atoutia-card-history-confirmation-v1",
+    reward: "atoutia-card-reward-trial-v1",
+    checkpoint: "atoutia-card-held-out-comparison-v1",
+  }[trial];
+  const blockSize = trial === "history-confirmation" ? 128 : seeds;
+  const blocks = [];
+  for (let index = firstSeedIndex; index < firstSeedIndex + seeds; index += blockSize) {
+    blocks.push({ firstSeedIndex: index, groups: compareBlock(initial, candidate, index, blockSize) });
+  }
+  const totals = blocks[0].groups.map((group, i) => {
+    const total = { ...group };
+    for (const block of blocks.slice(1)) {
+      for (const key of ["heuristicWins", "initialWins", "candidateWins", "gainedWins", "lostWins", "marginChange"]) {
+        total[key] += block.groups[i][key];
+      }
+    }
+    return total;
+  });
   return {
     format: reportFormat,
     initialCheckpointSha256: initial.checkpointSha256,
     candidateCheckpointSha256: candidate.checkpointSha256,
     ...(trial === "reward" ? { matchTraining: initial.training, dealTraining: candidate.training } : {}),
-    ...(trial === "history" ? { training: initial.imitation } : {}),
+    ...(historyTrial ? { training: initial.imitation } : {}),
     engineVersion: BELOTE_ENGINE_VERSION,
     rulesVersion: CURRENT_MATCH_RULES_VERSION,
     firstSeedIndex,
     seeds,
-    totalMatches: seeds * (1 + 2 * groups.length),
-    byStyle: groups.map(({ marginChange, ...group }) => ({
-      ...group,
-      meanMarginChange: marginChange / seeds,
-    })),
+    totalMatches: seeds * (1 + 2 * totals.length),
+    byStyle: summarize(totals, seeds),
+    ...(trial === "history-confirmation" ? {
+      byBlock: blocks.map((block) => ({
+        firstSeedIndex: block.firstSeedIndex,
+        seeds: blockSize,
+        byStyle: summarize(block.groups, blockSize),
+      })),
+    } : {}),
   };
 }
 
@@ -150,13 +181,21 @@ try {
     candidate: { type: "string" },
     "reward-trial": { type: "boolean", default: false },
     "history-trial": { type: "boolean", default: false },
-    seeds: { type: "string", default: "32" },
+    "history-confirmation": { type: "boolean", default: false },
+    seeds: { type: "string" },
   } });
   assert(values.policy, "Usage: node ai-lab/benchmark.mjs --policy FILE [--candidate FILE] [--seeds 1..128]");
-  assert(!(values["reward-trial"] && values["history-trial"]), "Choose one trial mode");
-  const trial = values["history-trial"] ? "history" : values["reward-trial"] ? "reward" : "checkpoint";
+  const trials = [
+    values["history-trial"] && "history",
+    values["reward-trial"] && "reward",
+    values["history-confirmation"] && "history-confirmation",
+  ].filter(Boolean);
+  assert(trials.length <= 1, "Choose one trial mode");
+  const trial = trials[0] ?? "checkpoint";
   assert(trial === "checkpoint" || values.candidate, "Trial requires a candidate");
-  const seeds = count(values.seeds, "--seeds", 128);
+  const confirmation = trial === "history-confirmation";
+  assert(!confirmation || values.seeds === undefined, "History confirmation uses exactly 512 seeds");
+  const seeds = confirmation ? 512 : count(values.seeds ?? "32", "--seeds", 128);
   const initial = loadPolicy(values.policy);
   const report = values.candidate
     ? compare(initial, loadPolicy(values.candidate), seeds, trial)
