@@ -4,13 +4,13 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 ## État au 8 novembre 2026
 
-**Cap PNJ confirmé :** les millions de parties sont prévus pour l'entraînement local sur le PC NVIDIA RTX 5070, afin de créer des PNJ aux styles et niveaux variés, amusants et distrayants. Ils concernent l’apprentissage, sans bloquer rétroactivement le solo livré ; le chantier IA est maintenant prioritaire avant la reprise du déploiement. Les simulations de la PR nº 18 sont des tests de moteur, sans entraînement. [Feuille de route IA](docs/AI_LAB_ROADMAP.md).
+**Cap PNJ.** Entraîner sur RTX 5070 un ensemble de joueurs de belote avec des styles cohérents et des niveaux mesurés. Faire varier les tables et donner à chaque personnage de courtes répliques contextuelles, désactivables. Faire grandir les campagnes locales selon les progrès et les limites mesurées. Android exécute les politiques retenues en solo hors ligne. [Feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Travailler d’abord le look professionnel, la lisibilité et l’ergonomie pour les personnes âgées, puis préparer/exécuter l’entraînement des PNJ sur la RTX 5070 avant de reprendre le déploiement. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Le checkpoint synthétique CPU a été évalué localement et la mesure du checkpoint du développeur reste à faire. [Procédure et résultats du banc](docs/AI_LAB_BENCHMARK.md).
+Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Les contrôles synthétiques, le protocole et les limites du banc sont documentés. [Procédure et résultats du banc](docs/AI_LAB_BENCHMARK.md).
 
 **[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; le chantier IA précède désormais la reprise du déploiement. Le hors-ligne est une exigence, pas une option abandonnée.
 

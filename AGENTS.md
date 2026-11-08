@@ -10,7 +10,9 @@ Clarification explicite du développeur après PR nº 18 : les **millions de par
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Le checkpoint synthétique CPU a été évalué localement et la mesure du checkpoint du développeur reste à faire. [Procédure et résultats du banc](docs/AI_LAB_BENCHMARK.md).
+Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Les contrôles synthétiques, le protocole et les limites du banc sont documentés. [Procédure et résultats du banc](docs/AI_LAB_BENCHMARK.md).
+
+Cap produit PNJ : distinguer la force mesurée, le style de jeu et la personnalité. Développer des tables variées, avec de courtes répliques désactivables entre PNJ et avec le joueur. Les répliques se fondent sur des événements publics. Mesurer le débit avant d’augmenter les volumes d’autojeu et vérifier le coût des politiques sur Android. Voir [la feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
 ## Mission et références
 
