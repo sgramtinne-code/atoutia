@@ -11,7 +11,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from time import perf_counter
 
 from export_policy import export
-from train import create_model, tensors, validate_rows
+from train import FORMAT as IMITATION_FORMAT, create_model, tensors, validate_rows
 
 
 LAB = Path(__file__).resolve().parent
@@ -51,6 +51,9 @@ def load(torch, path):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     if not isinstance(checkpoint, dict):
         raise ValueError("Invalid checkpoint")
+    metadata = checkpoint.get("metadata")
+    if not isinstance(metadata, dict) or metadata.get("format") != IMITATION_FORMAT:
+        raise ValueError("Self-play currently requires a v1 pilot checkpoint")
     return checkpoint
 
 

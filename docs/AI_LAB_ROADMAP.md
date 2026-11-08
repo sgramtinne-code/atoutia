@@ -35,3 +35,5 @@ La politique est conservée avec chaque partie : une nouvelle préférence ou un
 Le [premier entraînement sur parties complètes](AI_LAB_SELF_PLAY.md) ajoute un adversaire de référence fixe, la sauvegarde entre lots et la mesure avant/après sur le banc réservé.
 
 La [comparaison des récompenses](AI_LAB_REWARD_TRIAL.md) prépare le choix de la méthode et les contrôles d’une campagne longue. Les interactions auront un corpus et des critères de validation propres.
+
+Le [test de mémoire des plis](AI_LAB_TRICK_MEMORY.md) mesure l’apport des cartes publiques déjà jouées avant de choisir les entrées d’une campagne plus longue.
