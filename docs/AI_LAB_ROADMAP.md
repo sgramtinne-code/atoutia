@@ -4,7 +4,17 @@
 
 Le développeur demande de reporter le déploiement OVH. Les priorités sont maintenant la qualité visuelle, la lisibilité pour les personnes âgées et l’entraînement des PNJ sur le PC NVIDIA RTX 5070, avant de reprendre la diffusion serveur. Cette décision remplace l’ancien ordre « bêta/déploiement puis IA plus tard ». Les millions de parties restent des données d’apprentissage, jamais une validation moteur ou une CI massive obligatoire.
 
-L’objectif est double : des niveaux de force mesurés et des manières de jouer variées, amusantes et distrayantes. La personnalité ne doit pas être réduite à une force plus faible ; la maximisation du taux de victoire ne suffit pas à mesurer le plaisir.
+## Vision du jeu
+
+Les tables solo doivent donner l’impression de retrouver des partenaires et des adversaires avec leur propre caractère. Chaque PNJ possède un profil cohérent et identifiable, avec une manière de prendre, d’aider son partenaire, de gérer l’atout et de réagir à la partie. Proposer plusieurs personnages par niveau et plusieurs niveaux par style permet de renouveler les tables. La force se mesure en partie. La personnalité se mesure aussi par les décisions et par le retour des joueurs sur le plaisir, le rythme et la variété.
+
+Les personnages peuvent échanger entre eux et s’adresser au joueur humain. Commencer par de courtes répliques écrites, choisies selon leur personnalité et des événements publics comme une prise, un pli remporté ou la fin de partie. Garder les textes lisibles, espacés et désactivables. Les répliques ne doivent jamais révéler une carte cachée ni influencer la règle ou le résultat. Identifier clairement les personnages comme PNJ. Envisager la voix après essai des textes et mesure du confort de jeu.
+
+## Cap d’apprentissage et d’intégration
+
+Utiliser la RTX 5070 pour des campagnes locales d’autojeu par lots, jusqu’aux volumes utiles que permettent le débit, le stockage et le temps mesurés. L’objectif de millions de parties reste une ambition d’apprentissage. Le premier palier est une boucle qui produit des décisions, sauvegarde et reprend l’entraînement, puis compare les nouveaux modèles à des adversaires de référence. Augmenter le volume seulement si les mesures montrent que les modèles progressent ou se diversifient. Conserver des graines et adversaires réservés, permuter les places et mesurer les résultats d’équipe. L’imitation peut servir de point de départ, puis les résultats de partie peuvent guider l’apprentissage.
+
+Sur Android, sélectionner et compacter les politiques utiles au solo hors ligne. Mesurer la latence d’un coup, la mémoire, la taille du paquet et le comportement en partie sur appareil. La sélection et la variété des personnages doivent rester compatibles avec les reprises de partie. L’interface, les cartes et les contrôles essentiels restent lisibles quand les personnages parlent.
 
 ## Lots de travail avant déploiement
 
@@ -20,4 +30,4 @@ Le [pilote d’imitation](AI_LAB_PILOT.md) utilise PyTorch avec CUDA 13.0 pour l
 
 Le [solo offline](ANDROID_OFFLINE.md), les replays et les [simulations bornées](ENGINE_SIMULATION.md) fournissent les fondations. Les [styles PNJ actuels](OFFLINE_BOT_STYLES.md) sont des heuristiques déterministes prudent/solidaire/audacieux et des tables choisies par le joueur. Ils ne constituent pas des modèles entraînés ou une échelle de difficulté mesurée.
 
-La politique est conservée avec chaque partie : une nouvelle préférence ou un nouveau modèle ne doit pas modifier silencieusement une reprise. Préserver les sauvegardes legacy, l’autorité du moteur et une économie sans pay-to-win. Le premier socle visuel est intégré. Le pilote a tourné sur CPU en environnement de développement. La première exécution CUDA sur le poste de développement est le prochain jalon.
+La politique est conservée avec chaque partie : une nouvelle préférence ou un nouveau modèle ne doit pas modifier silencieusement une reprise. Préserver les sauvegardes legacy, l’autorité du moteur et une économie sans pay-to-win. Le premier socle visuel est intégré. Le pilote d’imitation est intégré par la PR nº 30. Le [banc en parties complètes](AI_LAB_BENCHMARK.md) mesure maintenant les résultats de chaque style par comparaison appariée.
