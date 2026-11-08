@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import pickle
+import re
 from pathlib import Path
 
 from train import CARD_COUNT, FORMAT, INPUT_SIZE, STYLES
@@ -48,12 +49,20 @@ def export(path):
             raise ValueError(f"Invalid checkpoint weights: {name}")
         weights[name] = tensor.tolist()
     fields = ("format", "inputSize", "styles", "cards", "teacher", "engineVersion", "rulesVersion")
-    return {
+    policy = {
         "format": "atoutia-card-policy-v1",
         "source": {field: metadata[field] for field in fields},
         "checkpointSha256": hashlib.sha256(raw).hexdigest(),
         "weights": weights,
     }
+    if "selfPlay" in checkpoint:
+        progress = checkpoint["selfPlay"]
+        initial = progress.get("initialBenchmark") if isinstance(progress, dict) else None
+        fingerprint = initial.get("checkpointSha256") if isinstance(initial, dict) else None
+        if not isinstance(fingerprint, str) or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
+            raise ValueError("Invalid initial checkpoint fingerprint")
+        policy["initialCheckpointSha256"] = fingerprint
+    return policy
 
 
 def main():

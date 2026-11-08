@@ -27,3 +27,25 @@ Le rapport est enregistré dans `ai-lab/data/benchmark.*/report.json`. `baseline
 Le générateur produit le même jeu de données que celui de la PR nº 30, octet pour octet. Sur 2 043 décisions légales de nouvelles parties, le calcul Node a choisi les mêmes cartes que PyTorch avec le même checkpoint synthétique. Le rapport à 32 graines est reproductible et le lot maximal a terminé ses 512 parties. Des poids de forme invalide, un ordre de cartes incompatible et un nombre de graines hors limites ont été rejetés.
 
 Sur le checkpoint synthétique CPU, les victoires de l’équipe du siège évalué sont passées de 11 à 9 pour le prudent, de 21 à 20 pour le solidaire et de 11 à 8 pour l’audacieux, sur 32 graines par style. Ce résultat dépend du checkpoint et du lot. Le banc compare un remplacement à la fois, et des essais distincts resteront nécessaires pour évaluer un duo entraîné ou le plaisir de jeu.
+
+## Comparer le début et la fin d’une campagne
+
+Le mode `--candidate` utilise un lot réservé qui commence à l’indice 3072. L’empreinte du checkpoint initial enregistrée dans la campagne doit correspondre au modèle fourni à `--policy`. Chaque graine donne une partie de référence avec les heuristiques, trois avec le modèle initial et trois avec le candidat. Dans chaque variante, un seul siège change son jeu de carte. Avec 128 graines, le rapport couvre 896 parties.
+
+Après la [reprise de l’entraînement](AI_LAB_SELF_PLAY.md), renseigner le chemin du checkpoint du pilote utilisé au départ et le dossier de la campagne. Exécuter depuis la racine du dépôt.
+
+```bash
+ATOUTIA_CHECKPOINT='ai-lab/data/pilot.EXEMPLE/model/checkpoint.pt'
+ATOUTIA_RUN='ai-lab/data/self-play.EXEMPLE/run'
+test -f "$ATOUTIA_CHECKPOINT" &&
+test -f "$ATOUTIA_RUN/latest.pt" &&
+ATOUTIA_EVAL=$(mktemp -d "$PWD/ai-lab/data/evaluation.XXXXXX") &&
+ai-lab/.venv/bin/python ai-lab/export-policy.py "$ATOUTIA_CHECKPOINT" > "$ATOUTIA_EVAL/initial.json" &&
+ai-lab/.venv/bin/python ai-lab/export-policy.py "$ATOUTIA_RUN/latest.pt" > "$ATOUTIA_EVAL/candidate.json" &&
+node ai-lab/benchmark.mjs --policy "$ATOUTIA_EVAL/initial.json" --candidate "$ATOUTIA_EVAL/candidate.json" --seeds 128 > "$ATOUTIA_EVAL/report.json" &&
+cat "$ATOUTIA_EVAL/report.json"
+```
+
+`heuristicWins`, `initialWins` et `candidateWins` comparent les trois politiques par siège. `gainedWins` et `lostWins` comptent les résultats qui basculent entre le modèle initial et le candidat sur une même graine. `meanMarginChange` donne l’évolution moyenne de la marge en faveur du siège évalué. Réserver ce lot à l’évaluation. Si ses résultats servent à choisir les réglages d’une autre campagne, utiliser un autre lot pour confirmer le résultat final.
+
+Vérifications synthétiques : 896 parties terminées, rapport reproductible, aucun écart entre deux politiques identiques, deltas de victoires appariés cohérents et checkpoint d’origine incompatible rejeté. Le rapport historique à une politique a été comparé octet pour octet à celui de la version précédente. Les essais avec des checkpoints entraînés restent locaux.
