@@ -66,3 +66,23 @@ cat "$ATOUTIA_STUDY/run/report.json"
 ```
 
 Comparer les victoires, les bascules et la variation de marge pour chaque initialisation et chaque place. `referenceWins` donne la force de l’heuristique audacieuse dans les mêmes conditions. Les rapports par paire restent disponibles si l’exécution est interrompue après une paire terminée. Une nouvelle exécution utilise un dossier distinct. L’apprentissage utilise PyTorch sur CUDA et le banc joue les parties sur CPU.
+
+## Faire tourner l’audacieux pendant l’imitation
+
+Les deux variantes apprennent uniquement des décisions de l’heuristique audacieuse avec la mémoire des plis. Les trois autres joueurs utilisent la politique d’origine. La variante `fixed` place l’audacieux au siège `PLAYER_3`, affiché « Joueur 4 ». La variante `rotated` alterne les trois sièges PNJ à chaque partie. Le profil transmis au modèle reste audacieux et les cartes restent encodées depuis le siège réellement occupé.
+
+Les deux générateurs partagent 768 indices d’apprentissage de 32000 à 32767 et 192 indices de validation de 32768 à 32959. Le jeu tournant prélève le même nombre de décisions à chaque siège. Le jeu fixe prélève autant de décisions au total. Les décisions sont espacées régulièrement dans chaque liste. Les deux variantes utilisent les mêmes trois initialisations, la même architecture et dix époques. Le témoin à place fixe est réentraîné pour contrôler le budget et l’environnement de jeu.
+
+Le banc compare les deux modèles et la référence à chaque place sur les 256 indices réservés de 30720 à 30975, soit 6 912 parties. `meanMarginChange` mesure la variation de marge du modèle tournant par rapport au modèle fixe. Les modèles partagent les distributions, et chaque variante valide ses poids sur ses propres exemples. Le banc en parties complètes sert à comparer leur jeu dans des conditions communes.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+mkdir -p ai-lab/data &&
+ATOUTIA_SEATS=$(mktemp -d "$PWD/ai-lab/data/bold-seat-imitation.XXXXXX") &&
+printf 'Dossier de comparaison : %s\n' "$ATOUTIA_SEATS/run" &&
+ai-lab/.venv/bin/python ai-lab/bold-seat-imitation.py --output "$ATOUTIA_SEATS/run" --device cuda &&
+cat "$ATOUTIA_SEATS/run/report.json"
+```
+
+La simulation des parties et la génération des données tournent sur CPU. Les poids sont entraînés sur CUDA. Les deux jeux de données, les checkpoints, les exports et le rapport sont enregistrés dans le nouveau dossier local.

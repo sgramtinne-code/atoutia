@@ -25,6 +25,15 @@ export function loadPolicy(path) {
   if (source?.format === memoryFormat) {
     assert(["on", "off"].includes(source.historyMode), "Invalid history mode");
     Object.assign(expected, { format: memoryFormat, inputSize: memoryInputSize, historyMode: source.historyMode });
+    if (["bold-fixed-v1", "bold-rotated-v1"].includes(source.teacher)) {
+      const { seed, trainChoices, validationChoices } = policy.imitation ?? {};
+      assert(
+        source.historyMode === "on" && Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff
+          && [trainChoices, validationChoices].every((size) => Number.isInteger(size) && size >= 1 && size <= 100000),
+        "Invalid Bold seat imitation metadata",
+      );
+      expected.teacher = source.teacher;
+    }
     const { datasetSha256, epochs } = policy.imitation ?? {};
     assert(typeof datasetSha256 === "string" && /^[0-9a-f]{64}$/.test(datasetSha256)
       && Number.isInteger(epochs) && epochs >= 1 && epochs <= 20, "Invalid history training metadata");

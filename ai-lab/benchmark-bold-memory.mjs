@@ -60,20 +60,62 @@ function compareRewards(matchPath, dealPath, seeds, confirmation) {
   };
 }
 
+function compareSeatImitation(fixedPath, rotatedPath) {
+  const fixed = loadPolicy(fixedPath);
+  const rotated = loadPolicy(rotatedPath);
+  assert(
+    fixed.source.teacher === "bold-fixed-v1" && rotated.source.teacher === "bold-rotated-v1"
+      && fixed.initialCheckpointSha256 === undefined && rotated.initialCheckpointSha256 === undefined,
+    "Supply the fixed and rotated imitation policies in order",
+  );
+  const { seed, epochs, trainChoices, validationChoices, datasetSha256 } = fixed.imitation;
+  assert(
+    seed === rotated.imitation.seed && epochs === rotated.imitation.epochs
+      && trainChoices === rotated.imitation.trainChoices && validationChoices === rotated.imitation.validationChoices
+      && datasetSha256 !== rotated.imitation.datasetSha256,
+    "Use different seat datasets with the same initialization and training budget",
+  );
+  const firstSeedIndex = 30720;
+  const seeds = 256;
+  const bySeat = [1, 2, 3].map((seat) => {
+    const { offWins, onWins, ...result } = compareSeat(seat, firstSeedIndex, seeds, fixed, rotated);
+    return { ...result, fixedWins: offWins, rotatedWins: onWins };
+  });
+  return {
+    format: "atoutia-bold-seat-imitation-pair-v1",
+    engineVersion: BELOTE_ENGINE_VERSION,
+    rulesVersion: CURRENT_MATCH_RULES_VERSION,
+    training: { seed, epochs, trainChoices, validationChoices },
+    fixedCheckpointSha256: fixed.checkpointSha256,
+    rotatedCheckpointSha256: rotated.checkpointSha256,
+    firstSeedIndex,
+    seeds,
+    totalMatches: seeds * bySeat.length * 3,
+    bySeat,
+  };
+}
+
 function main() {
   const { values } = parseArgs({ options: {
     off: { type: "string" }, on: { type: "string" }, policy: { type: "string" },
     match: { type: "string" }, deal: { type: "string" }, seeds: { type: "string" },
     "confirm-reward": { type: "boolean", default: false },
+    fixed: { type: "string" }, rotated: { type: "string" },
   } });
   const single = values.policy !== undefined;
   const memoryPair = values.off !== undefined || values.on !== undefined;
   const rewardPair = values.match !== undefined || values.deal !== undefined;
-  assert([single, memoryPair, rewardPair].filter(Boolean).length <= 1,
-    "Choose a single policy, an off/on pair or a match/deal pair");
+  const seatPair = values.fixed !== undefined || values.rotated !== undefined;
+  assert([single, memoryPair, rewardPair, seatPair].filter(Boolean).length <= 1,
+    "Choose a single policy, an off/on pair, a match/deal pair or a fixed/rotated pair");
   const confirmation = values["confirm-reward"];
   assert(!confirmation || (rewardPair && values.seeds === undefined),
     "Reward confirmation requires a match/deal pair and uses exactly 512 seeds");
+  if (seatPair) {
+    assert(values.fixed && values.rotated && values.seeds === undefined,
+      "Supply --fixed FILE and --rotated FILE. Seat imitation uses exactly 256 seeds.");
+    return compareSeatImitation(values.fixed, values.rotated);
+  }
   if (rewardPair) {
     assert(values.match && values.deal, "Supply --match FILE and --deal FILE");
     const seeds = confirmation ? 512 : count(values.seeds ?? "256", "--seeds", 256);

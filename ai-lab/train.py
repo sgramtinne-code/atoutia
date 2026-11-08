@@ -14,6 +14,7 @@ MEMORY_FORMAT = "atoutia-card-imitation-memory-v1"
 MEMORY_INPUT_SIZE = 295
 CARD_COUNT = 32
 STYLES = ["CAREFUL", "TEAM", "BOLD"]
+BOLD_TEACHERS = ("bold-fixed-v1", "bold-rotated-v1")
 BATCH_SIZE = 256
 SEED = 1234
 
@@ -23,6 +24,13 @@ def indices(values, limit):
         isinstance(values, list)
         and all(type(i) is int and 0 <= i < limit for i in values)
         and len(set(values)) == len(values)
+    )
+
+
+def valid_teacher(metadata):
+    teacher = metadata.get("teacher")
+    return teacher == "varied-v1" or (
+        metadata.get("format") == MEMORY_FORMAT and teacher in BOLD_TEACHERS
     )
 
 
@@ -37,7 +45,7 @@ def read_dataset(path):
         or (dataset.get("format"), dataset.get("inputSize"))
         not in ((FORMAT, INPUT_SIZE), (MEMORY_FORMAT, MEMORY_INPUT_SIZE))
         or dataset.get("styles") != STYLES
-        or dataset.get("teacher") != "varied-v1"
+        or not valid_teacher(dataset)
     ):
         raise ValueError("Unsupported dataset format")
     cards = dataset.get("cards")
@@ -52,6 +60,8 @@ def read_dataset(path):
         if not isinstance(rows, list) or not 1 <= len(rows) <= 100000:
             raise ValueError(f"Invalid size for {name}")
         validate_rows(rows, name, dataset["inputSize"])
+        if dataset["teacher"] in BOLD_TEACHERS and any(166 not in row[0] for row in rows):
+            raise ValueError(f"Expected only Bold decisions in {name}")
     return dataset, hashlib.sha256(raw).hexdigest()
 
 
@@ -100,6 +110,12 @@ def tensors(torch, rows, device, input_size=INPUT_SIZE):
 
 
 def train(args, dataset, fingerprint, *, seed=None):
+    if dataset["teacher"] in BOLD_TEACHERS:
+        if args.history_mode != "on":
+            raise ValueError("Bold seat imitation requires active trick memory")
+        if seed is None:
+            seed = SEED
+
     import torch
     from torch import nn
 
