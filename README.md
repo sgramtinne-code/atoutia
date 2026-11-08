@@ -10,7 +10,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-La comparaison des récompenses est intégrée à `main` en **3672b8a** ([PR nº 35](https://github.com/sgramtinne-code/atoutia/pull/35)). Le lot **feat/ai-lab-trick-memory** teste la mémoire des plis terminés à architecture, données et budget égaux. [Protocole et limites](docs/AI_LAB_TRICK_MEMORY.md).
+Le premier banc avec mémoire est intégré à `main` en **4b3d17a** ([PR nº 36](https://github.com/sgramtinne-code/atoutia/pull/36)). Le lot **feat/ai-lab-history-confirmation** compare les mêmes checkpoints sur quatre blocs inédits et rapporte les résultats par bloc et par style. [Protocole de confirmation](docs/AI_LAB_TRICK_MEMORY.md#confirmer-avec-les-mêmes-checkpoints).
 
 **[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; le chantier IA précède désormais la reprise du déploiement. Le hors-ligne est une exigence, pas une option abandonnée.
 
