@@ -3,7 +3,8 @@ import { parseArgs } from "node:util";
 import {
   getPlayerTeam, Mulberry32Random, PLAYER_POSITIONS,
 } from "../packages/belote-engine/dist/index.js";
-import { cardId, count, encodeFeatures, format, playMatch, teacher } from "./pilot.mjs";
+import { boldStyle, boldTableAction } from "./bold-policy.mjs";
+import { cardId, count, encodeFeatures, format, memoryFormat, playMatch, teacher } from "./pilot.mjs";
 import { legalScores, loadPolicy } from "./policy.mjs";
 
 function sample(scores, random) {
@@ -19,7 +20,8 @@ function sample(scores, random) {
 
 function rollout(policy, round, matches, rewardMode) {
   // Reserve a fresh block for every round, outside the pilot and benchmark blocks.
-  const firstIndex = 4096 + (round - 1) * 96;
+  const withMemory = policy.source.format === memoryFormat;
+  const firstIndex = (withMemory ? 17408 : 4096) + (round - 1) * 96;
   const episodes = [];
   for (let offset = 0; offset < matches; offset++) {
     const index = firstIndex + offset;
@@ -34,16 +36,18 @@ function rollout(policy, round, matches, rewardMode) {
       const reward = Math.max(-1, Math.min(1, margin));
       while (dealRewards.length < rows.length) dealRewards.push(reward);
     } : undefined;
-    const result = playMatch(index, (snapshot, seat) => {
-      if (seat !== modelSeat || snapshot.actions.mode !== "PLAY_CARD") return teacher(snapshot, seat);
+    const result = playMatch(index, (snapshot, seat, history) => {
+      if (seat !== modelSeat || snapshot.actions.mode !== "PLAY_CARD") {
+        return withMemory ? boldTableAction(snapshot, seat, modelSeat) : teacher(snapshot, seat);
+      }
       const legal = snapshot.actions.legalCards;
       if (legal.length === 1) return { type: "PLAY_CARD", card: legal[0] };
       assert(legal.length > 1, "No legal model action");
-      const features = encodeFeatures(snapshot, seat);
+      const features = encodeFeatures(snapshot, seat, history, withMemory ? boldStyle : undefined);
       const selected = legal[sample(legalScores(features, legal, policy.weights), random)];
       rows.push([features, legal.map(cardId), cardId(selected)]);
       return { type: "PLAY_CARD", card: selected };
-    }, onDealEnd);
+    }, onDealEnd, withMemory);
     assert(rows.length > 0, "Completed match has no model decisions");
     const episode = { reward: result.winner === team ? 1 : -1, rows };
     if (rewardMode === "deal") {
@@ -52,7 +56,10 @@ function rollout(policy, round, matches, rewardMode) {
     }
     episodes.push(episode);
   }
-  return { format: "atoutia-card-rollout-v1", round, firstIndex, episodes };
+  return {
+    format: withMemory ? "atoutia-bold-memory-rollout-v1" : "atoutia-card-rollout-v1",
+    round, firstIndex, episodes,
+  };
 }
 
 try {
@@ -65,10 +72,11 @@ try {
   assert(values.policy, "A policy file is required");
   const round = count(values.round, "--round", 128);
   const matches = count(values.matches, "--matches", 96);
-  assert(matches % 3 === 0, "Use a multiple of three matches to cover all styles");
+  assert(matches % 3 === 0, "Use a multiple of three matches to cover all PNJ seats");
   assert(["match", "deal"].includes(values.reward), "Reward mode must be match or deal");
   const policy = loadPolicy(values.policy);
-  assert(policy.source.format === format, "Rollout currently requires a v1 pilot policy");
+  assert(policy.source.format === format || policy.source.historyMode === "on",
+    "Supply a v1 pilot policy or a policy with active trick memory");
   console.log(JSON.stringify(rollout(policy, round, matches, values.reward)));
 } catch (error) {
   console.error(`AI Lab: ${error.message}`);

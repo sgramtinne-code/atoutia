@@ -20,7 +20,7 @@ Branche stable : `main`.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le banc de confirmation est intégré à `main` en **05c2fba** ([PR nº 37](https://github.com/sgramtinne-code/atoutia/pull/37)). Le lot **feat/ai-lab-bold-memory-repeats** répète l’apprentissage avec et sans mémoire et fait tourner le profil audacieux aux trois places PNJ. [Protocole de réplication](AI_LAB_TRICK_MEMORY.md#répéter-lentraînement-et-permuter-les-places).
+La réplication du profil audacieux est intégrée à `main` en **cc7b167** ([PR nº 38](https://github.com/sgramtinne-code/atoutia/pull/38)). Le lot **feat/ai-lab-bold-memory-reinforcement** entraîne l’audacieux avec mémoire aux trois places PNJ. [Protocole de renforcement](AI_LAB_SELF_PLAY.md#renforcement-de-laudacieux-avec-mémoire).
 
 **[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline livré, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -48,6 +48,6 @@ Les diagnostics de salons restent des commandes séparées en lecture seule ; au
 
 ## 4. Suite produit
 
-Le premier socle visuel est intégré. Poursuivre la table et la main de cartes avec retour des joueurs. Pour le chantier IA, lancer [la campagne de réplication](AI_LAB_TRICK_MEMORY.md#répéter-lentraînement-et-permuter-les-places) sur CUDA. Comparer les résultats par initialisation et par siège avant de choisir les entrées d’une campagne d’apprentissage par renforcement. Préparer un corpus de situations publiques et de répliques évaluées pour le chantier interactions. Prévoir des personnages identifiables par style et niveau et des répliques contextuelles désactivables. Suivre le [cap produit du laboratoire](AI_LAB_ROADMAP.md).
+Le premier socle visuel est intégré. Poursuivre la table et la main de cartes avec retour des joueurs. Pour le chantier IA, lancer [le renforcement avec mémoire](AI_LAB_SELF_PLAY.md#renforcement-de-laudacieux-avec-mémoire) sur CUDA. Comparer le modèle initial, le modèle entraîné et la référence à chaque siège. Préparer un corpus de situations publiques et de répliques évaluées pour le chantier interactions. Prévoir des personnages identifiables par style et niveau et des répliques contextuelles désactivables. Suivre le [cap produit du laboratoire](AI_LAB_ROADMAP.md).
 
 Le déploiement OVH, les demandes de diagnostic VPS, DNS, HTTPS et publication sont reportés selon la consigne explicite du 30 octobre. La configuration release déjà livrée reste disponible pour plus tard. Ne pas réinstaller d’environnement GPU, lancer un entraînement sur une machine supposée être le PC ou annoncer des modèles entraînés sans exécution réellement observée. Ne pas remplacer le chantier produit par des audits répétés sans défaut concret. Les anciennes attentes PR1–28 sont historiques et intégrées.
