@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION, getPlayerTeam, PLAYER_POSITIONS } from "../packages/belote-engine/dist/index.js";
 import { boldStyle, boldTableAction } from "./bold-policy.mjs";
 import { count, playMatch } from "./pilot.mjs";
-import { loadPolicy, predict } from "./policy.mjs";
+import { loadPolicy, predict, validateRewardPair } from "./policy.mjs";
 
 function score(index, modelSeat, policy) {
   return playMatch(index, (snapshot, seat, history) => {
@@ -16,7 +16,7 @@ function score(index, modelSeat, policy) {
   }, undefined, policy?.source.historyMode === "on");
 }
 
-function compareSeat(seat, firstSeedIndex, seeds, off, on) {
+function compareSeat(seat, firstSeedIndex, seeds, beforePolicy, afterPolicy) {
   const team = getPlayerTeam(PLAYER_POSITIONS[seat]);
   const opponent = team === "TEAM_0" ? "TEAM_1" : "TEAM_0";
   let referenceWins = 0;
@@ -27,8 +27,8 @@ function compareSeat(seat, firstSeedIndex, seeds, off, on) {
   let marginChange = 0;
   for (let index = firstSeedIndex; index < firstSeedIndex + seeds; index++) {
     const reference = score(index, seat);
-    const before = off ? score(index, seat, off) : reference;
-    const after = score(index, seat, on);
+    const before = beforePolicy ? score(index, seat, beforePolicy) : reference;
+    const after = score(index, seat, afterPolicy);
     const wonBefore = before.winner === team;
     const wonAfter = after.winner === team;
     referenceWins += Number(reference.winner === team);
@@ -44,12 +44,48 @@ function compareSeat(seat, firstSeedIndex, seeds, off, on) {
   };
 }
 
+function compareRewards(matchPath, dealPath, seeds) {
+  const match = loadPolicy(matchPath);
+  const deal = loadPolicy(dealPath);
+  assert(match.source.historyMode === "on" && deal.source.historyMode === "on",
+    "Both reward policies must have active trick memory");
+  validateRewardPair(match, deal);
+  const firstSeedIndex = 29952;
+  const bySeat = [1, 2, 3].map((seat) => {
+    const { offWins, onWins, ...result } = compareSeat(seat, firstSeedIndex, seeds, match, deal);
+    return { ...result, matchWins: offWins, dealWins: onWins };
+  });
+  return {
+    format: "atoutia-bold-memory-reward-trial-v1",
+    engineVersion: BELOTE_ENGINE_VERSION,
+    rulesVersion: CURRENT_MATCH_RULES_VERSION,
+    initialCheckpointSha256: match.initialCheckpointSha256,
+    matchCheckpointSha256: match.checkpointSha256,
+    dealCheckpointSha256: deal.checkpointSha256,
+    matchTraining: match.training,
+    dealTraining: deal.training,
+    firstSeedIndex,
+    seeds,
+    totalMatches: seeds * bySeat.length * 3,
+    bySeat,
+  };
+}
+
 function main() {
   const { values } = parseArgs({ options: {
-    off: { type: "string" }, on: { type: "string" }, policy: { type: "string" }, seeds: { type: "string" },
+    off: { type: "string" }, on: { type: "string" }, policy: { type: "string" },
+    match: { type: "string" }, deal: { type: "string" }, seeds: { type: "string" },
   } });
-  if (values.policy !== undefined) {
-    assert(values.off === undefined && values.on === undefined, "Choose a single policy or an off/on pair");
+  const single = values.policy !== undefined;
+  const memoryPair = values.off !== undefined || values.on !== undefined;
+  const rewardPair = values.match !== undefined || values.deal !== undefined;
+  assert([single, memoryPair, rewardPair].filter(Boolean).length <= 1,
+    "Choose a single policy, an off/on pair or a match/deal pair");
+  if (rewardPair) {
+    assert(values.match && values.deal, "Supply --match FILE and --deal FILE");
+    return compareRewards(values.match, values.deal, count(values.seeds ?? "256", "--seeds", 256));
+  }
+  if (single) {
     const policy = loadPolicy(values.policy);
     assert(policy.source.historyMode === "on", "Supply a policy with active trick memory");
     const firstSeedIndex = 29696;

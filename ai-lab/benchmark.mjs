@@ -4,7 +4,7 @@ import {
   BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION, getPlayerTeam, PLAYER_POSITIONS,
 } from "../packages/belote-engine/dist/index.js";
 import { count, playMatch, styles, teacher } from "./pilot.mjs";
-import { loadPolicy, predict } from "./policy.mjs";
+import { loadPolicy, predict, validateRewardPair } from "./policy.mjs";
 
 function playPolicy(index, modelSeat, policy) {
   let decisions = 0;
@@ -105,15 +105,7 @@ function compare(initial, candidate, seeds, trial) {
       && initial.imitation.epochs === candidate.imitation.epochs,
       "History trials must use the same dataset and epoch count");
   } else if (trial === "reward") {
-    assert(initial.initialCheckpointSha256 && initial.initialCheckpointSha256 === candidate.initialCheckpointSha256,
-      "Reward trials must start from the same checkpoint");
-    const match = initial.training;
-    const deal = candidate.training;
-    assert(match?.rewardMode === "match" && deal?.rewardMode === "deal",
-      "Supply the match-reward policy first and the deal-reward policy second");
-    assert(Number.isInteger(match.rounds) && match.rounds > 0 && match.rounds === deal.rounds
-      && Number.isInteger(match.matchesPerRound) && match.matchesPerRound > 0
-      && match.matchesPerRound === deal.matchesPerRound, "Reward trials must use the same training budget");
+    validateRewardPair(initial, candidate);
   } else {
     assert(candidate.initialCheckpointSha256 === initial.checkpointSha256,
       "Candidate campaign does not originate from the supplied initial checkpoint");

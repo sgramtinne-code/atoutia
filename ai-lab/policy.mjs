@@ -38,6 +38,18 @@ export function loadPolicy(path) {
   return policy;
 }
 
+export function validateRewardPair(initial, candidate) {
+  assert(initial.initialCheckpointSha256 && initial.initialCheckpointSha256 === candidate.initialCheckpointSha256,
+    "Reward trials must start from the same checkpoint");
+  const match = initial.training;
+  const deal = candidate.training;
+  assert(match?.rewardMode === "match" && deal?.rewardMode === "deal",
+    "Supply the match-reward policy first and the deal-reward policy second");
+  assert(Number.isInteger(match.rounds) && match.rounds > 0 && match.rounds === deal.rounds
+    && Number.isInteger(match.matchesPerRound) && match.matchesPerRound > 0
+    && match.matchesPerRound === deal.matchesPerRound, "Reward trials must use the same training budget");
+}
+
 export function legalScores(features, legal, weights) {
   const hidden = weights["0.weight"].map((row, i) => {
     let value = weights["0.bias"][i];
