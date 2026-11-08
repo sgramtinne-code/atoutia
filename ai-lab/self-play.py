@@ -11,7 +11,10 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from time import perf_counter
 
 from export_policy import export
-from train import FORMAT as IMITATION_FORMAT, create_model, tensors, validate_rows
+from train import (
+    FORMAT as IMITATION_FORMAT, INPUT_SIZE, MEMORY_FORMAT, MEMORY_INPUT_SIZE,
+    create_model, tensors, validate_rows,
+)
 
 
 LAB = Path(__file__).resolve().parent
@@ -41,8 +44,9 @@ def export_policy(checkpoint, output):
     )
 
 
-def benchmark(policy):
-    return command_json(["node", LAB / "benchmark.mjs", "--policy", policy])
+def benchmark(policy, with_memory):
+    script = "benchmark-bold-memory.mjs" if with_memory else "benchmark.mjs"
+    return command_json(["node", LAB / script, "--policy", policy])
 
 
 def load(torch, path):
@@ -52,17 +56,24 @@ def load(torch, path):
     if not isinstance(checkpoint, dict):
         raise ValueError("Invalid checkpoint")
     metadata = checkpoint.get("metadata")
-    if not isinstance(metadata, dict) or metadata.get("format") != IMITATION_FORMAT:
-        raise ValueError("Self-play currently requires a v1 pilot checkpoint")
+    if not isinstance(metadata, dict) or (
+        (metadata.get("format"), metadata.get("inputSize")) != (IMITATION_FORMAT, INPUT_SIZE)
+        and (metadata.get("format"), metadata.get("inputSize"), metadata.get("historyMode"))
+        != (MEMORY_FORMAT, MEMORY_INPUT_SIZE, "on")
+    ):
+        raise ValueError("Supply a v1 pilot checkpoint or a checkpoint with active trick memory")
     return checkpoint
 
 
-def update(torch, model, optimizer, rollout, round_number, matches, device, reward_mode):
+def update(torch, model, optimizer, rollout, round_number, matches, device, reward_mode, input_size):
+    with_memory = input_size == MEMORY_INPUT_SIZE
+    rollout_format = "atoutia-bold-memory-rollout-v1" if with_memory else "atoutia-card-rollout-v1"
+    first_index = 17408 if with_memory else 4096
     episodes = rollout["episodes"]
     if (
-        rollout.get("format") != "atoutia-card-rollout-v1"
+        rollout.get("format") != rollout_format
         or rollout.get("round") != round_number
-        or rollout.get("firstIndex") != 4096 + (round_number - 1) * 96
+        or rollout.get("firstIndex") != first_index + (round_number - 1) * 96
         or len(episodes) != matches
     ):
         raise ValueError("Unexpected rollout format or seed block")
@@ -72,7 +83,7 @@ def update(torch, model, optimizer, rollout, round_number, matches, device, rewa
         reward = episode["reward"]
         if type(reward) is not int or reward not in (-1, 1) or not 1 <= len(decisions) <= 2000:
             raise ValueError("Invalid completed episode")
-        validate_rows(decisions, "rollout")
+        validate_rows(decisions, "rollout", input_size)
         rows.extend(decisions)
         if reward_mode == "deal":
             deal_rewards = episode["dealRewards"]
@@ -86,7 +97,7 @@ def update(torch, model, optimizer, rollout, round_number, matches, device, rewa
         else:
             weights.extend([reward / len(decisions)] * len(decisions))
 
-    x, legal, chosen = tensors(torch, rows, device)
+    x, legal, chosen = tensors(torch, rows, device, input_size)
     parameter_device = next(model.parameters()).device
     if any(tensor.device != parameter_device for tensor in (x, legal, chosen)):
         raise RuntimeError("Training tensors and model parameters are on different devices")
@@ -123,10 +134,12 @@ def run(args, torch, temporary):
 
     latest = args.output / "latest.pt"
     policy = temporary / "policy.json"
-    model = create_model(torch.nn).to(args.device)
+    checkpoint = load(torch, latest if args.resume else args.initial)
+    input_size = checkpoint["metadata"]["inputSize"]
+    with_memory = input_size == MEMORY_INPUT_SIZE
+    model = create_model(torch.nn, input_size).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001)
     if args.resume:
-        checkpoint = load(torch, latest)
         progress = checkpoint.get("selfPlay")
         if not isinstance(progress, dict) or progress.get("format") != FORMAT:
             raise ValueError("Output directory does not contain a self-play checkpoint")
@@ -140,11 +153,10 @@ def run(args, torch, temporary):
             raise ValueError("Resume with the original number of matches per round")
         optimizer_state = checkpoint["optimizerState"]
     else:
-        checkpoint = load(torch, args.initial)
         if "selfPlay" in checkpoint:
             raise ValueError("Use --resume for a self-play checkpoint")
         timed("policyExport", export_policy, args.initial, policy)
-        initial_benchmark, _ = timed("benchmark", benchmark, policy)
+        initial_benchmark, _ = timed("benchmark", benchmark, policy, with_memory)
         matches = args.matches or 12
         reward_mode = args.reward or "match"
         progress = {
@@ -165,6 +177,7 @@ def run(args, torch, temporary):
     def save():
         atomic_write(latest, lambda destination: torch.save({
             "metadata": checkpoint["metadata"],
+            **({"report": checkpoint["report"]} if with_memory else {}),
             "modelState": model.state_dict(),
             "optimizerState": optimizer.state_dict(),
             "selfPlay": progress,
@@ -183,7 +196,8 @@ def run(args, torch, temporary):
             "--round", str(round_number), "--matches", str(matches), "--reward", reward_mode,
         ])
         result, update_seconds = timed(
-            "trainingUpdate", update, torch, model, optimizer, rollout, round_number, matches, args.device, reward_mode,
+            "trainingUpdate", update, torch, model, optimizer, rollout, round_number, matches,
+            args.device, reward_mode, input_size,
         )
         history.append(result)
         timed("checkpointSave", save)
@@ -195,9 +209,10 @@ def run(args, torch, temporary):
         )
 
     timed("policyExport", export_policy, latest, policy)
-    trained_benchmark, _ = timed("benchmark", benchmark, policy)
+    trained_benchmark, _ = timed("benchmark", benchmark, policy, with_memory)
     report = {
         "format": FORMAT,
+        **({"profile": "BOLD", "historyMode": "on"} if with_memory else {}),
         "device": args.device,
         "modelDevice": model_device,
         "rewardMode": reward_mode,

@@ -38,3 +38,25 @@ La vérification de l’export intégré a repris un checkpoint écrit avant la 
 ## Portée
 
 Ce premier lot apprend à partir de parties contre une table fixe. L’autojeu avec plusieurs politiques en évolution et l’apprentissage des enchères sont des travaux suivants. Les checkpoints et rapports sont locaux et les gains éventuels s’évaluent sur [un lot de distributions inédites](AI_LAB_BENCHMARK.md#comparer-le-début-et-la-fin-dune-campagne) avant intégration dans Android.
+
+## Renforcement de l’audacieux avec mémoire
+
+Un checkpoint d’imitation avec la mémoire active sélectionne le profil audacieux et ses 295 entrées. Le siège alterne entre les trois places PNJ à chaque partie. Les enchères au siège entraîné utilisent la politique audacieuse, et les trois autres sièges utilisent la politique d’origine. Les plis terminés de la donne sont encodés dans la perspective du siège entraîné. Le checkpoint de reprise conserve le rapport d’imitation nécessaire à l’export.
+
+Les lots d’apprentissage réservent les indices 17408 à 29695. Le banc avant/après utilise les 256 indices suivants. À chaque place et pour chaque indice, le banc joue une partie avec le modèle et une avec l’heuristique audacieuse. Le rapport indique les victoires, les bascules et l’écart de marge par rapport à cette référence. Les scores avant et après sont directement comparables à chaque place.
+
+Depuis la racine du dépôt, renseigner le checkpoint `seed-1234/on/checkpoint.pt` d’une campagne terminée de [réplication](AI_LAB_TRICK_MEMORY.md#répéter-lentraînement-et-permuter-les-places). Le premier essai utilise 32 lots de 48 parties, soit 1 536 parties d’apprentissage. Il conserve la récompense de victoire par match. Les lots et le banc se jouent sur CPU et les poids sont mis à jour sur CUDA.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_INITIAL="$PWD/ai-lab/data/bold-memory.EXEMPLE/run/seed-1234/on/checkpoint.pt" &&
+test -s "$ATOUTIA_INITIAL" &&
+ATOUTIA_RL=$(mktemp -d "$PWD/ai-lab/data/bold-reinforcement.XXXXXX") &&
+printf 'Campagne : %s\n' "$ATOUTIA_RL/run" &&
+ai-lab/.venv/bin/python ai-lab/self-play.py \
+  --initial "$ATOUTIA_INITIAL" --output "$ATOUTIA_RL/run" \
+  --device cuda --rounds 32 --matches 48
+```
+
+En cas d’interruption après la première sauvegarde, reprendre avec `--resume --output CHEMIN_DU_RUN --device cuda --rounds 32`. Comparer `initialBenchmark.bySeat` et `trainedBenchmark.bySeat`. Les victoires des lots d’apprentissage reflètent les coups échantillonnés et les distributions d’entraînement. Le banc utilise un choix déterministe parmi les coups légaux.
