@@ -20,7 +20,7 @@ Branche stable : `main`.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Les contrôles synthétiques, le protocole et les limites du banc sont documentés. [Procédure et résultats du banc](AI_LAB_BENCHMARK.md).
+Le pilote d’imitation ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)) et le banc en parties complètes ([PR nº 31](https://github.com/sgramtinne-code/atoutia/pull/31)) sont intégrés à `main` en **a722bc7**. Le lot **feat/ai-lab-self-play** ajoute un premier entraînement par lots contre les heuristiques, avec sauvegarde, reprise et évaluation avant/après. [Procédure d’essai](AI_LAB_SELF_PLAY.md).
 
 **[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline livré, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -48,6 +48,6 @@ Les diagnostics de salons restent des commandes séparées en lecture seule ; au
 
 ## 4. Suite produit
 
-Le premier socle visuel est intégré. Poursuivre la table et la main de cartes avec retour des joueurs. Pour le chantier IA, récupérer la branche du banc d’essai et appliquer la [procédure de comparaison en partie](AI_LAB_BENCHMARK.md) au checkpoint local du pilote. Vérifier les CI avant fusion. Préparer ensuite l’autojeu avec sauvegarde et reprise, mesurer la force et la variété sur des graines réservées, puis tester les politiques retenues sur Android. Prévoir des personnages identifiables par style et niveau et des répliques contextuelles désactivables. Suivre le [cap produit du laboratoire](AI_LAB_ROADMAP.md).
+Le premier socle visuel est intégré. Poursuivre la table et la main de cartes avec retour des joueurs. Pour le chantier IA, récupérer la branche du premier entraînement par lots et exécuter [l’essai de reprise](AI_LAB_SELF_PLAY.md) sur le PC du développeur. Comparer les politiques sur les graines réservées et mesurer les coûts avant d’augmenter le volume. Prévoir des personnages identifiables par style et niveau et des répliques contextuelles désactivables. Suivre le [cap produit du laboratoire](AI_LAB_ROADMAP.md).
 
 Le déploiement OVH, les demandes de diagnostic VPS, DNS, HTTPS et publication sont reportés selon la consigne explicite du 30 octobre. La configuration release déjà livrée reste disponible pour plus tard. Ne pas réinstaller d’environnement GPU, lancer un entraînement sur une machine supposée être le PC ou annoncer des modèles entraînés sans exécution réellement observée. Ne pas remplacer le chantier produit par des audits répétés sans défaut concret. Les anciennes attentes PR1–28 sont historiques et intégrées.

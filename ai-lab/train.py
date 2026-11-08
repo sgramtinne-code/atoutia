@@ -49,21 +49,29 @@ def read_dataset(path):
         rows = dataset.get(name)
         if not isinstance(rows, list) or not 1 <= len(rows) <= 100000:
             raise ValueError(f"Invalid size for {name}")
-        for i, row in enumerate(rows):
-            if not isinstance(row, list) or len(row) != 3:
-                raise ValueError(f"Invalid {name} row {i}")
-            features, legal, target = row
-            if (
-                not indices(features, INPUT_SIZE)
-                or not indices(legal, CARD_COUNT)
-                or not 2 <= len(legal) <= 8
-                or not set(legal).issubset(features)
-                or type(target) is not int or target not in legal
-                or sum(32 <= j < 36 for j in features) != 1
-                or sum(j >= 164 for j in features) != 1
-            ):
-                raise ValueError(f"Invalid features or legal mask in {name} row {i}")
+        validate_rows(rows, name)
     return dataset, hashlib.sha256(raw).hexdigest()
+
+
+def validate_rows(rows, name):
+    for i, row in enumerate(rows):
+        if not isinstance(row, list) or len(row) != 3:
+            raise ValueError(f"Invalid {name} row {i}")
+        features, legal, target = row
+        if (
+            not indices(features, INPUT_SIZE)
+            or not indices(legal, CARD_COUNT)
+            or not 2 <= len(legal) <= 8
+            or not set(legal).issubset(features)
+            or type(target) is not int or target not in legal
+            or sum(32 <= j < 36 for j in features) != 1
+            or sum(j >= 164 for j in features) != 1
+        ):
+            raise ValueError(f"Invalid features or legal mask in {name} row {i}")
+
+
+def create_model(nn):
+    return nn.Sequential(nn.Linear(INPUT_SIZE, 128), nn.ReLU(), nn.Linear(128, CARD_COUNT))
 
 
 def tensors(torch, rows, device):
@@ -99,7 +107,7 @@ def train(args, dataset, fingerprint):
     torch.manual_seed(SEED)
     x, mask, y = tensors(torch, dataset["train"], args.device)
     vx, vmask, vy = tensors(torch, dataset["validation"], args.device)
-    model = nn.Sequential(nn.Linear(INPUT_SIZE, 128), nn.ReLU(), nn.Linear(128, CARD_COUNT)).to(args.device)
+    model = create_model(nn).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
     loss = nn.CrossEntropyLoss()
     uniform = vmask.sum(dim=1).float().reciprocal().mean().item()
