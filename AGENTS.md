@@ -4,13 +4,13 @@
 
 Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ou une campagne de CI. Le nouvel ordre du 30 octobre place le chantier IA avant la reprise du déploiement, après le socle visuel/lisibilité. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
 
-## Lot courant : premier essai IA local — 8 novembre 2026
+## Lot courant : évaluation du modèle en partie
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Travailler d’abord le look professionnel, la lisibilité et l’ergonomie pour les personnes âgées, puis préparer/exécuter l’entraînement des PNJ sur la RTX 5070 avant de reprendre le déploiement. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Lot courant **feat/ai-lab-imitation-pilot**. Génération déterministe de décisions légales et premier entraînement supervisé qui imite le jeu de carte de la table Variés. Le test CPU a traité 10 195 exemples et 2 665 décisions de validation, avec 66,6 % d’accord avec les heuristiques. Première exécution GPU sur le poste de développement à vérifier avant fusion. [Procédure du pilote](docs/AI_LAB_PILOT.md).
+Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Le checkpoint synthétique CPU a été évalué localement et la mesure du checkpoint du développeur reste à faire. [Procédure et résultats du banc](docs/AI_LAB_BENCHMARK.md).
 
 ## Mission et références
 

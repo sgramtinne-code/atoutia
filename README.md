@@ -10,7 +10,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Lot courant **feat/ai-lab-imitation-pilot**. Génération déterministe de décisions légales et premier entraînement supervisé qui imite le jeu de carte de la table Variés. Le test CPU a traité 10 195 exemples et 2 665 décisions de validation, avec 66,6 % d’accord avec les heuristiques. Première exécution GPU sur le poste de développement à vérifier avant fusion. [Procédure du pilote](docs/AI_LAB_PILOT.md).
+Le pilote d’imitation est intégré à `main` en **21cc40c** ([PR nº 30](https://github.com/sgramtinne-code/atoutia/pull/30)). Le lot **feat/ai-lab-match-benchmark** compare chaque style du modèle à son heuristique sur des parties complètes appariées. Le checkpoint synthétique CPU a été évalué localement et la mesure du checkpoint du développeur reste à faire. [Procédure et résultats du banc](docs/AI_LAB_BENCHMARK.md).
 
 **[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; le chantier IA précède désormais la reprise du déploiement. Le hors-ligne est une exigence, pas une option abandonnée.
 
