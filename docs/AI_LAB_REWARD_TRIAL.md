@@ -58,3 +58,22 @@ cat "$ATOUTIA_TRIAL/report.json"
 ```
 
 Le banc vérifie la mémoire active, l’empreinte du checkpoint de départ, le mode de récompense et le budget. Il réserve les indices 29952 à 30207, distincts du banc avant/après et de l’apprentissage. Chaque indice et chaque place donnent trois parties, avec l’heuristique audacieuse, le modèle récompensé par match et celui récompensé par donne. Le rapport donne `referenceWins`, `matchWins`, `dealWins`, les bascules de victoire et la variation moyenne de marge du modèle par donne par rapport au modèle par match. Les résultats des trois places partagent les mêmes indices.
+
+## Confirmer sur trois initialisations
+
+La confirmation prend le dossier `run` d’une [étude d’imitation terminée](AI_LAB_TRICK_MEMORY.md#répéter-lentraînement-et-permuter-les-places). Elle utilise les trois checkpoints avec mémoire des graines 1234, 1235 et 1236. Pour chaque checkpoint, les modes `match` et `deal` repartent des mêmes poids avec 32 lots de 48 parties. Les six entraînements totalisent 9 216 parties. Les deux modes de chaque paire utilisent les mêmes graines et la même rotation des places.
+
+Le banc de confirmation utilise les 512 indices inédits de 30208 à 30719, communs aux trois paires et aux trois places. Il joue 13 824 parties avec les deux modèles et l’heuristique audacieuse. Les résultats se lisent séparément par initialisation et par place. Les parties qui partagent une distribution ne constituent pas des observations indépendantes.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_STUDY="$PWD/ai-lab/data/bold-memory.EXEMPLE/run" &&
+ATOUTIA_CONFIRM=$(mktemp -d "$PWD/ai-lab/data/bold-reward-confirmation.XXXXXX") &&
+printf 'Dossier de confirmation : %s\n' "$ATOUTIA_CONFIRM/run" &&
+ai-lab/.venv/bin/python ai-lab/bold-reward-confirmation.py \
+  "$ATOUTIA_STUDY" --output "$ATOUTIA_CONFIRM/run" --device cuda &&
+cat "$ATOUTIA_CONFIRM/run/report.json"
+```
+
+Les journaux d’entraînement, les checkpoints et les rapports par paire sont disponibles dans chaque dossier `seed-*`. Le rapport global est écrit après la dernière paire. Après une interruption, les résultats déjà écrits restent disponibles et une nouvelle confirmation démarre dans un nouveau dossier.

@@ -44,19 +44,19 @@ function compareSeat(seat, firstSeedIndex, seeds, beforePolicy, afterPolicy) {
   };
 }
 
-function compareRewards(matchPath, dealPath, seeds) {
+function compareRewards(matchPath, dealPath, seeds, confirmation) {
   const match = loadPolicy(matchPath);
   const deal = loadPolicy(dealPath);
   assert(match.source.historyMode === "on" && deal.source.historyMode === "on",
     "Both reward policies must have active trick memory");
   validateRewardPair(match, deal);
-  const firstSeedIndex = 29952;
+  const firstSeedIndex = confirmation ? 30208 : 29952;
   const bySeat = [1, 2, 3].map((seat) => {
     const { offWins, onWins, ...result } = compareSeat(seat, firstSeedIndex, seeds, match, deal);
     return { ...result, matchWins: offWins, dealWins: onWins };
   });
   return {
-    format: "atoutia-bold-memory-reward-trial-v1",
+    format: confirmation ? "atoutia-bold-memory-reward-confirmation-pair-v1" : "atoutia-bold-memory-reward-trial-v1",
     engineVersion: BELOTE_ENGINE_VERSION,
     rulesVersion: CURRENT_MATCH_RULES_VERSION,
     initialCheckpointSha256: match.initialCheckpointSha256,
@@ -75,15 +75,20 @@ function main() {
   const { values } = parseArgs({ options: {
     off: { type: "string" }, on: { type: "string" }, policy: { type: "string" },
     match: { type: "string" }, deal: { type: "string" }, seeds: { type: "string" },
+    "confirm-reward": { type: "boolean", default: false },
   } });
   const single = values.policy !== undefined;
   const memoryPair = values.off !== undefined || values.on !== undefined;
   const rewardPair = values.match !== undefined || values.deal !== undefined;
   assert([single, memoryPair, rewardPair].filter(Boolean).length <= 1,
     "Choose a single policy, an off/on pair or a match/deal pair");
+  const confirmation = values["confirm-reward"];
+  assert(!confirmation || (rewardPair && values.seeds === undefined),
+    "Reward confirmation requires a match/deal pair and uses exactly 512 seeds");
   if (rewardPair) {
     assert(values.match && values.deal, "Supply --match FILE and --deal FILE");
-    return compareRewards(values.match, values.deal, count(values.seeds ?? "256", "--seeds", 256));
+    const seeds = confirmation ? 512 : count(values.seeds ?? "256", "--seeds", 256);
+    return compareRewards(values.match, values.deal, seeds, confirmation);
   }
   if (single) {
     const policy = loadPolicy(values.policy);
