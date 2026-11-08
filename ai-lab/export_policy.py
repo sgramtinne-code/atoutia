@@ -8,7 +8,10 @@ import pickle
 import re
 from pathlib import Path
 
-from train import CARD_COUNT, FORMAT, INPUT_SIZE, MEMORY_FORMAT, MEMORY_INPUT_SIZE, STYLES
+from train import (
+    BOLD_TEACHERS, CARD_COUNT, FORMAT, INPUT_SIZE, MEMORY_FORMAT, MEMORY_INPUT_SIZE,
+    STYLES, valid_teacher,
+)
 
 
 def export(path):
@@ -28,7 +31,7 @@ def export(path):
         or (metadata.get("format"), metadata.get("inputSize"))
         not in ((FORMAT, INPUT_SIZE), (MEMORY_FORMAT, MEMORY_INPUT_SIZE))
         or metadata.get("styles") != STYLES
-        or metadata.get("teacher") != "varied-v1"
+        or not valid_teacher(metadata)
         or not isinstance(state, dict)
     ):
         raise ValueError("Unsupported pilot checkpoint")
@@ -74,6 +77,14 @@ def export(path):
             if type(seed) is not int or not 0 <= seed <= 2**32 - 1:
                 raise ValueError("Invalid imitation seed")
             policy["imitation"]["seed"] = seed
+        if metadata["teacher"] in BOLD_TEACHERS:
+            if mode != "on" or "seed" not in policy["imitation"]:
+                raise ValueError("Bold seat imitation requires active memory and an explicit seed")
+            for field in ("trainChoices", "validationChoices"):
+                count = report.get(field)
+                if type(count) is not int or not 1 <= count <= 100000:
+                    raise ValueError(f"Invalid Bold seat imitation budget: {field}")
+                policy["imitation"][field] = count
     if "selfPlay" in checkpoint:
         progress = checkpoint["selfPlay"]
         initial = progress.get("initialBenchmark") if isinstance(progress, dict) else None

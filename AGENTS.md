@@ -4,13 +4,13 @@
 
 Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ou une campagne de CI. Le nouvel ordre du 30 octobre place le chantier IA avant la reprise du déploiement, après le socle visuel/lisibilité. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
 
-## Lot courant : situer les écarts de l’audacieux
+## Lot courant : répartir les exemples de l’audacieux par place
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Travailler d’abord le look professionnel, la lisibilité et l’ergonomie pour les personnes âgées, puis préparer/exécuter l’entraînement des PNJ sur la RTX 5070 avant de reprendre le déploiement. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-La confirmation des récompenses est intégrée à `main` en **80efe45** ([PR nº 41](https://github.com/sgramtinne-code/atoutia/pull/41)). Le lot **feat/ai-lab-bold-training-diagnostic** compare les modèles d’imitation et leurs versions renforcées sur les mêmes distributions que la confirmation. [Protocole de diagnostic](docs/AI_LAB_REWARD_TRIAL.md#situer-lécart-entre-imitation-et-renforcement).
+Le diagnostic des étapes d’apprentissage est intégré à `main` en **778a9f1** ([PR nº 42](https://github.com/sgramtinne-code/atoutia/pull/42)). Le lot **feat/ai-lab-bold-seat-imitation** compare à budget égal l’imitation de l’audacieux à une place fixe et aux trois places PNJ. [Protocole de comparaison](docs/AI_LAB_TRICK_MEMORY.md#faire-tourner-laudacieux-pendant-limitation).
 
 Cap produit PNJ : distinguer la force mesurée, le style de jeu et la personnalité. Développer des tables variées, avec de courtes répliques désactivables entre PNJ et avec le joueur. Les répliques se fondent sur des événements publics. Mesurer le débit avant d’augmenter les volumes d’autojeu et vérifier le coût des politiques sur Android. Voir [la feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
