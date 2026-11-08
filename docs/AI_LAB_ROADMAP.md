@@ -31,3 +31,5 @@ Le [pilote d’imitation](AI_LAB_PILOT.md) utilise PyTorch avec CUDA 13.0 pour l
 Le [solo offline](ANDROID_OFFLINE.md), les replays et les [simulations bornées](ENGINE_SIMULATION.md) fournissent les fondations. Les [styles PNJ actuels](OFFLINE_BOT_STYLES.md) sont des heuristiques déterministes prudent/solidaire/audacieux et des tables choisies par le joueur. Ils ne constituent pas des modèles entraînés ou une échelle de difficulté mesurée.
 
 La politique est conservée avec chaque partie : une nouvelle préférence ou un nouveau modèle ne doit pas modifier silencieusement une reprise. Préserver les sauvegardes legacy, l’autorité du moteur et une économie sans pay-to-win. Le premier socle visuel est intégré. Le pilote d’imitation est intégré par la PR nº 30. Le [banc en parties complètes](AI_LAB_BENCHMARK.md) mesure maintenant les résultats de chaque style par comparaison appariée.
+
+Le [premier entraînement sur parties complètes](AI_LAB_SELF_PLAY.md) ajoute un adversaire de référence fixe, la sauvegarde entre lots et la mesure avant/après sur le banc réservé.
