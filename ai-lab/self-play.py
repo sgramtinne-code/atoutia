@@ -54,7 +54,7 @@ def load(torch, path):
     return checkpoint
 
 
-def update(torch, model, optimizer, rollout, round_number, matches, device):
+def update(torch, model, optimizer, rollout, round_number, matches, device, reward_mode):
     episodes = rollout["episodes"]
     if (
         rollout.get("format") != "atoutia-card-rollout-v1"
@@ -71,7 +71,17 @@ def update(torch, model, optimizer, rollout, round_number, matches, device):
             raise ValueError("Invalid completed episode")
         validate_rows(decisions, "rollout")
         rows.extend(decisions)
-        weights.extend([reward / len(decisions)] * len(decisions))
+        if reward_mode == "deal":
+            deal_rewards = episode["dealRewards"]
+            if (
+                not isinstance(deal_rewards, list)
+                or len(deal_rewards) != len(decisions)
+                or any(type(value) not in (int, float) or not -1 <= value <= 1 for value in deal_rewards)
+            ):
+                raise ValueError("Invalid deal rewards")
+            weights.extend(value / len(decisions) for value in deal_rewards)
+        else:
+            weights.extend([reward / len(decisions)] * len(decisions))
 
     x, legal, chosen = tensors(torch, rows, device)
     parameter_device = next(model.parameters()).device
@@ -119,6 +129,9 @@ def run(args, torch, temporary):
             raise ValueError("Output directory does not contain a self-play checkpoint")
         if progress["device"] != args.device:
             raise ValueError("Resume with the device used for the original run")
+        reward_mode = progress.get("rewardMode", "match")
+        if reward_mode not in ("match", "deal") or (args.reward is not None and args.reward != reward_mode):
+            raise ValueError("Resume with the original reward mode")
         matches = progress["matchesPerRound"]
         if args.matches is not None and args.matches != matches:
             raise ValueError("Resume with the original number of matches per round")
@@ -130,10 +143,12 @@ def run(args, torch, temporary):
         timed("policyExport", export_policy, args.initial, policy)
         initial_benchmark, _ = timed("benchmark", benchmark, policy)
         matches = args.matches or 12
+        reward_mode = args.reward or "match"
         progress = {
             "format": FORMAT,
             "device": args.device,
             "matchesPerRound": matches,
+            "rewardMode": reward_mode,
             "initialBenchmark": initial_benchmark,
             "history": [],
         }
@@ -162,10 +177,10 @@ def run(args, torch, temporary):
         timed("policyExport", export_policy, latest, policy)
         rollout, simulation_seconds = timed("simulation", command_json, [
             "node", LAB / "rollout.mjs", "--policy", policy,
-            "--round", str(round_number), "--matches", str(matches),
+            "--round", str(round_number), "--matches", str(matches), "--reward", reward_mode,
         ])
         result, update_seconds = timed(
-            "trainingUpdate", update, torch, model, optimizer, rollout, round_number, matches, args.device,
+            "trainingUpdate", update, torch, model, optimizer, rollout, round_number, matches, args.device, reward_mode,
         )
         history.append(result)
         timed("checkpointSave", save)
@@ -182,6 +197,7 @@ def run(args, torch, temporary):
         "format": FORMAT,
         "device": args.device,
         "modelDevice": model_device,
+        "rewardMode": reward_mode,
         "rounds": len(history),
         "roundsCompletedThisRun": len(history) - starting_round,
         "timingsSecondsThisRun": {
@@ -211,6 +227,7 @@ def main():
     parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
     parser.add_argument("--rounds", type=int, required=True)
     parser.add_argument("--matches", type=int, help="Matches per round, default 12 for a new run")
+    parser.add_argument("--reward", choices=("match", "deal"), help="Reward mode, default match for a new run")
     args = parser.parse_args()
     if not 1 <= args.rounds <= 128:
         parser.error("--rounds must be between 1 and 128")

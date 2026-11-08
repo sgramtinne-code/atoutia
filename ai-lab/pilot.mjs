@@ -36,7 +36,7 @@ export function teacher(snapshot, seat) {
   return seat === 0 ? chooseOfflineBot(snapshot) : chooseStyledOfflineBot(snapshot, "varied-v1");
 }
 
-export function playMatch(index, chooseCommand) {
+export function playMatch(index, chooseCommand, onDealEnd) {
   // Each match receives a block of seeds larger than the action budget.
   let state = createMatchMachine({
     baseSeed: (index + 1) * 32768,
@@ -54,7 +54,14 @@ export function playMatch(index, chooseCommand) {
     assert(seat >= 0, "Match has no active seat");
     const command = chooseCommand(createPlayerClientSnapshot(state, player), seat);
     assert(command, "Policy has no action");
+    const previous = state;
     state = applyPlayerCommandDocument(state, createPlayerCommandDocument(player, command));
+    if (onDealEnd && (state.dealNumber !== previous.dealNumber || state.score.completed)) {
+      onDealEnd({
+        TEAM_0: state.score.scores.TEAM_0 - previous.score.scores.TEAM_0,
+        TEAM_1: state.score.scores.TEAM_1 - previous.score.scores.TEAM_1,
+      });
+    }
   }
   return state.score;
 }
