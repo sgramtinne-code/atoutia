@@ -11,6 +11,8 @@ export const format = "atoutia-card-imitation-v1";
 export const styles = ["CAREFUL", "TEAM", "BOLD"];
 export const cards = createDeck().map(cardKey);
 export const inputSize = 167;
+export const memoryFormat = "atoutia-card-imitation-memory-v1";
+export const memoryInputSize = inputSize + 4 * cards.length;
 const cardIds = new Map(cards.map((key, index) => [key, index]));
 
 export function cardId(card) {
@@ -19,15 +21,23 @@ export function cardId(card) {
   return id;
 }
 
-export function encodeFeatures(snapshot, seat) {
+export function encodeFeatures(snapshot, seat, completedTricks = []) {
   const { hand, public: table } = snapshot.match;
   const trump = SUITS.indexOf(table.trumpSuit);
   assert(seat >= 1 && seat <= 3 && trump >= 0 && table.currentTrick, "Invalid card-play observation");
   const features = hand.map(cardId);
   features.push(32 + trump, 164 + seat - 1);
-  for (const play of table.currentTrick.plays) {
+  const playedCardIndex = (play) => {
     const relativeSeat = (PLAYER_POSITIONS.indexOf(play.player) - seat + 4) % 4;
-    features.push(36 + relativeSeat * 32 + cardId(play.card));
+    return relativeSeat * cards.length + cardId(play.card);
+  };
+  for (const play of table.currentTrick.plays) {
+    features.push(36 + playedCardIndex(play));
+  }
+  for (const trick of completedTricks) {
+    for (const play of trick.trick.plays) {
+      features.push(inputSize + playedCardIndex(play));
+    }
   }
   return features;
 }
@@ -36,7 +46,7 @@ export function teacher(snapshot, seat) {
   return seat === 0 ? chooseOfflineBot(snapshot) : chooseStyledOfflineBot(snapshot, "varied-v1");
 }
 
-export function playMatch(index, chooseCommand, onDealEnd) {
+export function playMatch(index, chooseCommand, onDealEnd, includeHistory = false) {
   // Each match receives a block of seeds larger than the action budget.
   let state = createMatchMachine({
     baseSeed: (index + 1) * 32768,
@@ -52,7 +62,8 @@ export function playMatch(index, chooseCommand, onDealEnd) {
       : deal.trickSequence?.currentTrick.currentPlayer;
     const seat = PLAYER_POSITIONS.indexOf(player);
     assert(seat >= 0, "Match has no active seat");
-    const command = chooseCommand(createPlayerClientSnapshot(state, player), seat);
+    const history = includeHistory ? deal.trickSequence?.completedTricks : undefined;
+    const command = chooseCommand(createPlayerClientSnapshot(state, player), seat, history);
     assert(command, "Policy has no action");
     const previous = state;
     state = applyPlayerCommandDocument(state, createPlayerCommandDocument(player, command));

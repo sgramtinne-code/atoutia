@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import {
   getPlayerTeam, Mulberry32Random, PLAYER_POSITIONS,
 } from "../packages/belote-engine/dist/index.js";
-import { cardId, count, encodeFeatures, playMatch, teacher } from "./pilot.mjs";
+import { cardId, count, encodeFeatures, format, playMatch, teacher } from "./pilot.mjs";
 import { legalScores, loadPolicy } from "./policy.mjs";
 
 function sample(scores, random) {
@@ -67,7 +67,9 @@ try {
   const matches = count(values.matches, "--matches", 96);
   assert(matches % 3 === 0, "Use a multiple of three matches to cover all styles");
   assert(["match", "deal"].includes(values.reward), "Reward mode must be match or deal");
-  console.log(JSON.stringify(rollout(loadPolicy(values.policy), round, matches, values.reward)));
+  const policy = loadPolicy(values.policy);
+  assert(policy.source.format === format, "Rollout currently requires a v1 pilot policy");
+  console.log(JSON.stringify(rollout(policy, round, matches, values.reward)));
 } catch (error) {
   console.error(`AI Lab: ${error.message}`);
   process.exitCode = 1;

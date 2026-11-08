@@ -10,6 +10,8 @@ from time import perf_counter
 
 FORMAT = "atoutia-card-imitation-v1"
 INPUT_SIZE = 167
+MEMORY_FORMAT = "atoutia-card-imitation-memory-v1"
+MEMORY_INPUT_SIZE = 295
 CARD_COUNT = 32
 STYLES = ["CAREFUL", "TEAM", "BOLD"]
 BATCH_SIZE = 256
@@ -32,8 +34,8 @@ def read_dataset(path):
     dataset = json.loads(raw)
     if (
         not isinstance(dataset, dict)
-        or dataset.get("format") != FORMAT
-        or dataset.get("inputSize") != INPUT_SIZE
+        or (dataset.get("format"), dataset.get("inputSize"))
+        not in ((FORMAT, INPUT_SIZE), (MEMORY_FORMAT, MEMORY_INPUT_SIZE))
         or dataset.get("styles") != STYLES
         or dataset.get("teacher") != "varied-v1"
     ):
@@ -49,33 +51,39 @@ def read_dataset(path):
         rows = dataset.get(name)
         if not isinstance(rows, list) or not 1 <= len(rows) <= 100000:
             raise ValueError(f"Invalid size for {name}")
-        validate_rows(rows, name)
+        validate_rows(rows, name, dataset["inputSize"])
     return dataset, hashlib.sha256(raw).hexdigest()
 
 
-def validate_rows(rows, name):
+def validate_rows(rows, name, input_size=INPUT_SIZE):
     for i, row in enumerate(rows):
         if not isinstance(row, list) or len(row) != 3:
             raise ValueError(f"Invalid {name} row {i}")
         features, legal, target = row
         if (
-            not indices(features, INPUT_SIZE)
+            not indices(features, input_size)
             or not indices(legal, CARD_COUNT)
             or not 2 <= len(legal) <= 8
             or not set(legal).issubset(features)
             or type(target) is not int or target not in legal
             or sum(32 <= j < 36 for j in features) != 1
-            or sum(j >= 164 for j in features) != 1
+            or sum(164 <= j < INPUT_SIZE for j in features) != 1
         ):
             raise ValueError(f"Invalid features or legal mask in {name} row {i}")
+        if input_size == MEMORY_INPUT_SIZE:
+            played = [(j - INPUT_SIZE) % CARD_COUNT for j in features if j >= INPUT_SIZE]
+            visible = {j for j in features if j < CARD_COUNT}
+            visible.update((j - 36) % CARD_COUNT for j in features if 36 <= j < 164)
+            if len(played) > 28 or len(played) % 4 or len(set(played)) != len(played) or visible.intersection(played):
+                raise ValueError(f"Invalid completed trick memory in {name} row {i}")
 
 
-def create_model(nn):
-    return nn.Sequential(nn.Linear(INPUT_SIZE, 128), nn.ReLU(), nn.Linear(128, CARD_COUNT))
+def create_model(nn, input_size=INPUT_SIZE):
+    return nn.Sequential(nn.Linear(input_size, 128), nn.ReLU(), nn.Linear(128, CARD_COUNT))
 
 
-def tensors(torch, rows, device):
-    inputs = torch.zeros((len(rows), INPUT_SIZE), dtype=torch.float32)
+def tensors(torch, rows, device, input_size=INPUT_SIZE):
+    inputs = torch.zeros((len(rows), input_size), dtype=torch.float32)
     legal = torch.zeros((len(rows), CARD_COUNT), dtype=torch.bool)
     feature_rows, feature_ids = [], []
     legal_rows, legal_ids = [], []
@@ -105,9 +113,13 @@ def train(args, dataset, fingerprint):
         device_name = "CPU"
     print(f"PyTorch {torch.__version__} | CUDA {torch.version.cuda} | {device_name}", flush=True)
     torch.manual_seed(SEED)
-    x, mask, y = tensors(torch, dataset["train"], args.device)
-    vx, vmask, vy = tensors(torch, dataset["validation"], args.device)
-    model = create_model(nn).to(args.device)
+    input_size = dataset["inputSize"]
+    x, mask, y = tensors(torch, dataset["train"], args.device, input_size)
+    vx, vmask, vy = tensors(torch, dataset["validation"], args.device, input_size)
+    if args.history_mode == "off":
+        x[:, INPUT_SIZE:] = 0
+        vx[:, INPUT_SIZE:] = 0
+    model = create_model(nn, input_size).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
     loss = nn.CrossEntropyLoss()
     uniform = vmask.sum(dim=1).float().reciprocal().mean().item()
@@ -140,7 +152,7 @@ def train(args, dataset, fingerprint):
         count = selected.sum().item()
         by_style[style] = {"choices": count, "agreement": correct[selected].float().mean().item() if count else None}
     report = {
-        "format": FORMAT,
+        "format": dataset["format"],
         "datasetSha256": fingerprint,
         "device": device_name,
         "torchVersion": str(torch.__version__),
@@ -155,13 +167,18 @@ def train(args, dataset, fingerprint):
         "elapsedSeconds": round(elapsed, 3),
         "trainChoicesPerSecondIncludingValidation": round(len(x) * args.epochs / elapsed),
     }
+    if args.history_mode is not None:
+        report["historyMode"] = args.history_mode
     if args.device == "cuda":
         report["peakAllocatedMiB"] = round(torch.cuda.max_memory_allocated() / 2**20, 2)
 
     args.output.mkdir(parents=True, exist_ok=False)
     temporary = args.output / "checkpoint.pt.tmp"
+    metadata = {key: value for key, value in dataset.items() if key not in ("train", "validation")}
+    if args.history_mode is not None:
+        metadata["historyMode"] = args.history_mode
     torch.save({
-        "metadata": {key: value for key, value in dataset.items() if key not in ("train", "validation")},
+        "metadata": metadata,
         "report": report,
         "modelState": model.state_dict(),
         "optimizerState": optimizer.state_dict(),
@@ -178,11 +195,14 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
     parser.add_argument("--epochs", type=int, choices=range(1, 21), default=5, metavar="1-20")
+    parser.add_argument("--history-mode", choices=("on", "off"))
     args = parser.parse_args()
     if args.output.exists():
         parser.error("Choose a new output directory to preserve previous results")
     try:
         dataset, fingerprint = read_dataset(args.dataset)
+        if (dataset["format"] == MEMORY_FORMAT) != (args.history_mode is not None):
+            raise ValueError("Specify --history-mode on or off for a history dataset only")
         train(args, dataset, fingerprint)
     except (ValueError, OSError, ImportError, RuntimeError) as error:
         parser.exit(1, f"AI Lab: {error}\n")

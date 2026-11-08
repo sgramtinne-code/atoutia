@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION } from "../packages/belote-engine/dist/index.js";
-import { cardId, cards, format, inputSize, styles } from "./pilot.mjs";
+import { cardId, cards, format, inputSize, memoryFormat, memoryInputSize, styles } from "./pilot.mjs";
 
 function vector(values, length) {
   return Array.isArray(values) && values.length === length && values.every(Number.isFinite);
@@ -18,12 +18,20 @@ export function loadPolicy(path) {
   assert(policy?.format === "atoutia-card-policy-v1", "Unsupported policy format");
   assert(/^[0-9a-f]{64}$/.test(policy.checkpointSha256), "Missing checkpoint fingerprint");
   const { source, weights } = policy;
-  assert(isDeepStrictEqual(source, {
+  const expected = {
     format, inputSize, styles, cards, teacher: "varied-v1",
     engineVersion: BELOTE_ENGINE_VERSION, rulesVersion: CURRENT_MATCH_RULES_VERSION,
-  }), "Policy metadata does not match this pilot and engine");
+  };
+  if (source?.format === memoryFormat) {
+    assert(["on", "off"].includes(source.historyMode), "Invalid history mode");
+    Object.assign(expected, { format: memoryFormat, inputSize: memoryInputSize, historyMode: source.historyMode });
+    const { datasetSha256, epochs } = policy.imitation ?? {};
+    assert(typeof datasetSha256 === "string" && /^[0-9a-f]{64}$/.test(datasetSha256)
+      && Number.isInteger(epochs) && epochs >= 1 && epochs <= 20, "Invalid history training metadata");
+  }
+  assert(isDeepStrictEqual(source, expected), "Policy metadata does not match this pilot and engine");
   assert(
-    matrix(weights?.["0.weight"], 128, inputSize) && vector(weights["0.bias"], 128)
+    matrix(weights?.["0.weight"], 128, expected.inputSize) && vector(weights["0.bias"], 128)
     && matrix(weights["2.weight"], cards.length, 128) && vector(weights["2.bias"], cards.length),
     "Invalid policy weights",
   );

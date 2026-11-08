@@ -6,9 +6,9 @@ import {
 import { cardId, count, encodeFeatures, playMatch, styles, teacher } from "./pilot.mjs";
 import { legalScores, loadPolicy } from "./policy.mjs";
 
-function predict(snapshot, seat, weights) {
+function predict(snapshot, seat, weights, history) {
   const legal = snapshot.actions.legalCards;
-  const scores = legalScores(encodeFeatures(snapshot, seat), legal, weights);
+  const scores = legalScores(encodeFeatures(snapshot, seat, history), legal, weights);
   let best = 0;
   for (let i = 1; i < legal.length; i++) {
     if (scores[i] > scores[best] || (scores[i] === scores[best] && cardId(legal[i]) < cardId(legal[best]))) {
@@ -21,13 +21,13 @@ function predict(snapshot, seat, weights) {
 
 function playPolicy(index, modelSeat, policy) {
   let decisions = 0;
-  const score = playMatch(index, (snapshot, seat) => {
+  const score = playMatch(index, (snapshot, seat, history) => {
     if (seat !== modelSeat || snapshot.actions.mode !== "PLAY_CARD") return teacher(snapshot, seat);
     const legal = snapshot.actions.legalCards;
     if (legal.length === 1) return { type: "PLAY_CARD", card: legal[0] };
     decisions++;
-    return predict(snapshot, seat, policy.weights);
-  });
+    return predict(snapshot, seat, policy.weights, history);
+  }, undefined, policy.source.historyMode === "on");
   return { score, decisions };
 }
 
@@ -75,8 +75,14 @@ function benchmark(policy, seeds) {
   };
 }
 
-function compare(initial, candidate, seeds, rewardTrial) {
-  if (rewardTrial) {
+function compare(initial, candidate, seeds, trial) {
+  if (trial === "history") {
+    assert(initial.source.historyMode === "off" && candidate.source.historyMode === "on",
+      "Supply the masked-history policy first and the history policy second");
+    assert(initial.imitation.datasetSha256 === candidate.imitation.datasetSha256
+      && initial.imitation.epochs === candidate.imitation.epochs,
+      "History trials must use the same dataset and epoch count");
+  } else if (trial === "reward") {
     assert(initial.initialCheckpointSha256 && initial.initialCheckpointSha256 === candidate.initialCheckpointSha256,
       "Reward trials must start from the same checkpoint");
     const match = initial.training;
@@ -91,7 +97,12 @@ function compare(initial, candidate, seeds, rewardTrial) {
       "Candidate campaign does not originate from the supplied initial checkpoint");
   }
   // Separate from the first held-out set, the development benchmark and all training rounds.
-  const firstSeedIndex = rewardTrial ? 3328 : 3072;
+  const firstSeedIndex = { history: 3584, reward: 3328, checkpoint: 3072 }[trial];
+  const reportFormat = {
+    history: "atoutia-card-history-trial-v1",
+    reward: "atoutia-card-reward-trial-v1",
+    checkpoint: "atoutia-card-held-out-comparison-v1",
+  }[trial];
   const groups = styles.map((style, index) => {
     const seat = PLAYER_POSITIONS[index + 1];
     return {
@@ -116,10 +127,11 @@ function compare(initial, candidate, seeds, rewardTrial) {
     }
   }
   return {
-    format: rewardTrial ? "atoutia-card-reward-trial-v1" : "atoutia-card-held-out-comparison-v1",
+    format: reportFormat,
     initialCheckpointSha256: initial.checkpointSha256,
     candidateCheckpointSha256: candidate.checkpointSha256,
-    ...(rewardTrial ? { matchTraining: initial.training, dealTraining: candidate.training } : {}),
+    ...(trial === "reward" ? { matchTraining: initial.training, dealTraining: candidate.training } : {}),
+    ...(trial === "history" ? { training: initial.imitation } : {}),
     engineVersion: BELOTE_ENGINE_VERSION,
     rulesVersion: CURRENT_MATCH_RULES_VERSION,
     firstSeedIndex,
@@ -137,14 +149,17 @@ try {
     policy: { type: "string" },
     candidate: { type: "string" },
     "reward-trial": { type: "boolean", default: false },
+    "history-trial": { type: "boolean", default: false },
     seeds: { type: "string", default: "32" },
   } });
   assert(values.policy, "Usage: node ai-lab/benchmark.mjs --policy FILE [--candidate FILE] [--seeds 1..128]");
-  assert(!values["reward-trial"] || values.candidate, "Reward trial requires a candidate");
+  assert(!(values["reward-trial"] && values["history-trial"]), "Choose one trial mode");
+  const trial = values["history-trial"] ? "history" : values["reward-trial"] ? "reward" : "checkpoint";
+  assert(trial === "checkpoint" || values.candidate, "Trial requires a candidate");
   const seeds = count(values.seeds, "--seeds", 128);
   const initial = loadPolicy(values.policy);
   const report = values.candidate
-    ? compare(initial, loadPolicy(values.candidate), seeds, values["reward-trial"])
+    ? compare(initial, loadPolicy(values.candidate), seeds, trial)
     : benchmark(initial, seeds);
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {

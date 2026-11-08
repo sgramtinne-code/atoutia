@@ -8,7 +8,7 @@ import pickle
 import re
 from pathlib import Path
 
-from train import CARD_COUNT, FORMAT, INPUT_SIZE, STYLES
+from train import CARD_COUNT, FORMAT, INPUT_SIZE, MEMORY_FORMAT, MEMORY_INPUT_SIZE, STYLES
 
 
 def export(path):
@@ -25,8 +25,8 @@ def export(path):
     state = checkpoint.get("modelState")
     if (
         not isinstance(metadata, dict)
-        or metadata.get("format") != FORMAT
-        or metadata.get("inputSize") != INPUT_SIZE
+        or (metadata.get("format"), metadata.get("inputSize"))
+        not in ((FORMAT, INPUT_SIZE), (MEMORY_FORMAT, MEMORY_INPUT_SIZE))
         or metadata.get("styles") != STYLES
         or metadata.get("teacher") != "varied-v1"
         or not isinstance(state, dict)
@@ -34,7 +34,7 @@ def export(path):
         raise ValueError("Unsupported pilot checkpoint")
     weights = {}
     for name, shape in (
-        ("0.weight", (128, INPUT_SIZE)),
+        ("0.weight", (128, metadata["inputSize"])),
         ("0.bias", (128,)),
         ("2.weight", (CARD_COUNT, 128)),
         ("2.bias", (CARD_COUNT,)),
@@ -55,6 +55,20 @@ def export(path):
         "checkpointSha256": hashlib.sha256(raw).hexdigest(),
         "weights": weights,
     }
+    if metadata["format"] == MEMORY_FORMAT:
+        mode = metadata.get("historyMode")
+        report = checkpoint.get("report")
+        fingerprint = report.get("datasetSha256") if isinstance(report, dict) else None
+        epochs = report.get("epochs") if isinstance(report, dict) else None
+        if (
+            mode not in ("on", "off")
+            or not isinstance(fingerprint, str)
+            or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None
+            or type(epochs) is not int or not 1 <= epochs <= 20
+        ):
+            raise ValueError("Invalid history training metadata")
+        policy["source"]["historyMode"] = mode
+        policy["imitation"] = {"datasetSha256": fingerprint, "epochs": epochs}
     if "selfPlay" in checkpoint:
         progress = checkpoint["selfPlay"]
         initial = progress.get("initialBenchmark") if isinstance(progress, dict) else None
