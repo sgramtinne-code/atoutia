@@ -69,6 +69,11 @@ def export(path):
             raise ValueError("Invalid history training metadata")
         policy["source"]["historyMode"] = mode
         policy["imitation"] = {"datasetSha256": fingerprint, "epochs": epochs}
+        if "seed" in report:
+            seed = report["seed"]
+            if type(seed) is not int or not 0 <= seed <= 2**32 - 1:
+                raise ValueError("Invalid imitation seed")
+            policy["imitation"]["seed"] = seed
     if "selfPlay" in checkpoint:
         progress = checkpoint["selfPlay"]
         initial = progress.get("initialBenchmark") if isinstance(progress, dict) else None

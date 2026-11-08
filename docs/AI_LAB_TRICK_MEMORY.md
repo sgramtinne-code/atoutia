@@ -46,3 +46,23 @@ cat "$ATOUTIA_CONFIRM/report.json"
 ```
 
 Comparer `byStyle` pour le total et `byBlock` pour la répartition. Un gain concentré dans un seul bloc mérite davantage de prudence qu’un écart qui se retrouve dans plusieurs blocs. Ce rapport confirme ou nuance un résultat sur deux checkpoints précis. La variabilité entre plusieurs entraînements s’évalue séparément.
+
+## Répéter l’entraînement et permuter les places
+
+Le script entraîne trois paires de modèles avec les graines 1234, 1235 et 1236. Au sein d’une paire, le jeu de données, l’initialisation et le budget d’entraînement sont identiques. Le profil audacieux est ensuite joué aux sièges `PLAYER_1`, `PLAYER_2` et `PLAYER_3`. L’entrée de style reste audacieuse, tandis que les cartes du pli courant et des plis terminés restent encodées relativement au siège réellement occupé.
+
+Pour chaque siège et chaque distribution, le banc joue trois parties. L’heuristique audacieuse de l’application est la référence et gère les enchères dans les trois variantes. Les trois autres sièges utilisent la politique d’origine dans chaque partie. Cette composition définit un nouveau banc et ses scores bruts se lisent dans ce contexte. Les 128 indices réservés vont de 16896 à 17023. Les trois paires jouent ces mêmes distributions, pour 3 456 exécutions. Les résultats de différentes paires ou places sur une même distribution ne constituent pas des observations indépendantes.
+
+Depuis la racine du dépôt, construire le moteur et le solo, puis utiliser le fichier `data.json` issu de `generate.mjs --history` et l’environnement CUDA du pilote. La commande crée un sous-dossier pour chaque paire et écrit le rapport global après la dernière.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_DATA="$PWD/ai-lab/data/trick-memory.EXEMPLE/data.json" &&
+test -s "$ATOUTIA_DATA" &&
+ATOUTIA_STUDY=$(mktemp -d "$PWD/ai-lab/data/bold-memory.XXXXXX") &&
+ai-lab/.venv/bin/python ai-lab/bold-memory-study.py "$ATOUTIA_DATA" --output "$ATOUTIA_STUDY/run" --device cuda &&
+cat "$ATOUTIA_STUDY/run/report.json"
+```
+
+Comparer les victoires, les bascules et la variation de marge pour chaque initialisation et chaque place. `referenceWins` donne la force de l’heuristique audacieuse dans les mêmes conditions. Les rapports par paire restent disponibles si l’exécution est interrompue après une paire terminée. Une nouvelle exécution utilise un dossier distinct. L’apprentissage utilise PyTorch sur CUDA et le banc joue les parties sur CPU.

@@ -4,13 +4,13 @@
 
 Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ou une campagne de CI. Le nouvel ordre du 30 octobre place le chantier IA avant la reprise du déploiement, après le socle visuel/lisibilité. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
 
-## Lot courant : confirmation de la mémoire des plis
+## Lot courant : réplication pour le profil audacieux
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Travailler d’abord le look professionnel, la lisibilité et l’ergonomie pour les personnes âgées, puis préparer/exécuter l’entraînement des PNJ sur la RTX 5070 avant de reprendre le déploiement. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le premier banc avec mémoire est intégré à `main` en **4b3d17a** ([PR nº 36](https://github.com/sgramtinne-code/atoutia/pull/36)). Le lot **feat/ai-lab-history-confirmation** compare les mêmes checkpoints sur quatre blocs inédits et rapporte les résultats par bloc et par style. [Protocole de confirmation](docs/AI_LAB_TRICK_MEMORY.md#confirmer-avec-les-mêmes-checkpoints).
+Le banc de confirmation est intégré à `main` en **05c2fba** ([PR nº 37](https://github.com/sgramtinne-code/atoutia/pull/37)). Le lot **feat/ai-lab-bold-memory-repeats** répète l’apprentissage avec et sans mémoire et fait tourner le profil audacieux aux trois places PNJ. [Protocole de réplication](docs/AI_LAB_TRICK_MEMORY.md#répéter-lentraînement-et-permuter-les-places).
 
 Cap produit PNJ : distinguer la force mesurée, le style de jeu et la personnalité. Développer des tables variées, avec de courtes répliques désactivables entre PNJ et avec le joueur. Les répliques se fondent sur des événements publics. Mesurer le débit avant d’augmenter les volumes d’autojeu et vérifier le coût des politiques sur Android. Voir [la feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
