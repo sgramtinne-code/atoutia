@@ -4,13 +4,13 @@
 
 Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ou une campagne de CI. Le nouvel ordre du 30 octobre place le chantier IA avant la reprise du déploiement, après le socle visuel/lisibilité. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
 
-## Lot courant : évaluation sur distributions réservées
+## Lot courant : mesures d’entraînement et export
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Travailler d’abord le look professionnel, la lisibilité et l’ergonomie pour les personnes âgées, puis préparer/exécuter l’entraînement des PNJ sur la RTX 5070 avant de reprendre le déploiement. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-L’entraînement par lots et sa reprise sont intégrés à `main` en **ebffd5e** ([PR nº 32](https://github.com/sgramtinne-code/atoutia/pull/32)). Le lot **feat/ai-lab-held-out-evaluation** compare le checkpoint initial et le candidat sur un lot distinct du banc de développement, en vérifiant l’origine de la campagne. Le parcours a été vérifié avec des politiques synthétiques. [Protocole d’évaluation](docs/AI_LAB_BENCHMARK.md#comparer-le-début-et-la-fin-dune-campagne).
+La comparaison sur distributions réservées est intégrée à `main` en **0c5eea6** ([PR nº 33](https://github.com/sgramtinne-code/atoutia/pull/33)). Le lot **feat/ai-lab-training-timing** réutilise le processus d’entraînement pour exporter les poids et sépare les temps de chaque phase dans le rapport. Il conserve le format de reprise. [Procédure et lecture du rapport](docs/AI_LAB_SELF_PLAY.md#lire-le-rapport-de-temps-et-de-périphérique).
 
 Cap produit PNJ : distinguer la force mesurée, le style de jeu et la personnalité. Développer des tables variées, avec de courtes répliques désactivables entre PNJ et avec le joueur. Les répliques se fondent sur des événements publics. Mesurer le débit avant d’augmenter les volumes d’autojeu et vérifier le coût des politiques sur Android. Voir [la feuille de route IA](docs/AI_LAB_ROADMAP.md).
 

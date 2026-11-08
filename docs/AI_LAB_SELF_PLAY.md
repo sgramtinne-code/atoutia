@@ -23,9 +23,17 @@ ai-lab/.venv/bin/python ai-lab/self-play.py --resume --output "$ATOUTIA_CAMPAIGN
 
 `--rounds` est le nombre total de lots souhaité. Le maximum de ce pilote est 128. `--matches` fixe entre 3 et 96 parties par lot, par multiples de 3. Pour retrouver une campagne après fermeture du terminal, utiliser son chemin affiché avec `--resume --output`. Le fichier `report.json` compare le modèle initial et le modèle mis à jour avec les heuristiques, sur les mêmes 32 graines réservées et par style. Les victoires affichées pendant l’entraînement concernent les parties d’apprentissage. Les temps affichés séparent la simulation de la mise à jour du modèle. En CUDA, le rapport indique aussi le GPU et le pic mémoire alloué par PyTorch. Le lancement, les exports, les sauvegardes et le banc ont leurs propres coûts.
 
+## Lire le rapport de temps et de périphérique
+
+`modelDevice` indique où se trouvent les paramètres du modèle. Le script vérifie que les entrées, le masque légal et les choix sont sur le même périphérique. Sur CUDA, il attend la fin de la mise à jour avant d’arrêter son chrono. La simulation des parties et le banc d’évaluation s’exécutent dans Node sur CPU.
+
+`roundsCompletedThisRun` et `timingsSecondsThisRun` concernent uniquement le lancement courant. Le rapport ventile l’export des poids, la simulation, la mise à jour, les sauvegardes et le banc. Le temps de mise à jour comprend la préparation des tenseurs et, en CUDA, les transferts et la synchronisation. Le total couvre la campagne à partir du chargement du modèle et s’arrête avant l’écriture du rapport. L’export réutilise le processus Python d’entraînement. La commande séparée `export-policy.py` reste utilisable pour le banc.
+
 ## Vérifications en développement
 
 Avec un checkpoint synthétique CPU, trois lots ont produit 36 parties et 1 955 décisions. Une exécution directe, un arrêt après un lot suivi d’une reprise et un SIGINT suivi d’une reprise ont donné les mêmes poids, le même état d’optimiseur, le même historique et les mêmes résultats en match. L’empreinte du fichier sérialisé peut varier entre exécutions. Les victoires sur les graines réservées sont restées à 9, 20 et 8 sur 32 selon le style après trois lots. Le petit essai vérifie la boucle. Il faudra plus de mesures pour sélectionner un modèle.
+
+La vérification de l’export intégré a repris un checkpoint écrit avant la modification. Après quatre lots, les poids, l’optimiseur, l’historique et les mesures en match étaient identiques à ceux d’une campagne démarrée avec le nouveau code. Sur un essai synthétique CPU de trois lots, le temps total observé est passé de 21,8 à 7,0 secondes. L’essai CUDA du nouveau rapport reste à faire.
 
 ## Portée
 
