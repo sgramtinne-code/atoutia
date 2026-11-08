@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION } from "../packages/belote-engine/dist/index.js";
-import { cardId, cards, format, inputSize, memoryFormat, memoryInputSize, styles } from "./pilot.mjs";
+import { cardId, cards, encodeFeatures, format, inputSize, memoryFormat, memoryInputSize, styles } from "./pilot.mjs";
 
 function vector(values, length) {
   return Array.isArray(values) && values.length === length && values.every(Number.isFinite);
@@ -52,4 +52,17 @@ export function legalScores(features, legal, weights) {
     assert(Number.isFinite(score), "Policy produced a non-finite score");
     return score;
   });
+}
+
+export function predict(snapshot, seat, weights, history, styleIndex) {
+  const legal = snapshot.actions.legalCards;
+  const scores = legalScores(encodeFeatures(snapshot, seat, history, styleIndex), legal, weights);
+  let best = 0;
+  for (let i = 1; i < legal.length; i++) {
+    if (scores[i] > scores[best] || (scores[i] === scores[best] && cardId(legal[i]) < cardId(legal[best]))) {
+      best = i;
+    }
+  }
+  assert(legal[best], "Policy has no legal card to play");
+  return { type: "PLAY_CARD", card: legal[best] };
 }

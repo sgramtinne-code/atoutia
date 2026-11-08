@@ -21,12 +21,13 @@ export function cardId(card) {
   return id;
 }
 
-export function encodeFeatures(snapshot, seat, completedTricks = []) {
+export function encodeFeatures(snapshot, seat, completedTricks = [], styleIndex = seat - 1) {
   const { hand, public: table } = snapshot.match;
   const trump = SUITS.indexOf(table.trumpSuit);
   assert(seat >= 1 && seat <= 3 && trump >= 0 && table.currentTrick, "Invalid card-play observation");
+  assert(styles[styleIndex], "Invalid card-play style");
   const features = hand.map(cardId);
-  features.push(32 + trump, 164 + seat - 1);
+  features.push(32 + trump, 164 + styleIndex);
   const playedCardIndex = (play) => {
     const relativeSeat = (PLAYER_POSITIONS.indexOf(play.player) - seat + 4) % 4;
     return relativeSeat * cards.length + cardId(play.card);

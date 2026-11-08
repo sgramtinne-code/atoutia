@@ -99,7 +99,7 @@ def tensors(torch, rows, device, input_size=INPUT_SIZE):
     return inputs.to(device), legal.to(device), torch.tensor(targets, device=device)
 
 
-def train(args, dataset, fingerprint):
+def train(args, dataset, fingerprint, *, seed=None):
     import torch
     from torch import nn
 
@@ -112,7 +112,7 @@ def train(args, dataset, fingerprint):
         torch.set_num_threads(2)
         device_name = "CPU"
     print(f"PyTorch {torch.__version__} | CUDA {torch.version.cuda} | {device_name}", flush=True)
-    torch.manual_seed(SEED)
+    torch.manual_seed(SEED if seed is None else seed)
     input_size = dataset["inputSize"]
     x, mask, y = tensors(torch, dataset["train"], args.device, input_size)
     vx, vmask, vy = tensors(torch, dataset["validation"], args.device, input_size)
@@ -167,6 +167,8 @@ def train(args, dataset, fingerprint):
         "elapsedSeconds": round(elapsed, 3),
         "trainChoicesPerSecondIncludingValidation": round(len(x) * args.epochs / elapsed),
     }
+    if seed is not None:
+        report["seed"] = seed
     if args.history_mode is not None:
         report["historyMode"] = args.history_mode
     if args.device == "cuda":
@@ -187,6 +189,7 @@ def train(args, dataset, fingerprint):
     result = json.dumps(report, indent=2, allow_nan=False)
     (args.output / "report.json").write_text(result + "\n", encoding="utf-8")
     print(result)
+    return report
 
 
 def main():

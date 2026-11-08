@@ -3,21 +3,8 @@ import { parseArgs } from "node:util";
 import {
   BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION, getPlayerTeam, PLAYER_POSITIONS,
 } from "../packages/belote-engine/dist/index.js";
-import { cardId, count, encodeFeatures, playMatch, styles, teacher } from "./pilot.mjs";
-import { legalScores, loadPolicy } from "./policy.mjs";
-
-function predict(snapshot, seat, weights, history) {
-  const legal = snapshot.actions.legalCards;
-  const scores = legalScores(encodeFeatures(snapshot, seat, history), legal, weights);
-  let best = 0;
-  for (let i = 1; i < legal.length; i++) {
-    if (scores[i] > scores[best] || (scores[i] === scores[best] && cardId(legal[i]) < cardId(legal[best]))) {
-      best = i;
-    }
-  }
-  assert(legal[best], "Policy has no legal card to play");
-  return { type: "PLAY_CARD", card: legal[best] };
-}
+import { count, playMatch, styles, teacher } from "./pilot.mjs";
+import { loadPolicy, predict } from "./policy.mjs";
 
 function playPolicy(index, modelSeat, policy) {
   let decisions = 0;
