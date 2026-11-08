@@ -1,20 +1,9 @@
 import assert from "node:assert/strict";
 import { parseArgs } from "node:util";
 import { BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION, getPlayerTeam, PLAYER_POSITIONS } from "../packages/belote-engine/dist/index.js";
-import { boldStyle, boldTableAction } from "./bold-policy.mjs";
-import { count, playMatch } from "./pilot.mjs";
-import { loadPolicy, predict, validateRewardPair } from "./policy.mjs";
-
-function score(index, modelSeat, policy) {
-  return playMatch(index, (snapshot, seat, history) => {
-    const { actions } = snapshot;
-    if (seat !== modelSeat || !policy || actions.mode !== "PLAY_CARD") {
-      return boldTableAction(snapshot, seat, modelSeat);
-    }
-    if (actions.legalCards.length === 1) return { type: "PLAY_CARD", card: actions.legalCards[0] };
-    return predict(snapshot, seat, policy.weights, history, boldStyle);
-  }, undefined, policy?.source.historyMode === "on");
-}
+import { playBoldPolicy } from "./bold-policy.mjs";
+import { count } from "./pilot.mjs";
+import { loadPolicy, validateRewardPair } from "./policy.mjs";
 
 function compareSeat(seat, firstSeedIndex, seeds, beforePolicy, afterPolicy) {
   const team = getPlayerTeam(PLAYER_POSITIONS[seat]);
@@ -26,9 +15,9 @@ function compareSeat(seat, firstSeedIndex, seeds, beforePolicy, afterPolicy) {
   let lostWins = 0;
   let marginChange = 0;
   for (let index = firstSeedIndex; index < firstSeedIndex + seeds; index++) {
-    const reference = score(index, seat);
-    const before = beforePolicy ? score(index, seat, beforePolicy) : reference;
-    const after = score(index, seat, afterPolicy);
+    const reference = playBoldPolicy(index, seat);
+    const before = beforePolicy ? playBoldPolicy(index, seat, beforePolicy) : reference;
+    const after = playBoldPolicy(index, seat, afterPolicy);
     const wonBefore = before.winner === team;
     const wonAfter = after.winner === team;
     referenceWins += Number(reference.winner === team);

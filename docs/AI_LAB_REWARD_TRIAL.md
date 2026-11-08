@@ -77,3 +77,23 @@ cat "$ATOUTIA_CONFIRM/run/report.json"
 ```
 
 Les journaux d’entraînement, les checkpoints et les rapports par paire sont disponibles dans chaque dossier `seed-*`. Le rapport global est écrit après la dernière paire. Après une interruption, les résultats déjà écrits restent disponibles et une nouvelle confirmation démarre dans un nouveau dossier.
+
+## Situer l’écart entre imitation et renforcement
+
+Le diagnostic rejoue les 512 distributions de la confirmation pour chaque initialisation et chaque siège. Il joue quatre parties par distribution et par siège, une avec le PNJ audacieux de référence, une avec le modèle d’imitation et une avec chaque modèle renforcé. Le banc conserve les mêmes partenaires, adversaires, enchères et règles. Les 18 432 parties sont simulées sur CPU à partir des exports existants.
+
+Les empreintes doivent correspondre au rapport de confirmation. Les victoires de la référence et des deux modèles renforcés ainsi que l’écart de marge entre les deux modes doivent reproduire ce rapport. Le diagnostic ajoute le résultat du modèle d’imitation et donne, à chaque stade, les victoires et l’écart moyen de marge face au PNJ de référence.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_STUDY="$PWD/ai-lab/data/bold-memory.EXEMPLE/run" &&
+ATOUTIA_CONFIRM="$PWD/ai-lab/data/bold-reward-confirmation.EXEMPLE/run" &&
+ATOUTIA_DIAG=$(mktemp -d "$PWD/ai-lab/data/bold-training-stages.XXXXXX") &&
+node ai-lab/benchmark-bold-training-stages.mjs \
+  --study "$ATOUTIA_STUDY" --confirmation "$ATOUTIA_CONFIRM" \
+  > "$ATOUTIA_DIAG/report.json" &&
+cat "$ATOUTIA_DIAG/report.json"
+```
+
+Dans chaque ligne, comparer `stages.imitation` à la référence, puis `stages.match` et `stages.deal` à `stages.imitation`. Le diagnostic situe l’écart observé sur les distributions déjà évaluées. Une comparaison de nouveaux candidats sur des distributions réservées reste distincte.
