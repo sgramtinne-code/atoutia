@@ -1,6 +1,6 @@
 # Premier entraînement sur parties complètes
 
-La branche `feat/ai-lab-self-play` part d’un checkpoint du [pilote d’imitation](AI_LAB_PILOT.md). Le moteur génère les parties à 1 000 points sur CPU. À chaque partie, un siège parmi prudent, solidaire et audacieux échantillonne ses coups légaux selon les scores du modèle. Les autres sièges et toutes les enchères utilisent les heuristiques. Le siège entraîné change à chaque partie.
+L’entraînement par lots intégré par la [PR nº 32](https://github.com/sgramtinne-code/atoutia/pull/32) part d’un checkpoint du [pilote d’imitation](AI_LAB_PILOT.md). Le moteur génère les parties à 1 000 points sur CPU. À chaque partie, un siège parmi prudent, solidaire et audacieux échantillonne ses coups légaux selon les scores du modèle. Les autres sièges et toutes les enchères utilisent les heuristiques. Le siège entraîné change à chaque partie.
 
 Après chaque lot, le modèle effectue une mise à jour par gradient de politique, avec une récompense de +1 pour une victoire de l’équipe du siège entraîné et −1 pour une défaite. Chaque partie a le même poids dans cette mise à jour. Les données de la ronde suivante sont produites par les poids sauvegardés. Le moteur valide chaque coup et seules les informations autorisées sont encodées. Les graines partent de l’indice 4096, dans un bloc distinct de celui de l’imitation et du banc d’essai.
 
@@ -8,7 +8,7 @@ Après chaque lot, le modèle effectue une mise à jour par gradient de politiqu
 
 ## Essai sous WSL
 
-Depuis la racine du dépôt sur la branche du lot, utiliser le checkpoint et l’environnement Python du pilote déjà créé. Les deux commandes lancent d’abord 12 parties puis reprennent jusqu’à 36 parties cumulées.
+Depuis la racine du dépôt, utiliser le checkpoint et l’environnement Python du pilote déjà créé. Les deux commandes lancent d’abord 12 parties puis reprennent jusqu’à 36 parties cumulées.
 
 ```bash
 pnpm --filter @atoutia/belote-engine build &&
@@ -29,4 +29,4 @@ Avec un checkpoint synthétique CPU, trois lots ont produit 36 parties et 1 955 
 
 ## Portée
 
-Ce premier lot apprend à partir de parties contre une table fixe. L’autojeu avec plusieurs politiques en évolution et l’apprentissage des enchères sont des travaux suivants. Les checkpoints et rapports sont locaux et les gains éventuels s’évaluent sur de nouveaux lots réservés avant intégration dans Android.
+Ce premier lot apprend à partir de parties contre une table fixe. L’autojeu avec plusieurs politiques en évolution et l’apprentissage des enchères sont des travaux suivants. Les checkpoints et rapports sont locaux et les gains éventuels s’évaluent sur [un lot de distributions inédites](AI_LAB_BENCHMARK.md#comparer-le-début-et-la-fin-dune-campagne) avant intégration dans Android.
