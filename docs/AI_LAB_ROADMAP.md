@@ -33,3 +33,5 @@ Le [solo offline](ANDROID_OFFLINE.md), les replays et les [simulations bornées]
 La politique est conservée avec chaque partie : une nouvelle préférence ou un nouveau modèle ne doit pas modifier silencieusement une reprise. Préserver les sauvegardes legacy, l’autorité du moteur et une économie sans pay-to-win. Le premier socle visuel est intégré. Le pilote d’imitation est intégré par la PR nº 30. Le [banc en parties complètes](AI_LAB_BENCHMARK.md) mesure maintenant les résultats de chaque style par comparaison appariée.
 
 Le [premier entraînement sur parties complètes](AI_LAB_SELF_PLAY.md) ajoute un adversaire de référence fixe, la sauvegarde entre lots et la mesure avant/après sur le banc réservé.
+
+La [comparaison des récompenses](AI_LAB_REWARD_TRIAL.md) prépare le choix de la méthode et les contrôles d’une campagne longue. Les interactions auront un corpus et des critères de validation propres.

@@ -75,11 +75,23 @@ function benchmark(policy, seeds) {
   };
 }
 
-function compare(initial, candidate, seeds) {
-  assert(candidate.initialCheckpointSha256 === initial.checkpointSha256,
-    "Candidate campaign does not originate from the supplied initial checkpoint");
-  // Separate from imitation, the development benchmark, and all self-play rounds.
-  const firstSeedIndex = 3072;
+function compare(initial, candidate, seeds, rewardTrial) {
+  if (rewardTrial) {
+    assert(initial.initialCheckpointSha256 && initial.initialCheckpointSha256 === candidate.initialCheckpointSha256,
+      "Reward trials must start from the same checkpoint");
+    const match = initial.training;
+    const deal = candidate.training;
+    assert(match?.rewardMode === "match" && deal?.rewardMode === "deal",
+      "Supply the match-reward policy first and the deal-reward policy second");
+    assert(Number.isInteger(match.rounds) && match.rounds > 0 && match.rounds === deal.rounds
+      && Number.isInteger(match.matchesPerRound) && match.matchesPerRound > 0
+      && match.matchesPerRound === deal.matchesPerRound, "Reward trials must use the same training budget");
+  } else {
+    assert(candidate.initialCheckpointSha256 === initial.checkpointSha256,
+      "Candidate campaign does not originate from the supplied initial checkpoint");
+  }
+  // Separate from the first held-out set, the development benchmark and all training rounds.
+  const firstSeedIndex = rewardTrial ? 3328 : 3072;
   const groups = styles.map((style, index) => {
     const seat = PLAYER_POSITIONS[index + 1];
     return {
@@ -104,9 +116,10 @@ function compare(initial, candidate, seeds) {
     }
   }
   return {
-    format: "atoutia-card-held-out-comparison-v1",
+    format: rewardTrial ? "atoutia-card-reward-trial-v1" : "atoutia-card-held-out-comparison-v1",
     initialCheckpointSha256: initial.checkpointSha256,
     candidateCheckpointSha256: candidate.checkpointSha256,
+    ...(rewardTrial ? { matchTraining: initial.training, dealTraining: candidate.training } : {}),
     engineVersion: BELOTE_ENGINE_VERSION,
     rulesVersion: CURRENT_MATCH_RULES_VERSION,
     firstSeedIndex,
@@ -123,13 +136,15 @@ try {
   const { values } = parseArgs({ options: {
     policy: { type: "string" },
     candidate: { type: "string" },
+    "reward-trial": { type: "boolean", default: false },
     seeds: { type: "string", default: "32" },
   } });
   assert(values.policy, "Usage: node ai-lab/benchmark.mjs --policy FILE [--candidate FILE] [--seeds 1..128]");
+  assert(!values["reward-trial"] || values.candidate, "Reward trial requires a candidate");
   const seeds = count(values.seeds, "--seeds", 128);
   const initial = loadPolicy(values.policy);
   const report = values.candidate
-    ? compare(initial, loadPolicy(values.candidate), seeds)
+    ? compare(initial, loadPolicy(values.candidate), seeds, values["reward-trial"])
     : benchmark(initial, seeds);
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {

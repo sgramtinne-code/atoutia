@@ -62,6 +62,12 @@ def export(path):
         if not isinstance(fingerprint, str) or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
             raise ValueError("Invalid initial checkpoint fingerprint")
         policy["initialCheckpointSha256"] = fingerprint
+        if "rewardMode" in progress:
+            policy["training"] = {
+                "rewardMode": progress["rewardMode"],
+                "rounds": len(progress["history"]),
+                "matchesPerRound": progress["matchesPerRound"],
+            }
     return policy
 
 
