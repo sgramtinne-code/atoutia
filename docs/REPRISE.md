@@ -20,7 +20,7 @@ Branche stable : `main`.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La priorité est la [partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure).
+Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). Le lot de lisibilité sépare les quatre cartes jouées des badges de siège et affiche l’atout dans le bandeau de score.
 
 **[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline livré, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -48,6 +48,6 @@ Les diagnostics de salons restent des commandes séparées en lecture seule ; au
 
 ## 4. Suite produit
 
-Valider le [parcours Android à quatre](../README.md#essai-android-à-quatre-avec-coupure) sur une base dédiée. Créer le salon, jouer avec les trois PNJ, couper et rétablir le transport Android, terminer la partie, puis retrouver le résultat dans l’historique. Corriger le premier écart observé.
+Sur la branche `fix/android-trick-card-layout`, vérifier la lisibilité du pli sur une partie à quatre. À 640 × 320 dp avec texte agrandi, les cartes doivent rester visibles pendant le jeu et sur la table finale. Vérifier aussi les enchères et l’atout dans le bandeau de score. La [procédure Android locale](../README.md#essai-android-à-quatre-avec-coupure) fournit le démarrage sur base de test.
 
 Le déploiement OVH, les demandes de diagnostic VPS, DNS, HTTPS et publication sont reportés selon la consigne explicite du 30 octobre. La configuration release déjà livrée reste disponible pour plus tard. Ne pas réinstaller d’environnement GPU, lancer un entraînement sur une machine supposée être le PC ou annoncer des modèles entraînés sans exécution réellement observée. Ne pas remplacer le chantier produit par des audits répétés sans défaut concret. Les anciennes attentes PR1–28 sont historiques et intégrées.
