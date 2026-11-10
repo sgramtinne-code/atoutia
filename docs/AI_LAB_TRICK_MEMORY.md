@@ -86,3 +86,18 @@ cat "$ATOUTIA_SEATS/run/report.json"
 ```
 
 La simulation des parties et la génération des données tournent sur CPU. Les poids sont entraînés sur CUDA. Les deux jeux de données, les checkpoints, les exports et le rapport sont enregistrés dans le nouveau dossier local.
+
+## Comparer les cartes dans les mêmes plis
+
+Le diagnostic rejoue les 256 indices de l’essai fixe/tournant à chacun des trois sièges PNJ. L’heuristique audacieuse mène les 768 parties de référence. Quand elle peut choisir entre plusieurs cartes, les six modèles évaluent exactement la même main, les mêmes cartes légales et le même historique public. La carte de référence est jouée pour poursuivre la partie. Les empreintes des exports doivent correspondre au rapport de l’étude.
+
+Le rapport ventile les désaccords par siège, position dans le pli, initialisation et variante. Une occasion de prendre la tête exige qu’un joueur ait déjà joué et que le modèle puisse choisir entre une carte qui prend la tête et une qui la laisse. `missedLead` compte les occasions où le modèle laisse la tête. `missedOpponentLead` isole celles où un adversaire était devant, parmi `opponentLeadOpportunities`. `tookLeadWithDifferentCard` compte les occasions où le modèle prend la tête avec une autre carte que la référence. En quatrième position, prendre la tête remporte le pli. Aux positions précédentes, les joueurs suivants peuvent encore le remporter. Ces compteurs décrivent des choix sur la trajectoire du PNJ actuel.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_STUDY="$PWD/ai-lab/data/bold-seat-imitation.EXEMPLE/run" &&
+ATOUTIA_DIAG=$(mktemp -d "$PWD/ai-lab/data/bold-card-diagnostic.XXXXXX") &&
+node ai-lab/diagnose-bold-cards.mjs "$ATOUTIA_STUDY" > "$ATOUTIA_DIAG/report.json" &&
+cat "$ATOUTIA_DIAG/report.json"
+```

@@ -20,7 +20,7 @@ Branche stable : `main`.
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le diagnostic des étapes d’apprentissage est intégré à `main` en **778a9f1** ([PR nº 42](https://github.com/sgramtinne-code/atoutia/pull/42)). Le lot **feat/ai-lab-bold-seat-imitation** compare à budget égal l’imitation de l’audacieux à une place fixe et aux trois places PNJ. [Protocole de comparaison](AI_LAB_TRICK_MEMORY.md#faire-tourner-laudacieux-pendant-limitation).
+L’essai d’imitation par place est intégré à `main` en **312ff21** ([PR nº 43](https://github.com/sgramtinne-code/atoutia/pull/43)). Le lot **feat/ai-lab-bold-card-diagnostic** compare les cartes choisies par les deux variantes dans les mêmes situations de pli. [Protocole de diagnostic](AI_LAB_TRICK_MEMORY.md#comparer-les-cartes-dans-les-mêmes-plis).
 
 **[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline livré, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -48,6 +48,6 @@ Les diagnostics de salons restent des commandes séparées en lecture seule ; au
 
 ## 4. Suite produit
 
-Le premier socle visuel est intégré. Poursuivre la table et la main de cartes avec retour des joueurs. Pour le chantier IA, lancer [l’imitation à place fixe et à places tournantes](AI_LAB_TRICK_MEMORY.md#faire-tourner-laudacieux-pendant-limitation). Comparer les écarts par siège et par initialisation sur les distributions réservées. Préparer un corpus de situations publiques et de répliques évaluées pour le chantier interactions. Prévoir des personnages identifiables par style et niveau et des répliques contextuelles désactivables. Suivre le [cap produit du laboratoire](AI_LAB_ROADMAP.md).
+Le premier socle visuel est intégré. Poursuivre la table et la main de cartes avec retour des joueurs. Pour le chantier IA, lancer [le diagnostic des choix de cartes](AI_LAB_TRICK_MEMORY.md#comparer-les-cartes-dans-les-mêmes-plis) avec les exports de l’essai d’imitation par place. Comparer les occasions manquées face à un adversaire, par siège et position dans le pli. Préparer un corpus de situations publiques et de répliques évaluées pour le chantier interactions. Prévoir des personnages identifiables par style et niveau et des répliques contextuelles désactivables. Suivre le [cap produit du laboratoire](AI_LAB_ROADMAP.md).
 
 Le déploiement OVH, les demandes de diagnostic VPS, DNS, HTTPS et publication sont reportés selon la consigne explicite du 30 octobre. La configuration release déjà livrée reste disponible pour plus tard. Ne pas réinstaller d’environnement GPU, lancer un entraînement sur une machine supposée être le PC ou annoncer des modèles entraînés sans exécution réellement observée. Ne pas remplacer le chantier produit par des audits répétés sans défaut concret. Les anciennes attentes PR1–28 sont historiques et intégrées.
