@@ -10,7 +10,7 @@ Application Android native de belote française à quatre joueurs, avec moteur T
 
 Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](docs/ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
 
-Le diagnostic des étapes d’apprentissage est intégré à `main` en **778a9f1** ([PR nº 42](https://github.com/sgramtinne-code/atoutia/pull/42)). Le lot **feat/ai-lab-bold-seat-imitation** compare à budget égal l’imitation de l’audacieux à une place fixe et aux trois places PNJ. [Protocole de comparaison](docs/AI_LAB_TRICK_MEMORY.md#faire-tourner-laudacieux-pendant-limitation).
+L’essai d’imitation par place est intégré à `main` en **312ff21** ([PR nº 43](https://github.com/sgramtinne-code/atoutia/pull/43)). Le lot **feat/ai-lab-bold-card-diagnostic** compare les cartes choisies par les deux variantes dans les mêmes situations de pli. [Protocole de diagnostic](docs/AI_LAB_TRICK_MEMORY.md#comparer-les-cartes-dans-les-mêmes-plis).
 
 **[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; le chantier IA précède désormais la reprise du déploiement. Le hors-ligne est une exigence, pas une option abandonnée.
 
