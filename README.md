@@ -77,8 +77,9 @@ node apps/backend/scripts/dev-android-network.mjs
 ```
 
 1. Une fois le relais ouvert, revenir à l’accueil si une ancienne partie est affichée. Se connecter si l’application le demande, puis choisir **Jouer en ligne → Jouer → Créer une partie**. Attendre **4/4** et démarrer.
-2. Jouer une carte, puis attendre le prochain tour du joueur Android. Taper **c** dans le terminal 3, attendre dix secondes et taper **r**. Vérifier que le même match, le score et la main reviennent. Jouer une carte et vérifier que les PNJ reprennent.
-3. Garder les terminaux ouverts et terminer la partie. Ouvrir **Historique** depuis l’écran du résultat et vérifier qu’une seule entrée correspond au résultat final. Taper **q** dans le terminal 3 pour restaurer le reverse direct, puis arrêter le backend de test avec **Ctrl+C** dans le terminal 1.
+2. Jouer une carte, puis attendre **À vous de jouer** et **En direct**. Taper **s** dans le terminal 3. Lorsque `TCP actives` vaut au moins 1, taper **c** et vérifier qu’au moins une connexion a été fermée. Attendre dix secondes, puis taper **r**.
+3. Laisser l’écran de jeu ouvert pendant 30 secondes sans appuyer sur **Réessayer**. Noter si **En direct** revient dans ce délai. Si l’écran reste en reconnexion, appuyer sur **Réessayer** et vérifier la reprise manuelle. Vérifier le score et la main, puis jouer une carte et vérifier que la révision avance et que les PNJ poursuivent la partie.
+4. Garder les terminaux ouverts et terminer la partie. Ouvrir **Historique** depuis l’écran du résultat et vérifier qu’une seule entrée correspond au résultat final. Taper **q** dans le terminal 3 pour restaurer le reverse direct, puis arrêter le backend de test avec **Ctrl+C** dans le terminal 1.
 
 ## Validation et données
 
