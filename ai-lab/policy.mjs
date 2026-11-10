@@ -75,8 +75,7 @@ export function legalScores(features, legal, weights) {
   });
 }
 
-export function predict(snapshot, seat, weights, history, styleIndex) {
-  const legal = snapshot.actions.legalCards;
+export function predict(snapshot, seat, weights, history, styleIndex, legal = snapshot.actions.legalCards) {
   const scores = legalScores(encodeFeatures(snapshot, seat, history, styleIndex), legal, weights);
   let best = 0;
   for (let i = 1; i < legal.length; i++) {

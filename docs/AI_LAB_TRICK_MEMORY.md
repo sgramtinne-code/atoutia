@@ -101,3 +101,20 @@ ATOUTIA_DIAG=$(mktemp -d "$PWD/ai-lab/data/bold-card-diagnostic.XXXXXX") &&
 node ai-lab/diagnose-bold-cards.mjs "$ATOUTIA_STUDY" > "$ATOUTIA_DIAG/report.json" &&
 cat "$ATOUTIA_DIAG/report.json"
 ```
+
+## Tester la règle du dernier joueur
+
+En quatrième position, si un adversaire mène le pli et que le modèle s’apprête à jouer une carte perdante, la variante testée choisit sa carte la mieux classée parmi les cartes légales qui remportent le pli. Le moteur calcule le gagnant. La règle utilise le pli public et les cartes légales du joueur. Elle s’applique uniquement dans ce banc.
+
+Les six modèles fixe et tournant sont testés aux trois sièges PNJ sur les mêmes 256 distributions inédites, d’indices 33024 à 33279. Chaque modèle joue avec et sans la règle, dans les mêmes conditions de départ. Le PNJ audacieux de référence joue une fois par distribution et par siège, pour un total de 9 984 parties. Une intervention peut changer la suite du match. Le banc mesure les résultats de l’équipe jusqu’à la fin de la partie.
+
+Le rapport donne les victoires et les bascules, la variation moyenne de marge, le nombre de cartes modifiées et le nombre de parties où la règle intervient. Les trois initialisations partagent les distributions.
+
+```bash
+pnpm --filter @atoutia/belote-engine build &&
+pnpm --filter @atoutia/offline-game build &&
+ATOUTIA_STUDY="$PWD/ai-lab/data/bold-seat-imitation.EXEMPLE/run" &&
+ATOUTIA_CLOSING=$(mktemp -d "$PWD/ai-lab/data/bold-closing-rule.XXXXXX") &&
+node ai-lab/benchmark-bold-closing-rule.mjs "$ATOUTIA_STUDY" > "$ATOUTIA_CLOSING/report.json" &&
+cat "$ATOUTIA_CLOSING/report.json"
+```
