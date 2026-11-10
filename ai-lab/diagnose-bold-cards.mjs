@@ -1,44 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   BELOTE_ENGINE_VERSION, CURRENT_MATCH_RULES_VERSION, getPlayerTeam, getTrickWinner, PLAYER_POSITIONS,
 } from "../packages/belote-engine/dist/index.js";
 import { boldStyle, boldTableAction } from "./bold-policy.mjs";
 import { cardId, playMatch } from "./pilot.mjs";
-import { loadPolicy, predict } from "./policy.mjs";
-
-const firstSeedIndex = 30720;
-const seeds = 256;
-const modes = ["fixed", "rotated"];
-
-function loadModels(directory) {
-  const study = JSON.parse(readFileSync(join(directory, "report.json"), "utf8"));
-  assert(
-    study?.format === "atoutia-bold-seat-imitation-study-v1"
-      && Array.isArray(study.repetitions) && study.repetitions.length === 3,
-    "Use a completed Bold seat imitation study",
-  );
-  return [1234, 1235, 1236].flatMap((seed, index) => {
-    const repetition = study.repetitions[index];
-    assert(
-      repetition?.format === "atoutia-bold-seat-imitation-pair-v1"
-        && repetition.training?.seed === seed && repetition.firstSeedIndex === firstSeedIndex && repetition.seeds === seeds
-        && repetition.engineVersion === BELOTE_ENGINE_VERSION && repetition.rulesVersion === CURRENT_MATCH_RULES_VERSION,
-      `Unexpected seat imitation report for seed ${seed}`,
-    );
-    return modes.map((mode) => {
-      const policy = loadPolicy(join(directory, `seed-${seed}`, `${mode}.json`));
-      assert(
-        policy.source.teacher === `bold-${mode}-v1`
-          && policy.initialCheckpointSha256 === undefined && policy.imitation.seed === seed
-          && policy.checkpointSha256 === repetition[`${mode}CheckpointSha256`],
-        `Policy does not match the completed study for seed ${seed}, ${mode}`,
-      );
-      return { seed, mode, policy };
-    });
-  });
-}
+import { loadBoldSeatModels, studyFirstSeedIndex as firstSeedIndex, studySeeds as seeds } from "./bold-seat-study.mjs";
+import { predict } from "./policy.mjs";
 
 function evaluateSeat(boldSeat, models) {
   const player = PLAYER_POSITIONS[boldSeat];
@@ -95,7 +62,7 @@ function evaluateSeat(boldSeat, models) {
 try {
   const directory = process.argv[2];
   assert(directory && process.argv.length === 3, "Supply the seat imitation study run directory");
-  const models = loadModels(directory);
+  const models = loadBoldSeatModels(directory);
   const bySeat = [1, 2, 3].map((seat) => evaluateSeat(seat, models));
   console.log(JSON.stringify({
     format: "atoutia-bold-card-diagnostic-v1",
