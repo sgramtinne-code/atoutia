@@ -136,7 +136,7 @@ class LandscapeGameScreenInstrumentedTest {
             assertTrue("Card outside table: $card / $table",
                 card.left >= table.left && card.right <= table.right &&
                     card.top >= table.top && card.bottom <= table.bottom)
-            assertTrue("Card must retain its full size: $card", card.width >= 53.dp && card.height >= 75.dp)
+            assertTrue("Card must retain its full size: $card", card.right - card.left >= 53.dp && card.bottom - card.top >= 75.dp)
             for (other in cards.drop(index + 1) + seats + status) {
                 assertTrue("Card overlaps another element: $card / $other", card.isDisjointFrom(other))
             }
