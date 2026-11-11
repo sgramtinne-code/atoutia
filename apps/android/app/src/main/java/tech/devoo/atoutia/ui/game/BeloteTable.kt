@@ -87,8 +87,9 @@ fun BeloteTable(
             shadowElevation = 6.dp,
         ) {
             val tablePadding = if (compact) 6.dp else 14.dp
+            val tableVerticalPadding = if (compact) 2.dp else tablePadding
             if (phase == DealPhase.BIDDING) {
-                Box(Modifier.fillMaxSize().padding(tablePadding)) {
+                Box(Modifier.fillMaxSize().padding(horizontal = tablePadding, vertical = tableVerticalPadding)) {
                     seat(topPlayer, Modifier.align(Alignment.TopCenter))
                     seat(leftPlayer, Modifier.align(Alignment.CenterStart))
                     seat(rightPlayer, Modifier.align(Alignment.CenterEnd))
@@ -100,7 +101,7 @@ fun BeloteTable(
                     PlayedCardSlot(trick.cardPlayedBy(player), player)
                 }
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(tablePadding),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = tablePadding, vertical = tableVerticalPadding),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
