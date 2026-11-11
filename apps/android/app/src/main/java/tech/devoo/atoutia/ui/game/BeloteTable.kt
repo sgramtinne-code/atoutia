@@ -116,7 +116,7 @@ fun BeloteTable(
                     Column(
                         modifier = Modifier.weight(1.55f),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
