@@ -10,6 +10,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -104,6 +107,8 @@ class LandscapeGameScreenInstrumentedTest {
         show(active, fontScale = 1.3f, presence = presence)
         assertHandVisible(active)
         assertPlayedCardsUnobstructed(plays.take(3))
+        compose.onNodeWithTag("table-seat-PLAYER_0", useUnmergedTree = true)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "En ligne"))
         compose.onNodeWithText("Pli · 3/4").assertIsDisplayed()
         compose.onNodeWithTag("table-card-PLAYER_0", useUnmergedTree = true).assertDoesNotExist()
 
@@ -112,7 +117,7 @@ class LandscapeGameScreenInstrumentedTest {
         }
         assertPlayedCardsUnobstructed(plays)
         compose.onNodeWithText("Pli · 4/4").assertIsDisplayed()
-        compose.onNodeWithText("Donne terminée").assertIsDisplayed()
+        compose.onNodeWithText("Partie terminée").assertIsDisplayed()
     }
 
     private fun withTrick(session: PlayerGameSession, plays: List<PlayedCardSnapshot>): PlayerGameSession {

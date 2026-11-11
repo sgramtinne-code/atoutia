@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -84,7 +86,7 @@ fun BeloteTable(
             border = BorderStroke(2.dp, TableGreenDark),
             shadowElevation = 6.dp,
         ) {
-            val tablePadding = if (compact) 10.dp else 14.dp
+            val tablePadding = if (compact) 6.dp else 14.dp
             if (phase == DealPhase.BIDDING) {
                 Box(Modifier.fillMaxSize().padding(tablePadding)) {
                     seat(topPlayer, Modifier.align(Alignment.TopCenter))
@@ -128,7 +130,7 @@ fun BeloteTable(
                             modifier = Modifier.testTag("table-trick-status"),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            if (phase == DealPhase.FINISHED) {
+                            if (phase == DealPhase.FINISHED && !compact) {
                                 Text(
                                     "Donne terminée",
                                     color = TableCream,
@@ -260,8 +262,9 @@ private fun PlayerSeatBadge(
         }
 
     Surface(
-        modifier =
-            modifier,
+        modifier = modifier.semantics {
+            connectionLabel?.let { stateDescription = it }
+        },
 
         shape =
             RoundedCornerShape(
@@ -419,8 +422,8 @@ private fun PlayerSeatBadge(
             }
 
             if (
-                connectionLabel !=
-                    null
+                connectionLabel != null &&
+                (!compact || connectionState != GameRealtimeConnectionStateName.CONNECTED)
             ) {
                 Text(
                     text =
