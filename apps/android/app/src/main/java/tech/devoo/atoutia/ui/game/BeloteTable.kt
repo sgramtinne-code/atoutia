@@ -62,7 +62,7 @@ fun BeloteTable(
     val rightPlayer = localPlayer.offsetBy(3)
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val compact = maxWidth >= 520.dp
+        val compact = maxWidth >= 520.dp || maxHeight <= 300.dp
         val seat: @Composable (PlayerPosition, Modifier) -> Unit = { player, seatModifier ->
             PlayerSeatBadge(
                 player = player,

@@ -125,8 +125,16 @@ class LandscapeGameScreenInstrumentedTest {
     }
 
     private fun assertPlayedCardsUnobstructed(plays: List<PlayedCardSnapshot>) {
-        fun bounds(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true)
-            .assertIsDisplayed().getUnclippedBoundsInRoot()
+        fun bounds(tag: String): DpRect {
+            val node = compose.onNodeWithTag(tag, useUnmergedTree = true)
+            try {
+                node.assertIsDisplayed()
+            } catch (failure: AssertionError) {
+                throw AssertionError("$tag / ${node.getUnclippedBoundsInRoot()}\n" +
+                    compose.onRoot(useUnmergedTree = true).printToString(), failure)
+            }
+            return node.getUnclippedBoundsInRoot()
+        }
 
         val table = bounds("belote-table")
         val cards = plays.map { bounds("table-card-${it.player.name}") }
