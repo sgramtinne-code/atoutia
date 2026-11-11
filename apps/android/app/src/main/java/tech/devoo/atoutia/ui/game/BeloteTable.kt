@@ -333,7 +333,7 @@ private fun PlayerSeatBadge(
                         if (
                             compact
                         ) {
-                            10.dp
+                            6.dp
                         } else {
                             12.dp
                         },
