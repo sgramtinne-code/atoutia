@@ -274,9 +274,6 @@ internal fun GameScreen(
                 phase =
                     publicMatch.phase,
 
-                trumpSuit =
-                    publicMatch.trumpSuit,
-
                 turnUpCard =
                     publicMatch.turnUpCard,
 

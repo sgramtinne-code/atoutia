@@ -10,6 +10,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -23,6 +26,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -82,6 +86,78 @@ class LandscapeGameScreenInstrumentedTest {
         compose.onNodeWithText("Retour à l’accueil").assertIsNotEnabled()
         assertHandVisible(session)
     }
+
+    @Test fun playedCardsStayClearOfSeatsAndStatusWithLargeText() {
+        val plays = listOf(
+            PlayedCardSnapshot(PlayerPosition.PLAYER_1, PlayerCard(CardSuit.SPADES, CardRank.SEVEN)),
+            PlayedCardSnapshot(PlayerPosition.PLAYER_2, PlayerCard(CardSuit.SPADES, CardRank.EIGHT)),
+            PlayedCardSnapshot(PlayerPosition.PLAYER_3, PlayerCard(CardSuit.SPADES, CardRank.NINE)),
+            PlayedCardSnapshot(PlayerPosition.PLAYER_0, PlayerCard(CardSuit.SPADES, CardRank.TEN)),
+        )
+        val active = withTrick(fixture(), plays.take(3))
+        val presence = GameRealtimePresence(
+            sessionId = active.sessionId,
+            players = emptyList(),
+            connectionStates = PlayerPosition.entries.map { player ->
+                GameRealtimeConnectionState(player, GameRealtimeConnectionStateName.CONNECTED, null, null)
+            },
+            absences = emptyList(),
+            resolutions = emptyList(),
+        )
+        show(active, fontScale = 1.3f, presence = presence)
+        assertHandVisible(active)
+        assertPlayedCardsUnobstructed(plays.take(3))
+        compose.onNodeWithTag("table-seat-PLAYER_0", useUnmergedTree = true)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "En ligne"))
+        compose.onNodeWithText("Pli · 3/4").assertIsDisplayed()
+        compose.onNodeWithTag("table-card-PLAYER_0", useUnmergedTree = true).assertDoesNotExist()
+
+        compose.runOnIdle {
+            displayedSession.value = withTrick(fixture(PlayerActionMode.MATCH_FINISHED), plays)
+        }
+        assertPlayedCardsUnobstructed(plays)
+        compose.onNodeWithText("Pli · 4/4").assertIsDisplayed()
+        compose.onNodeWithText("Partie terminée").assertIsDisplayed()
+    }
+
+    private fun withTrick(session: PlayerGameSession, plays: List<PlayedCardSnapshot>): PlayerGameSession {
+        val snapshot = session.document.snapshot
+        return session.copy(document = session.document.copy(snapshot = snapshot.copy(
+            match = snapshot.match.copy(publicMatch = snapshot.match.publicMatch.copy(
+                currentTrick = PublicCurrentTrickSnapshot(session.player, plays),
+            )),
+        )))
+    }
+
+    private fun assertPlayedCardsUnobstructed(plays: List<PlayedCardSnapshot>) {
+        fun bounds(tag: String): DpRect {
+            val node = compose.onNodeWithTag(tag, useUnmergedTree = true)
+            try {
+                node.assertIsDisplayed()
+            } catch (failure: AssertionError) {
+                throw AssertionError("$tag / ${node.getUnclippedBoundsInRoot()}\n" +
+                    compose.onRoot(useUnmergedTree = true).printToString(), failure)
+            }
+            return node.getUnclippedBoundsInRoot()
+        }
+
+        val table = bounds("belote-table")
+        val cards = plays.map { bounds("table-card-${it.player.name}") }
+        val seats = PlayerPosition.entries.map { bounds("table-seat-${it.name}") }
+        val status = bounds("table-trick-status")
+        cards.forEachIndexed { index, card ->
+            assertTrue("Card outside table: $card / $table",
+                card.left >= table.left && card.right <= table.right &&
+                    card.top >= table.top && card.bottom <= table.bottom)
+            assertTrue("Card must retain its full size: $card", card.right - card.left >= 53.dp && card.bottom - card.top >= 75.dp)
+            for (other in cards.drop(index + 1) + seats + status) {
+                assertTrue("Card overlaps another element: $card / $other", card.isDisjointFrom(other))
+            }
+        }
+    }
+
+    private fun DpRect.isDisjointFrom(other: DpRect) =
+        right <= other.left || left >= other.right || bottom <= other.top || top >= other.bottom
 
     @Test fun updatedSnapshotRemovesPlayedCardAndKeepsRemainingCardsPlayable() {
         val initial = fixture()
@@ -245,7 +321,11 @@ class LandscapeGameScreenInstrumentedTest {
         }
     }
 
-    private fun show(session: PlayerGameSession, fontScale: Float = 1f) {
+    private fun show(
+        session: PlayerGameSession,
+        fontScale: Float = 1f,
+        presence: GameRealtimePresence? = null,
+    ) {
         displayedSession.value = session
         compose.setContent {
             val density = LocalDensity.current
@@ -254,6 +334,7 @@ class LandscapeGameScreenInstrumentedTest {
                     Box(Modifier.requiredSize(640.dp, 320.dp).testTag("test-viewport")) {
                         GameScreen(
                             session = requireNotNull(displayedSession.value),
+                            presence = presence,
                             playCardState = submitted.value,
                             onPlayCard = { selected.add(it) },
                             onBiddingAction = { bids.add(it) },
