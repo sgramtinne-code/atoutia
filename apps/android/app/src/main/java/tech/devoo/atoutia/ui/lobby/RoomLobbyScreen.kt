@@ -586,7 +586,7 @@ private fun RoomLobbyContent(
     val actions: @Composable () -> Unit = {
         if (isHost) {
             Button(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("lobby-start"),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("lobby-start"),
                 enabled = onStartRoom != null && isRoomReadyToStart && !isStarting && !isLeaving,
                 onClick = { onStartRoom?.invoke() },
             ) {
@@ -595,7 +595,7 @@ private fun RoomLobbyContent(
         }
         if (onLeaveRoom != null) {
             OutlinedButton(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("lobby-leave"),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("lobby-leave"),
                 enabled = !isLeaving && !isStarting,
                 onClick = onLeaveRoom,
             ) {

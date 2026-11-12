@@ -129,7 +129,7 @@ class RoomInvitationInstrumentedTest {
             assertTrue("Action outside viewport: $tag / $bounds / $viewport",
                 bounds.left >= viewport.left && bounds.right <= viewport.right &&
                     bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
-            assertTrue("Touch target below 48 dp: $tag", bounds.bottom - bounds.top >= 48.dp)
+            assertTrue("Touch target below 48 dp: $tag / $bounds", bounds.bottom - bounds.top >= 48.dp)
         }
         compose.onNodeWithTag("lobby-player-count").assertIsDisplayed()
     }
@@ -213,7 +213,7 @@ class RoomInvitationInstrumentedTest {
             assertEquals(listOf(code, code), pending.map { it.first })
             pending[1].second(JoinRoomResult.Joined(joined))
         }
-        compose.onNodeWithText("Salon Atoutia").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Salon Atoutia").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf(joined), saved) }
     }
 
