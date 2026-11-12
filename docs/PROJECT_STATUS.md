@@ -1,6 +1,6 @@
 # ATOUTIA — bilan global, exigences et feuille de route
 
-**8 novembre 2026.** Bilan fondé sur le code, les preuves de CI publiques et les deux spécifications de référence : règles initiales 0.1.0 (50 rubriques) et ancien prompt de reprise (19 rubriques). Le cap produit historique complète ces textes techniques. Aucun pourcentage global non mesuré n’est annoncé.
+**12 novembre 2026.** Bilan fondé sur le code, les preuves de CI publiques et les deux spécifications de référence : règles initiales 0.1.0 (50 rubriques) et ancien prompt de reprise (19 rubriques). Le cap produit historique complète ces textes techniques. Aucun pourcentage global non mesuré n’est annoncé.
 
 ## 1. État réel
 
@@ -8,9 +8,9 @@ Un socle de belote multijoueur locale fonctionne : moteur TypeScript, backend au
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Poursuivre le multijoueur Android, la lisibilité et l’ergonomie pour les personnes âgées. L’entraînement des PNJ sur la RTX 5070 est en pause. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
-Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
+Base stable **d43ab70**, [PR nº 47](https://github.com/sgramtinne-code/atoutia/pull/47) fusionnée. Les trois workflows de PR et de push main ont réussi. Le dernier lot comprend **266 tests JVM et 53 tests sur émulateur**, avec contrôle des cartes du pli à 640 × 320 dp et texte agrandi à 1,3. Le [socle visuel](ANDROID_VISUAL_IDENTITY.md) et les lots PR20–46 sont intégrés.
 
-Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). Le lot de lisibilité sépare les quatre cartes jouées des badges de siège et affiche l’atout dans le bandeau de score.
+Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. La branche `feat/android-lobby-layout` poursuit le salon en paysage avec invitations défilantes et boutons Démarrer/Quitter dans une zone fixe. Ses validations sont à vérifier avant fusion.
 
 Les résultats de tests sont des preuves ciblées, pas une garantie de zéro bug ou une homologation production. Les instrumentés existants ne testent pas les nouveaux cas HTTP JVM sur le PC du développeur.
 

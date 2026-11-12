@@ -2,6 +2,10 @@ package tech.devoo.atoutia.ui.lobby
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -482,498 +488,166 @@ fun RoomLobbyScreen(
 private fun RoomLobbyContent(
     onCopyInvitation: ((String) -> Unit)?,
     onShareInvitation: ((String) -> Unit)?,
-    membership:
-        RoomSessionMembership,
-
-    realtimeState:
-        RoomLobbyRealtimeUiState,
-
-    startState:
-        RoomLobbyStartUiState,
-
-    onStartRoom:
-        (() -> Unit)?,
-
-    leaveState:
-        RoomLobbyLeaveUiState,
-
-    onLeaveRoom:
-        (() -> Unit)?,
-
-    modifier:
-        Modifier =
-            Modifier,
+    membership: RoomSessionMembership,
+    realtimeState: RoomLobbyRealtimeUiState,
+    startState: RoomLobbyStartUiState,
+    onStartRoom: (() -> Unit)?,
+    leaveState: RoomLobbyLeaveUiState,
+    onLeaveRoom: (() -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
-    val room =
-        membership.room
+    val room = membership.room
+    val player = membership.player
+    val isHost = player == PlayerPosition.PLAYER_0
+    val isRoomReadyToStart = room.phase == "READY" &&
+        room.occupiedSeats == PlayerPosition.entries.size &&
+        room.seats.occupiedCount == PlayerPosition.entries.size
+    val isStarting = startState is RoomLobbyStartUiState.Starting
+    val isLeaving = leaveState is RoomLobbyLeaveUiState.Leaving
 
-    val player =
-        membership.player
-
-    val isHost =
-        player ==
-            PlayerPosition.PLAYER_0
-
-    val isRoomReadyToStart =
-        room.phase ==
-            "READY" &&
-            room.occupiedSeats ==
-                PlayerPosition.entries.size &&
-            room.seats.occupiedCount ==
-                PlayerPosition.entries.size
-
-    val isStarting =
-        startState is
-            RoomLobbyStartUiState.Starting
-
-    val isLeaving =
-        leaveState is
-            RoomLobbyLeaveUiState.Leaving
-
-    val scrollState =
-        rememberScrollState()
-
-    Scaffold(
-        modifier =
-            modifier.fillMaxSize(),
-    ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(
-                        innerPadding,
-                    )
-                    .verticalScroll(
-                        scrollState,
-                    )
-                    .padding(
-                        horizontal =
-                            24.dp,
-
-                        vertical =
-                            32.dp,
-                    ),
-
-            verticalArrangement =
-                Arrangement.Top,
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
+    val header: @Composable () -> Unit = {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text =
-                    "Salon Atoutia",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .displaySmall,
-
-                fontWeight =
-                    FontWeight.Bold,
+                "Salon Atoutia",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
             )
+            Text(room.mode.toDisplayName(), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 
+    val details: @Composable () -> Unit = {
+        RealtimeStatus(state = realtimeState)
+        Text("Votre place · ${player.toDisplayName()}", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            if (isRoomReadyToStart) "Les quatre joueurs sont prêts." else "En attente des autres joueurs.",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        if (isHost && !isRoomReadyToStart && !isStarting) {
             Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            8.dp,
-                    ),
-
-                text =
-                    "En attente des autres joueurs.",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
+                if (room.occupiedSeats < PlayerPosition.entries.size)
+                    "Le démarrage sera disponible lorsque les 4 joueurs seront présents."
+                else "Le salon attend la confirmation du serveur avant le démarrage.",
+                style = MaterialTheme.typography.bodyMedium,
             )
+        }
+        OutlinedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Invitations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (room.mode == MatchMode.PRIVATE && room.phase in setOf("WAITING_FOR_PLAYERS", "READY")) {
+                    RoomInvitationPanel(
+                        sessionId = room.sessionId,
+                        enabled = room.phase == "WAITING_FOR_PLAYERS" && room.occupiedSeats in 1..3 &&
+                            !isStarting && !isLeaving,
+                        onCopy = onCopyInvitation,
+                        onShare = onShareInvitation,
+                    )
+                }
+                Text("Identifiant de la partie", style = MaterialTheme.typography.labelLarge)
+                SelectionContainer {
+                    Text(room.sessionId, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        if (startState is RoomLobbyStartUiState.Failed) {
+            Text(startState.message, color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium)
+        }
+        if (leaveState is RoomLobbyLeaveUiState.Failed) {
+            Text(leaveState.message, color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 
-            RealtimeStatus(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            12.dp,
-                    ),
-
-                state =
-                    realtimeState,
+    val overview: @Composable () -> Unit = {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Joueurs", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "${room.occupiedSeats} / 4",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("lobby-player-count"),
             )
+        }
+        if (!isHost) {
+            Text("L’hôte démarrera la partie.", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 
-            OutlinedCard(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top =
-                                28.dp,
-                        ),
+    val actions: @Composable () -> Unit = {
+        if (isHost) {
+            Button(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("lobby-start"),
+                enabled = onStartRoom != null && isRoomReadyToStart && !isStarting && !isLeaving,
+                onClick = { onStartRoom?.invoke() },
             ) {
+                Text(if (isStarting) "Démarrage en cours…" else "Démarrer la partie", textAlign = TextAlign.Center)
+            }
+        }
+        if (onLeaveRoom != null) {
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("lobby-leave"),
+                enabled = !isLeaving && !isStarting,
+                onClick = onLeaveRoom,
+            ) {
+                Text(if (isLeaving) "Sortie en cours…" else "Quitter le salon", textAlign = TextAlign.Center)
+            }
+        }
+    }
+
+    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val landscape = maxWidth > maxHeight && maxWidth >= 600.dp
+            if (landscape) {
                 Column(
-                    modifier =
-                        Modifier.padding(
-                            20.dp,
-                        ),
+                    modifier = Modifier.fillMaxSize().padding(innerPadding).padding(12.dp)
+                        .testTag("lobby-landscape-layout"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text =
-                            "Identifiant de la partie",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelLarge,
-                    )
-
-                    SelectionContainer {
-                        Text(
-                            modifier =
-                                Modifier.padding(
-                                    top =
-                                        6.dp,
-                                ),
-
-                            text =
-                                room.sessionId,
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodyLarge,
-
-                            fontWeight =
-                                FontWeight.Bold,
-                        )
+                    header()
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(
+                            modifier = Modifier.weight(1.15f).fillMaxHeight()
+                                .verticalScroll(rememberScrollState()).testTag("lobby-details"),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) { details() }
+                        Column(
+                            modifier = Modifier.weight(1f).fillMaxHeight().testTag("lobby-actions"),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedCard(Modifier.weight(1f).fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) { overview() }
+                            }
+                            actions()
+                        }
                     }
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    6.dp,
-                            ),
-
-                        text =
-                            "Partage ce code avec les joueurs que tu souhaites inviter.",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-                    )
-
-                    if (room.mode == MatchMode.PRIVATE && room.phase in setOf("WAITING_FOR_PLAYERS", "READY")) {
-                        RoomInvitationPanel(
-                            sessionId = room.sessionId,
-                            enabled = room.phase == "WAITING_FOR_PLAYERS" && room.occupiedSeats in 1..3 && !isStarting && !isLeaving,
-                            modifier = Modifier.padding(top = 12.dp),
-                            onCopy = onCopyInvitation,
-                            onShare = onShareInvitation,
-                        )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding)
+                        .verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    header()
+                    details()
+                    OutlinedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            overview()
+                        }
                     }
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
-                        text =
-                            "Mode",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelLarge,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    6.dp,
-                            ),
-
-                        text =
-                            room.mode
-                                .toDisplayName(),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyLarge,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
-                        text =
-                            "Joueurs",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelLarge,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    6.dp,
-                            ),
-
-                        text =
-                            "${room.occupiedSeats} / 4",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .headlineSmall,
-
-                        fontWeight =
-                            FontWeight.Bold,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
-                        text =
-                            "Révision serveur",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelLarge,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    6.dp,
-                            ),
-
-                        text =
-                            room.revision
-                                .toString(),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyLarge,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    20.dp,
-                            ),
-
-                        text =
-                            "Votre place",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelLarge,
-                    )
-
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    6.dp,
-                            ),
-
-                        text =
-                            player
-                                .toDisplayName(),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyLarge,
-
-                        fontWeight =
-                            FontWeight.Bold,
-                    )
-                }
-            }
-
-            Text(
-                modifier =
-                    Modifier.padding(
-                        top =
-                            24.dp,
-                    ),
-
-                text =
-                    "Votre siège ${player.name} est réservé sur le serveur Atoutia.",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                textAlign =
-                    TextAlign.Center,
-            )
-
-            if (
-                isHost
-            ) {
-                Button(
-                    modifier =
-                        Modifier.padding(
-                            top =
-                                24.dp,
-                        ),
-
-                    enabled =
-                        onStartRoom !=
-                            null &&
-                            isRoomReadyToStart &&
-                            !isStarting &&
-                            !isLeaving,
-
-                    onClick = {
-                        onStartRoom
-                            ?.invoke()
-                    },
-                ) {
-                    Text(
-                        text =
-                            if (
-                                isStarting
-                            ) {
-                                "Démarrage en cours…"
-                            } else {
-                                "Démarrer la partie"
-                            },
-                    )
-                }
-
-                if (
-                    !isRoomReadyToStart &&
-                    !isStarting
-                ) {
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    12.dp,
-                            ),
-
-                        text =
-                            if (
-                                room.occupiedSeats <
-                                    PlayerPosition.entries.size
-                            ) {
-                                "Le démarrage sera disponible lorsque les 4 joueurs seront présents."
-                            } else {
-                                "Le salon attend la confirmation du serveur avant le démarrage."
-                            },
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        textAlign =
-                            TextAlign.Center,
-                    )
-                }
-
-                if (
-                    startState is
-                        RoomLobbyStartUiState.Failed
-                ) {
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    12.dp,
-                            ),
-
-                        text =
-                            startState.message,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        textAlign =
-                            TextAlign.Center,
-                    )
-                }
-            }
-
-            if (
-                onLeaveRoom !=
-                    null
-            ) {
-                Button(
-                    modifier =
-                        Modifier.padding(
-                            top =
-                                24.dp,
-                        ),
-
-                    enabled =
-                        !isLeaving &&
-                            !isStarting,
-
-                    onClick =
-                        onLeaveRoom,
-                ) {
-                    Text(
-                        text =
-                            if (
-                                leaveState is
-                                    RoomLobbyLeaveUiState.Leaving
-                            ) {
-                                "Sortie en cours…"
-                            } else {
-                                "Quitter le salon"
-                            },
-                    )
-                }
-
-                if (
-                    leaveState is
-                        RoomLobbyLeaveUiState.Failed
-                ) {
-                    Text(
-                        modifier =
-                            Modifier.padding(
-                                top =
-                                    12.dp,
-                            ),
-
-                        text =
-                            leaveState.message,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        textAlign =
-                            TextAlign.Center,
-                    )
+                    actions()
                 }
             }
         }
