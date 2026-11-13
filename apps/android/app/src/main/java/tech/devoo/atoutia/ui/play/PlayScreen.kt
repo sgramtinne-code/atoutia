@@ -151,10 +151,10 @@ fun PlayScreen(
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
-        BoxWithConstraints(Modifier.fillMaxSize().padding(innerPadding)) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
             val landscape = maxWidth >= 600.dp && maxWidth > maxHeight
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
