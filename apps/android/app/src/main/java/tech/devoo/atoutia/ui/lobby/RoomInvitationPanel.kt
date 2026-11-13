@@ -2,8 +2,9 @@ package tech.devoo.atoutia.ui.lobby
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,9 +30,9 @@ internal fun RoomInvitationPanel(
     val text = remember(sessionId) { RoomInvitation.parse(sessionId)?.let(RoomInvitation::create) }
     var feedback by remember(sessionId) { mutableStateOf<String?>(null) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Invite tes amis : ils pourront coller cette invitation dans Rejoindre une partie.")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.weight(1f).testTag("copy-room-invitation"),
+        Text("Partage l’invitation avec tes amis. Ils pourront la coller dans Atoutia.", style = MaterialTheme.typography.bodyMedium)
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("copy-room-invitation"),
                 onClick = {
                     if (enabled && text != null) {
                         feedback = try {
@@ -40,7 +41,7 @@ internal fun RoomInvitationPanel(
                         } catch (_: Exception) { "Impossible de copier l’invitation. Tu peux sélectionner le code du salon." }
                     }
                 }) { Text("Copier l’invitation") }
-            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.weight(1f).testTag("share-room-invitation"),
+            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("share-room-invitation"),
                 onClick = {
                     if (enabled && text != null) {
                         feedback = try {

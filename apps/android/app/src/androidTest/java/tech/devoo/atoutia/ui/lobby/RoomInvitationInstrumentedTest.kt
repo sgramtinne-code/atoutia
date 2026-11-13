@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -180,6 +182,87 @@ class RoomInvitationInstrumentedTest {
         val directory = File(compose.activity.cacheDir, "visual-qa").also { check(it.exists() || it.mkdirs()) }
         val bitmap = compose.onNodeWithTag("lobby-test-viewport").captureToImage().asAndroidBitmap()
         File(directory, name).outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+    }
+
+    @Test fun landscapeEntryShowsBothChoicesAndRecognizesPasteBeforeAnyJoin() {
+        val value = mutableStateOf("")
+        val state = mutableStateOf<RoomActionUiState>(RoomActionUiState.Idle)
+        var reads = 0
+        var joins = 0
+        compose.setContent {
+            SmallScreen { PlayScreen(state.value, value.value, { value.value = it }, {},
+                { joins++; state.value = RoomActionUiState.Joining }, {}, readInvitation = { reads++; code }) }
+        }
+        val viewport = compose.onNodeWithTag("lobby-test-viewport").getUnclippedBoundsInRoot()
+        for (tag in listOf("create-private-room", "paste-room-invitation")) {
+            val bounds = compose.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("Choice must be fully visible without scrolling: $tag / $bounds / $viewport",
+                bounds.top >= viewport.top && bounds.bottom <= viewport.bottom &&
+                    bounds.left >= viewport.left && bounds.right <= viewport.right)
+            assertTrue(bounds.bottom - bounds.top >= 48.dp)
+        }
+        val create = compose.onNodeWithTag("create-room-card").getUnclippedBoundsInRoot()
+        val join = compose.onNodeWithTag("join-room-card").getUnclippedBoundsInRoot()
+        assertTrue("Landscape choices must sit side by side", create.right <= join.left)
+        captureLobby("join-entry.png")
+        compose.runOnIdle { assertEquals(0, reads); assertEquals(0, joins) }
+        compose.onNodeWithTag("paste-room-invitation").performClick()
+        compose.onNodeWithTag("invitation-ready", useUnmergedTree = true).performScrollTo()
+            .assertTextEquals("Invitation reconnue. Confirme pour entrer.")
+        compose.runOnIdle { assertEquals(code, value.value); assertEquals(1, reads); assertEquals(0, joins) }
+        compose.onNodeWithTag("join-private-room").performScrollTo().assertIsDisplayed().assertIsEnabled()
+        captureLobby("join-ready.png")
+        compose.onNodeWithTag("join-private-room").performClick()
+        compose.onNodeWithTag("paste-room-invitation").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("create-private-room").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("play-back").performScrollTo().assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(1, joins); assertEquals(1, reads) }
+    }
+
+    @Test fun invitationButtonsKeepWholeLabelsAndLargeTouchTargetsInTheNarrowLobbyColumn() {
+        compose.setContent {
+            SmallScreen { RoomLobbyScreen(room, PlayerPosition.PLAYER_0, onLeaveRoom = {},
+                connectRealtime = { _, sink -> sink.onConnected(); AutoCloseable {} }) }
+        }
+        for ((tag, label) in listOf("copy-room-invitation" to "Copier l’invitation", "share-room-invitation" to "Partager")) {
+            val bounds = compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().getUnclippedBoundsInRoot()
+            val viewport = compose.onNodeWithTag("lobby-details").getUnclippedBoundsInRoot()
+            assertTrue("Invitation action must fit the column: $bounds / $viewport",
+                bounds.left >= viewport.left && bounds.right <= viewport.right &&
+                    bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
+            assertTrue(bounds.bottom - bounds.top >= 48.dp)
+            val layouts = mutableListOf<TextLayoutResult>()
+            compose.onNodeWithText(label, useUnmergedTree = true)
+                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            assertTrue(layouts.isNotEmpty())
+            assertTrue("Invitation labels must not wrap or overflow", layouts.all { it.lineCount == 1 && !it.hasVisualOverflow })
+        }
+        captureLobby("invitation-actions.png")
+    }
+
+    @Test fun narrowEntryStacksChoicesAndKeepsPasteAndConfirmationReachable() {
+        val value = mutableStateOf("")
+        var joins = 0
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.3f)) {
+                AtoutiaTheme {
+                    Box(Modifier.requiredSize(320.dp, 320.dp).testTag("lobby-test-viewport")) {
+                        PlayScreen(RoomActionUiState.Idle, value.value, { value.value = it }, {}, { joins++ }, {},
+                            readInvitation = { code })
+                    }
+                }
+            }
+        }
+        val create = compose.onNodeWithTag("create-room-card").getUnclippedBoundsInRoot()
+        val join = compose.onNodeWithTag("join-room-card").getUnclippedBoundsInRoot()
+        assertTrue("Narrow choices must stack", join.top >= create.bottom)
+        compose.onNodeWithTag("paste-room-invitation").performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(0, joins); assertEquals(code, value.value) }
+        compose.onNodeWithTag("join-private-room").performScrollTo().assertIsDisplayed().assertIsEnabled()
+        captureLobby("join-narrow.png")
+        compose.onNodeWithTag("join-private-room").performClick()
+        compose.runOnIdle { assertEquals(1, joins) }
     }
 
     @Test fun lobbyCopiesARealSensitiveClipAndBuildsATextOnlyShareFromTheCurrentRoom() {
