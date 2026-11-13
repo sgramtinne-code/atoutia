@@ -237,9 +237,18 @@ class RoomInvitationInstrumentedTest {
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue(layouts.isNotEmpty())
             captureLobby("invitation-actions.png")
-            assertTrue("Invitation label $label must not wrap or overflow: " + layouts.map {
-                "lines=" + it.lineCount + ", size=" + it.size + ", overflow=" + it.hasVisualOverflow
-            }, layouts.all { it.lineCount == 1 && !it.hasVisualOverflow })
+            // Paragraph dimensions are fractional; the layout size uses integer pixels.
+            // Check every visible character and line bounds, allowing one pixel for rounding.
+            assertTrue("Invitation label $label must be fully rendered: " + layouts.map {
+                "lines=" + it.lineCount + ", size=" + it.size + ", paragraph=" +
+                    it.multiParagraph.width + "x" + it.multiParagraph.height +
+                    ", line=" + it.getLineLeft(0) + ".." + it.getLineRight(0)
+            }, layouts.all {
+                it.lineCount == 1 && !it.isLineEllipsized(0) &&
+                    it.getLineEnd(0, visibleEnd = true) == label.length &&
+                    it.getLineLeft(0) >= -1f && it.getLineRight(0) <= it.size.width + 1f &&
+                    it.getLineTop(0) >= -1f && it.getLineBottom(0) <= it.size.height + 1f
+            })
         }
         captureLobby("invitation-actions.png")
     }
