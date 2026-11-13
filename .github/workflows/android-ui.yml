@@ -264,7 +264,7 @@ jobs:
           result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-invitations-result.txt").read_text()
           passed = bool(re.search(r"^OK \(9 tests\)\s*$", result, re.MULTILINE))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Private room invitations: " + ("8/8 passed" if passed else "FAILED") + "\n")
+              summary.write("Private room invitations: " + ("9/9 passed" if passed else "FAILED") + "\n")
           if not passed:
               raise SystemExit("The nine private room invitation tests did not all pass.")
           PYTHON
