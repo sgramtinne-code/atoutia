@@ -31,6 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -521,6 +523,38 @@ private fun RoomLobbyContent(
         }
     }
 
+    val roster: @Composable () -> Unit = {
+        OutlinedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Places et équipes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                PlayerPosition.entries.forEach { seat ->
+                    val occupied = room.seats.isOccupied(seat)
+                    val role = when {
+                        seat == player -> if (isHost) "Vous · Hôte" else "Vous"
+                        seat.ordinal % 2 == player.ordinal % 2 -> "Partenaire"
+                        else -> "Adversaire"
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().testTag("lobby-seat-${seat.name}").semantics(mergeDescendants = true) {
+                            stateDescription = if (occupied) "Place occupée" else "Place libre"
+                        },
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(seat.toDisplayName(), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Column(Modifier.weight(1.25f)) {
+                            Text(role, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            if (seat == PlayerPosition.PLAYER_0 && !isHost) {
+                                Text("Hôte", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        Text(if (occupied) "Occupée" else "Libre", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    }
+
     val details: @Composable () -> Unit = {
         RealtimeStatus(state = realtimeState)
         Text("Votre place · ${player.toDisplayName()}", style = MaterialTheme.typography.bodyMedium)
@@ -536,6 +570,7 @@ private fun RoomLobbyContent(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        roster()
         OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Invitations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

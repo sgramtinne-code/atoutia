@@ -122,6 +122,47 @@ class RoomInvitationInstrumentedTest {
         compose.runOnIdle { assertEquals(listOf(guest), leaves) }
     }
 
+    @Test fun rosterShowsRelativeTeamsAndUpdatesOccupiedSeatsWithoutMovingActions() {
+        val listener = AtomicReference<RoomLobbyRealtimeCoordinator.Listener?>()
+        val guest = PlayerPosition.PLAYER_1
+        val initial = room.copy(revision = 2, occupiedSeats = 2, seats = LiveRoomSeats(true, true, false, false))
+        compose.setContent {
+            SmallScreen {
+                RoomLobbyScreen(initial, guest, onLeaveRoom = {},
+                    connectRealtime = { _, sink -> listener.set(sink); sink.onConnected(); AutoCloseable {} })
+            }
+        }
+        compose.waitUntil(5_000) { listener.get() != null }
+        val leaveBounds = compose.onNodeWithTag("lobby-leave").getUnclippedBoundsInRoot()
+        fun seat(player: PlayerPosition) = compose.onNodeWithTag("lobby-seat-${player.name}")
+        seat(guest).performScrollTo().assertIsDisplayed().assertTextContains("Vous")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Place occupée"))
+        seat(PlayerPosition.PLAYER_0).performScrollTo().assertIsDisplayed().assertTextContains("Adversaire")
+            .assertTextContains("Hôte")
+        seat(PlayerPosition.PLAYER_2).performScrollTo().assertIsDisplayed().assertTextContains("Adversaire")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Place libre"))
+        seat(PlayerPosition.PLAYER_3).performScrollTo().assertIsDisplayed().assertTextContains("Partenaire")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Place libre"))
+        compose.runOnIdle {
+            listener.get()!!.onRoomUpdated(RoomSessionMembership(initial.copy(revision = 4, phase = "READY",
+                occupiedSeats = 4, seats = LiveRoomSeats(true, true, true, true)), guest))
+        }
+        seat(PlayerPosition.PLAYER_3).performScrollTo().assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Place occupée"))
+        compose.onNodeWithTag("lobby-leave").assertIsDisplayed().assertIsEnabled()
+        assertEquals(leaveBounds, compose.onNodeWithTag("lobby-leave").getUnclippedBoundsInRoot())
+        compose.onNodeWithTag("lobby-start").assertDoesNotExist()
+        val details = compose.onNodeWithTag("lobby-details").getUnclippedBoundsInRoot()
+        PlayerPosition.entries.forEach { position ->
+            val bounds = seat(position).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("Every player row must be fully readable together: $position / $bounds / $details",
+                bounds.top >= details.top && bounds.bottom <= details.bottom &&
+                    bounds.left >= details.left && bounds.right <= details.right)
+        }
+        captureLobby("lobby-players.png")
+        compose.onNodeWithTag("lobby-player-count").assertTextEquals("4 / 4")
+    }
+
     private fun assertMainLobbyActionsVisible() {
         val viewport = compose.onNodeWithTag("lobby-test-viewport").getUnclippedBoundsInRoot()
         for (tag in listOf("lobby-start", "lobby-leave")) {
