@@ -2,15 +2,15 @@
 
 Application Android native de belote française à quatre joueurs, avec moteur TypeScript indépendant et backend multijoueur autoritaire.
 
-## État au 12 novembre 2026
+## État au 13 novembre 2026
 
 **Cap PNJ.** Entraîner sur RTX 5070 un ensemble de joueurs de belote avec des styles cohérents et des niveaux mesurés. Faire varier les tables et donner à chaque personnage de courtes répliques contextuelles, désactivables. Faire grandir les campagnes locales selon les progrès et les limites mesurées. Android exécute les politiques retenues en solo hors ligne. [Feuille de route IA](docs/AI_LAB_ROADMAP.md).
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Poursuivre le multijoueur Android, la lisibilité et l’ergonomie pour les personnes âgées. L’entraînement des PNJ sur la RTX 5070 est en pause. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
-Base stable **d43ab70**, [PR nº 47](https://github.com/sgramtinne-code/atoutia/pull/47) fusionnée. Les trois workflows de PR et de push main ont réussi. Le dernier lot comprend **266 tests JVM et 53 tests sur émulateur**, avec contrôle des cartes du pli à 640 × 320 dp et texte agrandi à 1,3. Le [socle visuel](docs/ANDROID_VISUAL_IDENTITY.md) et les lots PR20–46 sont intégrés.
+Base stable **468dd34**, [PR nº 48](https://github.com/sgramtinne-code/atoutia/pull/48) fusionnée. Les trois workflows de cette PR ont réussi, avec **266 tests JVM et 55 tests sur émulateur**. Le salon conserve les actions principales en paysage. La PR nº 47 couvre les cartes du pli à 640 × 320 dp et texte agrandi à 1,3. Le [socle visuel](docs/ANDROID_VISUAL_IDENTITY.md) et les lots PR20–47 sont intégrés.
 
-Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. La branche `feat/android-lobby-layout` poursuit le salon en paysage avec invitations défilantes et boutons Démarrer/Quitter dans une zone fixe. Ses validations sont à vérifier avant fusion.
+Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. Le salon en paysage est intégré par la PR nº 48. La [PR nº 49](https://github.com/sgramtinne-code/atoutia/pull/49), branche `fix/android-hand-readability`, améliore la sélection de la main et ajoute « Agrandir la main » : grandes cartes séparées, actions autorisées conservées et retour au jeu après sélection. Les petites mains utilisent mieux la largeur disponible. Le composant est commun au solo et au jeu en ligne. Vérifier les trois CI du dernier commit puis effectuer un bref contrôle visuel avant fusion.
 
 **[Bilan global et feuille de route ATOUTIA](docs/PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline intégré par la PR nº 20, enrichissements solo/fonctions utilisateur et diffusion publique restent à terminer ; le chantier Android est prioritaire. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -83,9 +83,13 @@ node apps/backend/scripts/dev-android-network.mjs
 
 ### Contrôle visuel du salon
 
-Branche de travail `feat/android-lobby-layout`. Après installation avec le lanceur ci-dessus, créer un nouveau salon privé. À 1/4, Démarrer reste désactivé et Quitter reste accessible. En paysage, faire défiler les invitations à gauche et vérifier que les actions restent fixes à droite. Copier et partager conservent la confirmation explicite et les protections existantes.
+Salon livré par la PR nº 48. Après installation avec le lanceur ci-dessus, créer un nouveau salon privé. À 1/4, Démarrer reste désactivé et Quitter reste accessible. En paysage, faire défiler les invitations à gauche et vérifier que les actions restent fixes à droite. Copier et partager conservent la confirmation explicite et les protections existantes.
 
 Avec les trois PNJ du lanceur, attendre 4/4 puis démarrer depuis le compte hôte. Vérifier le chargement de la partie. Ce contrôle porte sur le salon et la transition vers le jeu. Conserver les terminaux backend et PNJ ouverts pendant le test. Les captures de CI utilisent des salons synthétiques.
+
+### Contrôle de la main
+
+Branche de travail `fix/android-hand-readability`, PR nº 49. En solo (sans backend) ou avec le lanceur Android à quatre sur base de test, jouer quelques tours. Les index restent dans l’ordre d’affichage ; toucher une carte indisponible ne joue aucune carte. Avec trois cartes restantes, les cartes s’écartent lorsque la largeur le permet. Appuyer sur **Agrandir la main** dans la zone des commandes : les grandes cartes sont séparées et la grille défile si nécessaire. Une carte autorisée passe par la même commande ou confirmation solo ; **Fermer** revient au jeu sans jouer. Ce contrôle est court et ne demande pas de terminer une nouvelle partie.
 
 ## Validation et données
 

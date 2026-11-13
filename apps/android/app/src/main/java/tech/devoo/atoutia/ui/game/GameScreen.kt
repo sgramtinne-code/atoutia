@@ -21,6 +21,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -167,6 +171,19 @@ internal fun GameScreen(
 
     BackHandler(enabled = !isMatchCompleted && onReturnToHome != null) {
         if (!isSubmitting) onReturnToHome?.invoke()
+    }
+
+    var expandedHand by remember(session.player, publicMatch.dealNumber) { mutableStateOf(false) }
+    val canExpandHand = !isMatchCompleted && publicMatch.phase == DealPhase.PLAYING && match.hand.isNotEmpty()
+    if (expandedHand && canExpandHand) {
+        ExpandedBeloteHand(
+            hand = match.hand,
+            legalCards = actions.legalCards,
+            canPlay = actions.mode == PlayerActionMode.PLAY_CARD,
+            submitting = isSubmitting,
+            onPlayCard = onPlayCard,
+            onClose = { expandedHand = false },
+        )
     }
 
     val currentPlayer =
@@ -318,6 +335,13 @@ internal fun GameScreen(
 
     val controlsContent:
         @Composable (Boolean) -> Unit = { includeHand ->
+            if (canExpandHand) {
+                OutlinedButton(
+                    onClick = { expandedHand = true },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.fillMaxWidth().testTag("expand-player-hand"),
+                ) { Text("Agrandir la main") }
+            }
             if (
                 !isForfeitCompleted &&
                 actions.mode ==

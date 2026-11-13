@@ -12,6 +12,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
@@ -215,7 +216,7 @@ class SoloSettingsTutorialInstrumentedTest {
         fun node(card: PlayerCard) = compose.onNodeWithTag("hand-${card.rank.name}-${card.suit.name}", useUnmergedTree = true)
         try {
             compose.waitUntil(20_000) { compose.onAllNodesWithTag("player-hand").fetchSemanticsNodes().isNotEmpty() }
-            node(card).assertIsDisplayed().performClick()
+            node(card).assertIsDisplayed().performTouchInput { click(Offset(8.dp.toPx(), 28.dp.toPx())) }
             if (confirm) {
                 compose.onNodeWithTag("solo-card-confirmation").assertIsDisplayed()
                 assertEquals(before, store.read())
@@ -223,7 +224,7 @@ class SoloSettingsTutorialInstrumentedTest {
                 compose.onNodeWithText("Annuler").performClick()
                 assertEquals(before, store.read())
                 assertEquals(0, humanMoves.get())
-                node(card).performClick()
+                node(card).performTouchInput { click(Offset(8.dp.toPx(), 28.dp.toPx())) }
                 compose.onNodeWithText("Jouer la carte").performClick()
             }
             compose.waitUntil(10_000) { humanMoves.get() == 1 && store.read() != before }
