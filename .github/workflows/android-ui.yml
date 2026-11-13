@@ -262,11 +262,11 @@ jobs:
           import os, re
           from pathlib import Path
           result = (Path(os.environ["RUNNER_TEMP"]) / "atoutia-invitations-result.txt").read_text()
-          passed = bool(re.search(r"^OK \(8 tests\)\s*$", result, re.MULTILINE))
+          passed = bool(re.search(r"^OK \(9 tests\)\s*$", result, re.MULTILINE))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write("Private room invitations: " + ("8/8 passed" if passed else "FAILED") + "\n")
           if not passed:
-              raise SystemExit("The eight private room invitation tests did not all pass.")
+              raise SystemExit("The nine private room invitation tests did not all pass.")
           PYTHON
 
       - name: Run visual identity and large text checks
