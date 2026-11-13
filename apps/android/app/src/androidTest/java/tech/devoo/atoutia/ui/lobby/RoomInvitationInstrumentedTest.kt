@@ -152,7 +152,8 @@ class RoomInvitationInstrumentedTest {
         compose.onNodeWithTag("lobby-leave").assertIsDisplayed().assertIsEnabled()
         assertEquals(leaveBounds, compose.onNodeWithTag("lobby-leave").getUnclippedBoundsInRoot())
         compose.onNodeWithTag("lobby-start").assertDoesNotExist()
-        compose.onNodeWithTag("lobby-player-count").performScrollTo().assertTextEquals("4 / 4")
+        captureLobby("lobby-players.png")
+        compose.onNodeWithTag("lobby-player-count").assertTextEquals("4 / 4")
     }
 
     private fun assertMainLobbyActionsVisible() {

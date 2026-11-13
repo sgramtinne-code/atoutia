@@ -523,6 +523,38 @@ private fun RoomLobbyContent(
         }
     }
 
+    val roster: @Composable () -> Unit = {
+        OutlinedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Places et équipes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                PlayerPosition.entries.forEach { seat ->
+                    val occupied = room.seats.isOccupied(seat)
+                    val role = when {
+                        seat == player -> if (isHost) "Vous · Hôte" else "Vous"
+                        seat.ordinal % 2 == player.ordinal % 2 -> "Partenaire"
+                        else -> "Adversaire"
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().testTag("lobby-seat-${seat.name}").semantics(mergeDescendants = true) {
+                            stateDescription = if (occupied) "Place occupée" else "Place libre"
+                        },
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(seat.toDisplayName(), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Column(Modifier.weight(1.25f)) {
+                            Text(role, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            if (seat == PlayerPosition.PLAYER_0 && !isHost) {
+                                Text("Hôte", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        Text(if (occupied) "Occupée" else "Libre", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    }
+
     val details: @Composable () -> Unit = {
         RealtimeStatus(state = realtimeState)
         Text("Votre place · ${player.toDisplayName()}", style = MaterialTheme.typography.bodyMedium)
@@ -538,6 +570,7 @@ private fun RoomLobbyContent(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        roster()
         OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Invitations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -579,32 +612,6 @@ private fun RoomLobbyContent(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("lobby-player-count"),
             )
-        }
-        PlayerPosition.entries.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pair.forEach { seat ->
-                    val occupied = room.seats.isOccupied(seat)
-                    val role = when {
-                        seat == player -> if (isHost) "Vous · Hôte" else "Vous"
-                        seat.ordinal % 2 == player.ordinal % 2 -> "Partenaire"
-                        else -> "Adversaire"
-                    }
-                    OutlinedCard(
-                        Modifier.weight(1f).testTag("lobby-seat-${seat.name}").semantics(mergeDescendants = true) {
-                            stateDescription = if (occupied) "Place occupée" else "Place libre"
-                        },
-                    ) {
-                        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(role, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                            Text(seat.toDisplayName(), style = MaterialTheme.typography.bodySmall)
-                            Text(if (occupied) "Occupée" else "Libre", style = MaterialTheme.typography.bodySmall)
-                            if (seat == PlayerPosition.PLAYER_0 && !isHost) {
-                                Text("Hôte", style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
-                    }
-                }
-            }
         }
         if (!isHost) {
             Text("L’hôte démarrera la partie.", style = MaterialTheme.typography.bodyMedium)

@@ -93,7 +93,7 @@ Main agrandie livrée par la PR nº 49. En solo (sans backend) ou avec le lanceu
 
 ### Places et équipes dans le salon
 
-Branche `feat/android-lobby-players`. Dans le salon, les quatre places indiquent **Occupée** ou **Libre**. Votre partenaire est le joueur de la même équipe, y compris lorsque votre place diffère de celle de l’hôte. L’occupation ne signifie pas une connexion temps réel active. La liste défile si le texte ou la hauteur le demandent ; Démarrer et Quitter restent fixes en paysage. Les noms des comptes ne sont pas reçus par ce résumé de salon et ne sont pas inventés.
+Branche `feat/android-lobby-players`. Dans le salon, les quatre places indiquent **Occupée** ou **Libre**. Votre partenaire est le joueur de la même équipe, y compris lorsque votre place diffère de celle de l’hôte. L’occupation ne signifie pas une connexion temps réel active. La liste figure dans la colonne des détails, qui défile si le texte ou la hauteur le demandent ; Démarrer et Quitter restent fixes en paysage. Les noms des comptes ne sont pas reçus par ce résumé de salon et ne sont pas inventés.
 
 ## Validation et données
 
