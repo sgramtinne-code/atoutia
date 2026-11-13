@@ -1,5 +1,8 @@
 package tech.devoo.atoutia.ui.game
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.abs
 import tech.devoo.atoutia.network.game.PlayerCard
 
@@ -82,9 +85,7 @@ fun BeloteHand(
                         ).toFloat()
             }
 
-        val maximumStep =
-            cardWidth *
-                0.84f
+        val maximumStep = cardWidth + 8.dp
 
         val horizontalStep =
             when {
@@ -199,16 +200,6 @@ fun BeloteHand(
                             false
                     }
 
-                val zOrder =
-                    if (
-                        isLegal
-                    ) {
-                        100f +
-                            index
-                    } else {
-                        index.toFloat()
-                    }
-
                 BeloteCard(
                     card =
                         card,
@@ -247,9 +238,14 @@ fun BeloteHand(
                                 y =
                                     yOffset,
                             )
-                            .zIndex(
-                                zOrder,
-                            )
+                            .pointerInput(Unit) {
+                                // Keep taps inside this card from reaching an overlapping card.
+                                // Leave gestures unconsumed so the surrounding screen can still scroll.
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    waitForUpOrCancellation()
+                                }
+                            }
                             .graphicsLayer {
                                 rotationZ =
                                     rotation

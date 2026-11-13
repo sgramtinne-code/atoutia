@@ -1,4 +1,4 @@
-# Prompt de reprise ATOUTIA — 12 novembre 2026
+# Prompt de reprise ATOUTIA — 13 novembre 2026
 
 Copier le texte ci-dessous dans le nouveau chat. Les informations locales datées sont un état historique à vérifier, pas des mesures en direct.
 
@@ -18,11 +18,13 @@ Branche stable : `main`.
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Poursuivre le multijoueur Android, la lisibilité et l’ergonomie pour les personnes âgées. L’entraînement des PNJ sur la RTX 5070 est en pause. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
-Base stable **d43ab70**, [PR nº 47](https://github.com/sgramtinne-code/atoutia/pull/47) fusionnée. Les trois workflows de PR et de push main ont réussi. Le dernier lot comprend **266 tests JVM et 53 tests sur émulateur**, avec contrôle des cartes du pli à 640 × 320 dp et texte agrandi à 1,3. Le [socle visuel](ANDROID_VISUAL_IDENTITY.md) et les lots PR20–46 sont intégrés.
+Base stable **468dd34**, [PR nº 48](https://github.com/sgramtinne-code/atoutia/pull/48) fusionnée. Les trois workflows de cette PR ont réussi, avec **266 tests JVM et 55 tests sur émulateur**. Le salon conserve les actions principales en paysage. La PR nº 47 couvre les cartes du pli à 640 × 320 dp et texte agrandi à 1,3. Le [socle visuel](ANDROID_VISUAL_IDENTITY.md) et les lots PR20–47 sont intégrés.
 
-Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. La branche `feat/android-lobby-layout` poursuit le salon en paysage avec invitations défilantes et boutons Démarrer/Quitter dans une zone fixe. Ses validations sont à vérifier avant fusion.
+Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. Le salon en paysage est intégré par la PR nº 48. La branche `fix/android-hand-readability` poursuit la lecture et la sélection des cartes de la main. Les gestes doivent viser la carte affichée et les petites mains doivent utiliser l’espace disponible. Vérifier les contrôles de cette branche avant fusion.
 
 **[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline livré, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
+
+Le cap produit confirmé le 13 novembre privilégie une prise en main simple, le plaisir de rejouer, une compétition équitable et une présentation soignée. Poursuivre d’abord les interactions et la lisibilité Android, puis les parcours multijoueurs entre comptes avant le classement et le matchmaking. Les personnages, niveaux mesurés et répliques restent au programme du laboratoire IA. Le document initial de reprise décrit un ancien jalon déjà dépassé par le code actuel.
 
 ## 2. Workflow autorisé
 
@@ -48,6 +50,6 @@ Les diagnostics de salons restent des commandes séparées en lecture seule ; au
 
 ## 4. Suite produit
 
-Sur la branche `feat/android-lobby-layout`, vérifier le salon à 640 × 320 dp avec texte agrandi à 1,3. Les boutons Démarrer et Quitter doivent rester entièrement visibles pendant le défilement des invitations. Vérifier le passage de 1/4 à 4/4, les invitations et le démarrage par l’hôte. Les tests couvrent aussi un invité et la composition en portrait. Utiliser la [procédure Android locale](../README.md#essai-android-à-quatre-avec-coupure) sur base de test. Le lot précédent de lisibilité des plis est intégré et ses contrôles sont réussis.
+La PR nº 48 est intégrée. Sur la branche `fix/android-hand-readability`, vérifier la main à 640 × 320 dp avec texte agrandi à 1,3. Les petites mains utilisent la largeur disponible. Un appui sur l’index visible de chaque carte doit respecter la carte touchée et les actions autorisées, y compris pendant une soumission. Le même composant sert en solo et en ligne. Utiliser la [procédure Android locale](../README.md#essai-android-à-quatre-avec-coupure) sur base de test.
 
 Le déploiement OVH, les demandes de diagnostic VPS, DNS, HTTPS et publication sont reportés selon la consigne explicite du 30 octobre. La configuration release déjà livrée reste disponible pour plus tard. Ne pas réinstaller d’environnement GPU, lancer un entraînement sur une machine supposée être le PC ou annoncer des modèles entraînés sans exécution réellement observée. Ne pas remplacer le chantier produit par des audits répétés sans défaut concret. Les anciennes attentes PR1–28 sont historiques et intégrées.

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
@@ -24,6 +25,8 @@ import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpRect
@@ -158,6 +161,39 @@ class LandscapeGameScreenInstrumentedTest {
 
     private fun DpRect.isDisjointFrom(other: DpRect) =
         right <= other.left || left >= other.right || bottom <= other.top || top >= other.bottom
+
+    @Test fun tapsOnExposedCardIndicesNeverPlayAnOverlappingNeighbor() {
+        val session = fixture()
+        show(session, fontScale = 1.3f)
+        assertHandVisible(session)
+        val expected = mutableListOf<PlayerCard>()
+        for (card in session.document.snapshot.match.hand) {
+            cardNode(card).performTouchInput { click(Offset(8.dp.toPx(), 28.dp.toPx())) }
+            if (card in session.document.snapshot.actions.legalCards) expected.add(card)
+            compose.runOnIdle { assertEquals("Tap must belong to $card", expected, selected) }
+        }
+        compose.runOnIdle { submitted.value = GamePlayCardUiState.Submitting }
+        val legal = session.document.snapshot.actions.legalCards.first()
+        cardNode(legal).performTouchInput { click(Offset(8.dp.toPx(), 28.dp.toPx())) }
+        compose.runOnIdle { assertEquals(expected, selected) }
+    }
+
+    @Test fun threeRemainingCardsUseAvailableSpaceWithoutOverlapping() {
+        val initial = fixture()
+        val snapshot = initial.document.snapshot
+        val hand = snapshot.match.hand.takeLast(3)
+        val legal = snapshot.actions.legalCards.filter { it in hand }
+        val session = initial.copy(document = initial.document.copy(snapshot = snapshot.copy(
+            match = snapshot.match.copy(hand = hand, legalCards = legal),
+            actions = snapshot.actions.copy(legalCards = legal),
+        )))
+        show(session, fontScale = 1.3f)
+        assertHandVisible(session)
+        val bounds = hand.map { cardNode(it).getUnclippedBoundsInRoot() }
+        bounds.zipWithNext().forEach { (left, right) ->
+            assertTrue("Remaining cards overlap: $left / $right", left.right <= right.left)
+        }
+    }
 
     @Test fun updatedSnapshotRemovesPlayedCardAndKeepsRemainingCardsPlayable() {
         val initial = fixture()
