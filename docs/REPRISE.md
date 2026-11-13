@@ -1,4 +1,4 @@
-# Prompt de reprise ATOUTIA — 8 novembre 2026
+# Prompt de reprise ATOUTIA — 12 novembre 2026
 
 Copier le texte ci-dessous dans le nouveau chat. Les informations locales datées sont un état historique à vérifier, pas des mesures en direct.
 
@@ -18,9 +18,9 @@ Branche stable : `main`.
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Poursuivre le multijoueur Android, la lisibilité et l’ergonomie pour les personnes âgées. L’entraînement des PNJ sur la RTX 5070 est en pause. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
-Base vérifiée **6543403**, [PR visuelle nº 29](https://github.com/sgramtinne-code/atoutia/pull/29) fusionnée. Contrôles de `main` réussis avec 601/620/26 tests moteur/backend/offline, 266 JVM et 52 tests sur émulateur. Les preuves et rendus synthétiques sont détaillés dans la PR et dans [le suivi visuel](ANDROID_VISUAL_IDENTITY.md). Les anciens lots PR20–29 sont intégrés.
+Base stable **d43ab70**, [PR nº 47](https://github.com/sgramtinne-code/atoutia/pull/47) fusionnée. Les trois workflows de PR et de push main ont réussi. Le dernier lot comprend **266 tests JVM et 53 tests sur émulateur**, avec contrôle des cartes du pli à 640 × 320 dp et texte agrandi à 1,3. Le [socle visuel](ANDROID_VISUAL_IDENTITY.md) et les lots PR20–46 sont intégrés.
 
-Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). Le lot de lisibilité sépare les quatre cartes jouées des badges de siège et affiche l’atout dans le bandeau de score.
+Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](../README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. La branche `feat/android-lobby-layout` poursuit le salon en paysage avec invitations défilantes et boutons Démarrer/Quitter dans une zone fixe. Ses validations sont à vérifier avant fusion.
 
 **[Bilan global et feuille de route ATOUTIA](PROJECT_STATUS.md)** : rapprochement des 50 rubriques de règles et 19 rubriques de l’ancien prompt avec le code actuel. Le multijoueur local est jouable ; premier solo offline livré, plusieurs fonctions utilisateur et diffusion publique restent à terminer. Le hors-ligne est une exigence, pas une option abandonnée.
 
@@ -48,6 +48,6 @@ Les diagnostics de salons restent des commandes séparées en lecture seule ; au
 
 ## 4. Suite produit
 
-Sur la branche `fix/android-trick-card-layout`, vérifier la lisibilité du pli sur une partie à quatre. À 640 × 320 dp avec texte agrandi, les cartes doivent rester visibles pendant le jeu et sur la table finale. Vérifier aussi les enchères et l’atout dans le bandeau de score. La [procédure Android locale](../README.md#essai-android-à-quatre-avec-coupure) fournit le démarrage sur base de test.
+Sur la branche `feat/android-lobby-layout`, vérifier le salon à 640 × 320 dp avec texte agrandi à 1,3. Les boutons Démarrer et Quitter doivent rester entièrement visibles pendant le défilement des invitations. Vérifier le passage de 1/4 à 4/4, les invitations et le démarrage par l’hôte. Les tests couvrent aussi un invité et la composition en portrait. Utiliser la [procédure Android locale](../README.md#essai-android-à-quatre-avec-coupure) sur base de test. Le lot précédent de lisibilité des plis est intégré et ses contrôles sont réussis.
 
 Le déploiement OVH, les demandes de diagnostic VPS, DNS, HTTPS et publication sont reportés selon la consigne explicite du 30 octobre. La configuration release déjà livrée reste disponible pour plus tard. Ne pas réinstaller d’environnement GPU, lancer un entraînement sur une machine supposée être le PC ou annoncer des modèles entraînés sans exécution réellement observée. Ne pas remplacer le chantier produit par des audits répétés sans défaut concret. Les anciennes attentes PR1–28 sont historiques et intégrées.

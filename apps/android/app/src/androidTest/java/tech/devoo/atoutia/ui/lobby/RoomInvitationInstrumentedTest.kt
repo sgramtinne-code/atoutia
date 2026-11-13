@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
+import android.graphics.Bitmap
+import java.io.File
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
@@ -15,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -53,7 +57,7 @@ class RoomInvitationInstrumentedTest {
     @Composable private fun SmallScreen(content: @Composable () -> Unit) {
         val density = LocalDensity.current
         CompositionLocalProvider(LocalDensity provides Density(density.density, 1.3f)) {
-            AtoutiaTheme { Box(Modifier.requiredSize(640.dp, 320.dp)) { content() } }
+            AtoutiaTheme { Box(Modifier.requiredSize(640.dp, 320.dp).testTag("lobby-test-viewport")) { content() } }
         }
     }
 
@@ -61,6 +65,81 @@ class RoomInvitationInstrumentedTest {
     private fun clearClipboard() = compose.runOnIdle { clipboard().setPrimaryClip(ClipData.newPlainText("", "")) }
     private fun input() = compose.onNodeWithTag("room-invitation-input")
     private fun inputText() = input().fetchSemanticsNode().config[SemanticsProperties.EditableText].text
+
+    @Test fun landscapeKeepsStartAndLeaveVisibleWhileInvitationsScrollAndRoomBecomesReady() {
+        val listener = AtomicReference<RoomLobbyRealtimeCoordinator.Listener?>()
+        val start = mutableStateOf<RoomLobbyStartUiState>(RoomLobbyStartUiState.Idle)
+        val starts = mutableListOf<RoomSessionMembership>()
+        compose.setContent {
+            SmallScreen {
+                RoomLobbyScreen(room, PlayerPosition.PLAYER_0,
+                    startState = start.value,
+                    onStartRoom = { starts.add(it); start.value = RoomLobbyStartUiState.Starting },
+                    onLeaveRoom = {},
+                    connectRealtime = { _, sink -> listener.set(sink); sink.onConnected(); AutoCloseable {} },
+                    onCopyInvitation = {}, onShareInvitation = {})
+            }
+        }
+        compose.waitUntil(5_000) { listener.get() != null }
+        assertMainLobbyActionsVisible()
+        compose.onNodeWithTag("lobby-start").assertIsNotEnabled()
+        val before = compose.onNodeWithTag("lobby-actions").getUnclippedBoundsInRoot()
+        captureLobby("lobby-waiting.png")
+        compose.onNodeWithTag("copy-room-invitation").performScrollTo().performClick()
+        compose.onNodeWithTag("room-invitation-feedback").performScrollTo().assertTextEquals("Invitation copiée.")
+        assertMainLobbyActionsVisible()
+        assertEquals(before, compose.onNodeWithTag("lobby-actions").getUnclippedBoundsInRoot())
+
+        val ready = RoomSessionMembership(room.copy(revision = 4, phase = "READY", occupiedSeats = 4,
+            seats = LiveRoomSeats(true, true, true, true)), PlayerPosition.PLAYER_0)
+        compose.runOnIdle { listener.get()!!.onRoomUpdated(ready) }
+        compose.onNodeWithTag("lobby-player-count").assertTextEquals("4 / 4")
+        assertMainLobbyActionsVisible()
+        compose.onNodeWithTag("lobby-start").assertIsEnabled()
+        captureLobby("lobby-ready.png")
+        compose.onNodeWithTag("lobby-start").performClick()
+        compose.onNodeWithTag("lobby-leave").assertIsNotEnabled()
+        compose.onNodeWithTag("copy-room-invitation").assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(listOf(ready), starts) }
+    }
+
+    @Test fun landscapeGuestKeepsLeaveVisibleAndLeavesTheCurrentMembership() {
+        val leaves = mutableListOf<RoomSessionMembership>()
+        val guest = RoomSessionMembership(room.copy(revision = 2, occupiedSeats = 2,
+            seats = LiveRoomSeats(true, true, false, false)), PlayerPosition.PLAYER_1)
+        compose.setContent {
+            SmallScreen {
+                RoomLobbyScreen(guest.room, guest.player,
+                    onStartRoom = { error("Only the host can start") },
+                    onLeaveRoom = { leaves.add(it) },
+                    connectRealtime = { _, sink -> sink.onConnected(); AutoCloseable {} },
+                    onCopyInvitation = {}, onShareInvitation = {})
+            }
+        }
+        compose.onNodeWithTag("lobby-start").assertDoesNotExist()
+        compose.onNodeWithTag("lobby-leave").assertIsDisplayed().assertIsEnabled().performClick()
+        compose.waitUntil(5_000) { leaves.isNotEmpty() }
+        compose.runOnIdle { assertEquals(listOf(guest), leaves) }
+    }
+
+    private fun assertMainLobbyActionsVisible() {
+        val viewport = compose.onNodeWithTag("lobby-test-viewport").getUnclippedBoundsInRoot()
+        for (tag in listOf("lobby-start", "lobby-leave")) {
+            val bounds = compose.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("Action outside viewport: $tag / $bounds / $viewport",
+                bounds.left >= viewport.left && bounds.right <= viewport.right &&
+                    bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
+            assertTrue("Touch target below 48 dp: $tag / $bounds", bounds.bottom - bounds.top >= 48.dp)
+        }
+        compose.onNodeWithTag("lobby-player-count").assertIsDisplayed()
+    }
+
+    private fun captureLobby(name: String) {
+        compose.waitForIdle()
+        val directory = File(compose.activity.cacheDir, "visual-qa").also { check(it.exists() || it.mkdirs()) }
+        val bitmap = compose.onNodeWithTag("lobby-test-viewport").captureToImage().asAndroidBitmap()
+        File(directory, name).outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+    }
 
     @Test fun lobbyCopiesARealSensitiveClipAndBuildsATextOnlyShareFromTheCurrentRoom() {
         var share: Intent? = null
@@ -134,7 +213,7 @@ class RoomInvitationInstrumentedTest {
             assertEquals(listOf(code, code), pending.map { it.first })
             pending[1].second(JoinRoomResult.Joined(joined))
         }
-        compose.onNodeWithText("Salon Atoutia").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Salon Atoutia").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf(joined), saved) }
     }
 
