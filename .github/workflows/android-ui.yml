@@ -289,6 +289,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/atoutia-visuals"
           for screenshot in home-dark.png home-light.png home-large-text.png cards-dark.png lobby-waiting.png lobby-ready.png lobby-players.png hand-expanded.png join-entry.png join-ready.png join-narrow.png invitation-actions.png; do
             target="$RUNNER_TEMP/atoutia-visuals/$screenshot"
+            # adb shell can forward run-as/cat errors to stdout; a missing capture is not a PNG.
+            if ! timeout 5s adb -s emulator-5554 shell run-as tech.devoo.atoutia test -f "cache/visual-qa/$screenshot"; then
+              continue
+            fi
             if ! timeout 5s adb -s emulator-5554 exec-out run-as tech.devoo.atoutia cat "cache/visual-qa/$screenshot" > "$target"; then
               rm -f "$target"
             fi
@@ -321,6 +325,6 @@ jobs:
         run: |
           if [[ "${{ job.status }}" != "success" ]]; then
             tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true
-            timeout 10s adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:E || true
+            timeout 10s adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:E ClipboardService:V WindowManager:W || true
           fi
           timeout 10s adb -s emulator-5554 emu kill || true
