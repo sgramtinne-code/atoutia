@@ -152,6 +152,13 @@ class RoomInvitationInstrumentedTest {
         compose.onNodeWithTag("lobby-leave").assertIsDisplayed().assertIsEnabled()
         assertEquals(leaveBounds, compose.onNodeWithTag("lobby-leave").getUnclippedBoundsInRoot())
         compose.onNodeWithTag("lobby-start").assertDoesNotExist()
+        val details = compose.onNodeWithTag("lobby-details").getUnclippedBoundsInRoot()
+        PlayerPosition.entries.forEach { position ->
+            val bounds = seat(position).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("Every player row must be fully readable together: $position / $bounds / $details",
+                bounds.top >= details.top && bounds.bottom <= details.bottom &&
+                    bounds.left >= details.left && bounds.right <= details.right)
+        }
         captureLobby("lobby-players.png")
         compose.onNodeWithTag("lobby-player-count").assertTextEquals("4 / 4")
     }
