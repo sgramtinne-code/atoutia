@@ -193,6 +193,7 @@ class RoomInvitationInstrumentedTest {
             SmallScreen { PlayScreen(state.value, value.value, { value.value = it }, {},
                 { joins++; state.value = RoomActionUiState.Joining }, {}, readInvitation = { reads++; code }) }
         }
+        captureLobby("join-entry.png")
         val viewport = compose.onNodeWithTag("lobby-test-viewport").getUnclippedBoundsInRoot()
         for (tag in listOf("create-private-room", "paste-room-invitation")) {
             val bounds = compose.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
@@ -224,7 +225,7 @@ class RoomInvitationInstrumentedTest {
             SmallScreen { RoomLobbyScreen(room, PlayerPosition.PLAYER_0, onLeaveRoom = {},
                 connectRealtime = { _, sink -> sink.onConnected(); AutoCloseable {} }) }
         }
-        for ((tag, label) in listOf("copy-room-invitation" to "Copier l’invitation", "share-room-invitation" to "Partager")) {
+        for ((tag, label) in listOf("copy-room-invitation" to "Copier", "share-room-invitation" to "Partager")) {
             val bounds = compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().getUnclippedBoundsInRoot()
             val viewport = compose.onNodeWithTag("lobby-details").getUnclippedBoundsInRoot()
             assertTrue("Invitation action must fit the column: $bounds / $viewport",
@@ -235,7 +236,10 @@ class RoomInvitationInstrumentedTest {
             compose.onNodeWithText(label, useUnmergedTree = true)
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue(layouts.isNotEmpty())
-            assertTrue("Invitation labels must not wrap or overflow", layouts.all { it.lineCount == 1 && !it.hasVisualOverflow })
+            captureLobby("invitation-actions.png")
+            assertTrue("Invitation label $label must not wrap or overflow: " + layouts.map {
+                "lines=" + it.lineCount + ", size=" + it.size + ", overflow=" + it.hasVisualOverflow
+            }, layouts.all { it.lineCount == 1 && !it.hasVisualOverflow })
         }
         captureLobby("invitation-actions.png")
     }

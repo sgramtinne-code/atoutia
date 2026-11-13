@@ -68,7 +68,6 @@ fun PlayScreen(
         OutlinedCard(cardModifier.testTag("create-room-card")) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Inviter mes amis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Crée un salon privé, puis partage son invitation.", style = MaterialTheme.typography.bodyMedium)
                 Button(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("create-private-room"),
                     enabled = !busy,
@@ -76,6 +75,7 @@ fun PlayScreen(
                 ) {
                     Text(if (roomActionState is RoomActionUiState.Creating) "Création du salon…" else "Créer une partie")
                 }
+                Text("Crée un salon privé, puis partage son invitation.", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -84,7 +84,6 @@ fun PlayScreen(
         OutlinedCard(cardModifier.testTag("join-room-card")) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Rejoindre une partie", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Colle l’invitation reçue, puis confirme pour entrer.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("paste-room-invitation"),
                     enabled = !busy,
@@ -102,6 +101,7 @@ fun PlayScreen(
                         }
                     },
                 ) { Text("Coller une invitation") }
+                Text("Colle l’invitation reçue, puis confirme pour entrer.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth().testTag("room-invitation-input"),
                     value = joinSessionId,

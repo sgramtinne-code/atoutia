@@ -282,14 +282,24 @@ jobs:
           if not re.search(r"^OK \(3 tests\)\s*$", result, re.MULTILINE):
               raise SystemExit("The three visual identity tests did not all pass.")
           PYTHON
+      - name: Collect synthetic visual QA screenshots
+        if: ${{ !cancelled() }}
+        timeout-minutes: 1
+        run: |
           mkdir -p "$RUNNER_TEMP/atoutia-visuals"
           for screenshot in home-dark.png home-light.png home-large-text.png cards-dark.png lobby-waiting.png lobby-ready.png lobby-players.png hand-expanded.png join-entry.png join-ready.png join-narrow.png invitation-actions.png; do
-            adb -s emulator-5554 exec-out run-as tech.devoo.atoutia cat "cache/visual-qa/$screenshot" > "$RUNNER_TEMP/atoutia-visuals/$screenshot"
+            target="$RUNNER_TEMP/atoutia-visuals/$screenshot"
+            if ! timeout 5s adb -s emulator-5554 exec-out run-as tech.devoo.atoutia cat "cache/visual-qa/$screenshot" > "$target"; then
+              rm -f "$target"
+            fi
           done
           python3 - <<'PYTHON'
           import os, struct
           from pathlib import Path
-          for path in (Path(os.environ["RUNNER_TEMP"]) / "atoutia-visuals").glob("*.png"):
+          paths = list((Path(os.environ["RUNNER_TEMP"]) / "atoutia-visuals").glob("*.png"))
+          if "${{ job.status }}" == "success":
+              assert len(paths) == 12, "All expected synthetic screenshots must be collected on success"
+          for path in paths:
               data = path.read_bytes()
               assert data[:8] == b"\x89PNG\r\n\x1a\n", path
               width, height = struct.unpack(">II", data[16:24])
@@ -297,11 +307,12 @@ jobs:
           PYTHON
 
       - name: Upload synthetic visual QA screenshots
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: atoutia-visual-qa
           path: ${{ runner.temp }}/atoutia-visuals/*.png
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Report failures and stop emulator
