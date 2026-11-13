@@ -10,6 +10,14 @@ Le destinataire ouvre Atoutia → Jouer en ligne → Jouer → Coller une invita
 
 Il s’agit d’une invitation textuelle à coller dans l’application. Aucun lien web/App Link, inscription de domaine ou filtre d’Intent externe n’est ajouté. L’application doit être installée ; une partie à distance nécessite toujours un serveur commun joignable. Un salon complet ou déjà démarré peut refuser une ancienne invitation : le texte ne réserve pas une place et n’expire pas le salon.
 
+## Confort de lecture et entrée dans une partie · lot du 13 novembre
+
+Branche `feat/android-invitation-flow`, depuis main `c59d6f4` (PR nº 50 intégrée). Les boutons Copier et Partager sont empilés sur toute la largeur de la colonne du salon, avec une cible minimale de 52 dp. Le libellé visible Copier reste court ; sa description d’accessibilité précise Copier l’invitation. Cette disposition préserve les libellés avec le texte agrandi. Les charges utiles, le marquage sensible du presse-papiers et le sélecteur de partage sont conservés.
+
+Dans Jouer, les sections Inviter mes amis et Rejoindre une partie sont côte à côte en paysage large, puis empilées sous 600 dp. Les actions Créer et Coller précèdent les explications pour rester accessibles dès l’arrivée. Le collage reste explicite et ne crée aucune participation. Le message Invitation reconnue. Confirme pour entrer. indique seulement que le format est accepté. La disponibilité du salon et la place restent décidées par la réponse authentifiée du backend. L’action Terminé du clavier garde la même confirmation et les requêtes en cours bloquent toujours les autres actions.
+
+Trois nouveaux scénarios instrumentés : choix Créer/Coller entièrement visibles sans défilement à 640 × 320 dp/texte 1,3, reconnaissance sans entrée automatique puis blocage pendant la requête ; libellés Copier/Partager sur une seule ligne sans débordement dans la colonne étroite du salon ; disposition empilée à 320 dp et accès au collage/à la confirmation. Les neuf contrôles d’invitation/salon existants restent requis, soit 12 pour cette suite et 62 instrumentés attendus au total. Les captures de CI couvrent l’entrée, l’invitation reconnue, la largeur étroite et les actions du salon. Validation du dernier commit encore à effectuer ; les preuves historiques ci-dessous restent distinctes.
+
 ## Format et limites
 
 Le code canonique reste ms1_ suivi de 32 caractères hexadécimaux minuscules, comme matchSessionId.ts. Le parseur RoomInvitation accepte ce code brut ou le message exact généré, avec espaces extérieurs et fins de ligne CRLF normalisés. Entrée limitée à 1 024 caractères avant normalisation, sans troncature silencieuse. Messages arbitraires, plusieurs codes, URI, caractères URL, Unicode de contrôle et champs ajoutés sont refusés. Le format de code et les routes serveur ne changent pas ; les faux identifiants courts de certaines anciennes fixtures HTTP ne sont pas des codes UI canoniques.

@@ -2,8 +2,9 @@ package tech.devoo.atoutia.ui.lobby
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,6 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.room.RoomInvitation
 
@@ -29,9 +32,9 @@ internal fun RoomInvitationPanel(
     val text = remember(sessionId) { RoomInvitation.parse(sessionId)?.let(RoomInvitation::create) }
     var feedback by remember(sessionId) { mutableStateOf<String?>(null) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Invite tes amis : ils pourront coller cette invitation dans Rejoindre une partie.")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.weight(1f).testTag("copy-room-invitation"),
+        Text("Partage l’invitation avec tes amis. Ils pourront la coller dans Atoutia.", style = MaterialTheme.typography.bodyMedium)
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("copy-room-invitation").semantics { contentDescription = "Copier l’invitation" },
                 onClick = {
                     if (enabled && text != null) {
                         feedback = try {
@@ -39,8 +42,8 @@ internal fun RoomInvitationPanel(
                             "Invitation copiée."
                         } catch (_: Exception) { "Impossible de copier l’invitation. Tu peux sélectionner le code du salon." }
                     }
-                }) { Text("Copier l’invitation") }
-            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.weight(1f).testTag("share-room-invitation"),
+                }) { Text("Copier", maxLines = 1, softWrap = false) }
+            OutlinedButton(enabled = enabled && text != null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("share-room-invitation"),
                 onClick = {
                     if (enabled && text != null) {
                         feedback = try {
