@@ -18,6 +18,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -336,9 +339,18 @@ class LandscapeGameScreenInstrumentedTest {
             compose.onNodeWithTag("match-result-title").performScrollTo()
                 .assertIsDisplayed().assertTextEquals(if (won) "Victoire !" else "Défaite")
             compose.onNodeWithTag("result-own-score", useUnmergedTree = true)
-                .assertIsDisplayed().assertTextEquals(if (won) "568" else "80")
+                .assertIsDisplayed().assertTextEquals(if (won) "1120" else "980")
             compose.onNodeWithTag("result-opponent-score", useUnmergedTree = true)
-                .assertIsDisplayed().assertTextEquals(if (won) "80" else "568")
+                .assertIsDisplayed().assertTextEquals(if (won) "980" else "1120")
+            for (tag in listOf("result-own-score", "result-opponent-score")) {
+                val layouts = mutableListOf<TextLayoutResult>()
+                val label = compose.onNodeWithTag("$tag-label", useUnmergedTree = true).assertIsDisplayed()
+                label.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                assertTrue("Score label must be complete on one line", layouts.single().lineCount == 1 && !layouts.single().hasVisualOverflow)
+                val points = compose.onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
+                val controls = compose.onNodeWithTag("game-secondary-controls").getUnclippedBoundsInRoot()
+                assertTrue("Score must be fully visible: $points / $controls", points.top >= controls.top && points.bottom <= controls.bottom)
+            }
             compose.onNodeWithText("Reconnexion").assertDoesNotExist()
             compose.onNodeWithText("Reconnexion…").assertDoesNotExist()
             compose.onNodeWithText("Réessayer").assertDoesNotExist()
@@ -389,7 +401,7 @@ class LandscapeGameScreenInstrumentedTest {
     private fun forViewer(session: PlayerGameSession, player: PlayerPosition, winner: MatchTeam?): PlayerGameSession {
         val snapshot = session.document.snapshot
         val publicMatch = snapshot.match.publicMatch
-        val points = if (winner == MatchTeam.TEAM_1) TeamPointsSnapshot(80, 568) else publicMatch.score.scores
+        val points = if (winner == MatchTeam.TEAM_1) TeamPointsSnapshot(publicMatch.score.scores.team1, publicMatch.score.scores.team0) else publicMatch.score.scores
         return session.copy(player = player, document = session.document.copy(snapshot = snapshot.copy(
             match = snapshot.match.copy(player = player, publicMatch = publicMatch.copy(score = publicMatch.score.copy(
                 scores = points, winner = winner,
@@ -538,8 +550,8 @@ class LandscapeGameScreenInstrumentedTest {
             dealer = PlayerPosition.PLAYER_1,
             phase = when { completed -> DealPhase.FINISHED; bidding -> DealPhase.BIDDING; else -> DealPhase.PLAYING },
             score = PublicMatchScoreSnapshot(
-                targetScore = if (completed) 501 else 1000,
-                scores = TeamPointsSnapshot(if (completed) 568 else 82, 80),
+                targetScore = 1000,
+                scores = TeamPointsSnapshot(if (completed) 1120 else 82, if (completed) 980 else 80),
                 completed = completed,
                 winner = if (completed) MatchTeam.TEAM_0 else null,
             ),
