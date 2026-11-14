@@ -1,3 +1,4 @@
+import { createDevelopmentBotSession } from "./dev-bot-session.mjs";
 import { autoplayPlayers, assertHumanRoom, parseAutoplayArguments } from "./dev-autoplay-mode.mjs";
 
 import {
@@ -127,12 +128,10 @@ async function requestJson(
   url,
   options,
   expectedStatus,
+  identity,
 ) {
   const result =
-    await request(
-      url,
-      options,
-    );
+    await (identity ? authenticatedRequest(identity, url, options) : request(url, options));
 
   if (
     result.status !==
@@ -195,8 +194,9 @@ async function createRoom(
 async function createTestAccount(
   baseUrl,
 ) {
-  const account =
-    await requestJson(
+  let account;
+  try {
+    account = await requestJson(
       `${baseUrl}/api/v1/auth/accounts`,
       {
         method:
@@ -209,6 +209,9 @@ async function createTestAccount(
       },
       201,
     );
+  } catch {
+    throw new Error('Test account creation failed. Check the local backend and ATOUTIA_AUTH_BOOTSTRAP_ENABLED="true".');
+  }
 
   if (
     typeof account.accountId !==
@@ -251,19 +254,15 @@ async function createTestSession(
       201,
     );
 
-  if (
-    typeof session.accessToken !==
-      "string" ||
-    !session.accessToken.startsWith(
-      "atk1_",
-    )
-  ) {
-    throw new Error(
-      "Bootstrap authentication returned an invalid access token.",
-    );
-  }
-
-  return session.accessToken;
+  return createDevelopmentBotSession(session, {
+    accountId,
+    refresh: (refreshToken) => request(`${baseUrl}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+      signal: AbortSignal.timeout(5_000),
+    }),
+  });
 }
 
 async function createBotIdentity(
@@ -275,7 +274,7 @@ async function createBotIdentity(
       baseUrl,
     );
 
-  const accessToken =
+  const session =
     await createTestSession(
       baseUrl,
       accountId,
@@ -284,8 +283,16 @@ async function createBotIdentity(
   return Object.freeze({
     player,
     accountId,
-    accessToken,
+    get accessToken() { return session.accessToken; },
+    request: session.request,
   });
+}
+
+async function authenticatedRequest(identity, url, options) {
+  return identity.request((accessToken) => request(url, {
+    ...options,
+    headers: { ...options.headers, authorization: `Bearer ${accessToken}` },
+  }));
 }
 
 function createRealtimeUrl(
@@ -601,6 +608,7 @@ async function claimSeat(
           }),
       },
       200,
+      identity,
     );
 
   console.log(
@@ -681,6 +689,7 @@ async function startRoom(
           }),
       },
       200,
+      identity,
     );
 
   console.log(
@@ -767,6 +776,7 @@ async function getPlayerSnapshot(
         },
       },
       200,
+      identity,
     );
 
   if (
@@ -1032,7 +1042,8 @@ async function submitCommand(
   command,
 ) {
   const result =
-    await request(
+    await authenticatedRequest(
+      identity,
       `${baseUrl}/api/v1/rooms/${sessionId}/commands`,
       {
         method:
@@ -1634,14 +1645,6 @@ main()
         error instanceof Error
           ? error.message
           : error,
-      );
-
-      console.error(
-        "",
-      );
-
-      console.error(
-        "The local backend must be running with ATOUTIA_AUTH_BOOTSTRAP_ENABLED=\"true\".",
       );
 
       process.exitCode =
