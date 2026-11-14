@@ -1,6 +1,6 @@
 # Essai local entre deux comptes Android
 
-Lot `feat/android-two-account-test`. Deux clients humains aux places Joueur 1/2 (PLAYER_0/1), puis deux PNJ aux places Joueur 3/4. Chaque humain a un PNJ pour partenaire. Le scénario habituel un Android + trois PNJ reste disponible sans changer ses réponses.
+Lanceur intégré par la PR nº 53. Deux clients humains aux places Joueur 1/2 (PLAYER_0/1), puis deux PNJ aux places Joueur 3/4. Chaque humain a un PNJ pour partenaire. Le scénario habituel un Android + trois PNJ reste disponible sans changer ses réponses.
 
 Ce lot prépare un essai local : pas de serveur public, DNS, OVH, classement ou entraînement IA. Deux Android réels/émulés distincts doivent utiliser le même backend de développement via leur propre reverse ADB. Aucune connexion Google ni sélection de compte automatisée.
 
@@ -20,27 +20,28 @@ La procédure ci-dessous suppose `emulator-5554` et `emulator-5556`, tous deux e
 
 Arrêter dans leurs terminaux les anciens lanceurs de PNJ ; terminer un éventuel relais de coupure par **q**. Aucun autre lanceur ne doit créer/remplir de salon pendant cet essai. Arrêter un ancien backend dans son propre terminal seulement si nécessaire pour libérer 3000 ; ne pas lancer deux backends sur ce port.
 
-## Récupérer la branche de test
+## Récupérer le code
 
 Dans WSL, vérifier que `git status --short` ne montre pas de travail local à écraser. Si des fichiers sont modifiés, les conserver et arrêter cette étape pour examiner leur état.
 
 ```bash
-cd /home/morpheus/projects/atoutia &&
+cd "$HOME/projects/atoutia" &&
 git status --short --branch &&
 git fetch origin &&
-git switch feat/android-two-account-test &&
-git pull --ff-only origin feat/android-two-account-test &&
+test -z "$(git status --porcelain)" &&
+git switch main &&
+git pull --ff-only origin main &&
 pnpm install --frozen-lockfile
 ```
 
-Ne pas fusionner ce lot avant les CI du dernier commit et l’essai à deux appareils sur le PC. Le lanceur natif ADB/WSL et les deux connexions Google ne sont pas exécutables dans l’environnement de l’assistant.
+La PR nº 53 est intégrée et ses deux CI sur main sont réussies. Le correctif de renouvellement est préparé sur `fix/dev-bot-auth-refresh` : ne le présenter comme livré qu’après ses propres CI et sa fusion. Le lanceur natif ADB/WSL et les deux connexions Google restent des contrôles PC distincts.
 
 ## Terminal WSL 1 : backend de test
 
 Utiliser cette même base dans les deux terminaux. Le lanceur refuse la base habituelle `apps/backend/data/atoutia.sqlite` et ses liens symboliques. Il ne crée ni ne migre lui-même une base.
 
 ```bash
-cd /home/morpheus/projects/atoutia &&
+cd "$HOME/projects/atoutia" &&
 pnpm --filter @atoutia/belote-engine build &&
 pnpm --filter @atoutia/backend build &&
 mkdir -p logs/android-duo-test &&
@@ -57,7 +58,7 @@ Garder ce terminal ouvert. Le bootstrap crée seulement les identités des PNJ d
 Le chemin ADB Windows est un exemple à adapter au compte Windows. Aucun identifiant de salon à chercher dans la base ou à recopier dans la commande.
 
 ```bash
-cd /home/morpheus/projects/atoutia &&
+cd "$HOME/projects/atoutia" &&
 curl -fsS http://127.0.0.1:3000/health &&
 ATOUTIA_DATABASE_PATH="$PWD/logs/android-duo-test/atoutia.sqlite" \
 ATOUTIA_ADB="/mnt/c/Users/COMPTE_WINDOWS/AppData/Local/Android/Sdk/platform-tools/adb.exe" \
@@ -84,4 +85,8 @@ Le backend conserve l’autorité. Les PNJ utilisent des comptes bootstrap disti
 
 La découverte des nouveaux salons et la preuve de deux identités sont des lectures SQLite `readOnly`/`query_only`, avec reprise bornée sur verrou transitoire. La requête de preuve sélectionne uniquement mode, format, session et liaisons des places, sans lire les tables de tokens ni retourner les identités. Les identités `pid1_…` sont liées de façon déterministe au compte authentifié par le serveur. Cette preuve ne dit rien sur la présence temps réel ni sur la disponibilité future du salon. Plusieurs nouveaux salons, une place PNJ occupée ou un salon déjà démarré arrêtent le banc avant l’ajout de PNJ ; aucun choix arbitraire de salon.
 
-Validation locale de développement : **629 tests backend**, typecheck/build et contrôle syntaxique des scripts réussis sous Node 24.22.1/pnpm 12.3.4. Les 15 contrôles ciblés couvrent modes/places, ciblage ADB, refus des appareils indisponibles, découverte non ambiguë, SQLite en lecture seule et véritable CLI enfant sur serveur HTTP/WebSocket loopback. L’intégration utilise une base temporaire et deux identités synthétiques, vérifie l’attente des humains puis quelques coups des seuls PNJ 2/3. Elle ne simule pas une installation Android ni une connexion Google. Les CI moteur/backend et Kotlin du dernier commit et l’essai PC doivent compléter ces preuves avant fusion. Le lot ne modifie ni source ni test Android ; le workflow UI filtré par chemins ne se déclenche pas pour ces scripts. Les 62 instrumentés de la PR nº 52 prouvent la base Android, sans être présentés comme une nouvelle exécution de ce lanceur.
+Les jetons d’accès des PNJ expirent normalement après 15 minutes. Le correctif `fix/dev-bot-auth-refresh` conserve leur jeton de renouvellement en mémoire et utilise `/api/v1/auth/refresh` après un rejet explicite `401 AUTH_INVALID`, avec rotation de la paire et une seule nouvelle tentative de la requête refusée. Un timeout réseau, un conflit de révision ou un refus de participation ne rejoue pas une commande. Un renouvellement refusé, ambigu ou destiné à une autre identité arrête le script, sans recréer de compte. Le bootstrap reste nécessaire à la création initiale des PNJ, pas au renouvellement.
+
+Si le processus PNJ est arrêté, ses clés en mémoire sont perdues : un nouveau lanceur ne peut pas reprendre les anciennes places occupées. Utiliser un nouveau salon par les commandes normales de l’application, sans supprimer la base, désinstaller l’application ou vider ses données. Un arrêt du serveur ou une panne ADB reste un problème distinct de l’expiration.
+
+Validation locale du correctif : **640 tests backend**, typecheck/build réussis sous Node 24.22.1/pnpm 12.3.4. L’intégration réelle CLI sur HTTP/WebSocket loopback et SQLite temporaire échoue avant correction après une expiration injectée de 16 minutes ; après correction, deux cycles d’expiration/rotation puis les coups PNJ réussissent, avec les places humaines toujours manuelles. Les tests ciblés couvrent aussi la concurrence, les refus, les réponses perdues, l’identité de session et les diagnostics sans jetons. Ces preuves synthétiques ne simulent ni une installation Android ni Google. Les CI moteur/backend et Kotlin du dernier commit restent requises avant fusion ; aucune source ou test Android n’est modifié et aucun nouveau passage UI n’est revendiqué.

@@ -31,10 +31,15 @@ test("two Android seats stay manual while the real CLI fills and plays only seat
   const databasePath = join(directory, "synthetic.sqlite");
   const rooms = new SQLiteLiveRoomRepository({ databasePath });
   const repository = new SQLiteAuthRepository({ databasePath: ":memory:" });
-  const authService = new AuthService({ repository, bootstrapAuthenticationEnabled: true });
+  let authNow = Date.now();
+  const authService = new AuthService({ repository, bootstrapAuthenticationEnabled: true, now: () => authNow });
   const roomStore = new LiveRoomStore({ repository: rooms });
   const server = createBackendServer({ roomStore, authService });
   const realtime = createRealtimeServer({ server, roomStore, authService });
+  let refreshRequests = 0;
+  server.on("request", (request) => {
+    if (request.url === "/api/v1/auth/refresh") refreshRequests++;
+  });
   let child;
   let output = "";
   let stopped;
@@ -54,10 +59,10 @@ test("two Android seats stay manual while the real CLI fills and plays only seat
     const humans = [];
     for (let index = 0; index < 2; index++) {
       const { accountId } = await request("/api/v1/auth/accounts");
-      const { accessToken } = await request("/api/v1/auth/sessions", { body: { accountId } });
+      const { accessToken, refreshToken } = await request("/api/v1/auth/sessions", { body: { accountId } });
       const current = await request(`/api/v1/rooms/${sessionId}`, { method: "GET" });
       await request(`/api/v1/rooms/${sessionId}/seats`, { token: accessToken, body: { player: `PLAYER_${index}`, expectedRevision: current.revision } });
-      humans.push(accessToken);
+      humans.push({ accessToken, refreshToken });
     }
     const before = createHash("sha256").update(readFileSync(databasePath)).digest("hex");
     expect(await readDevelopmentDuoAccountProof(databasePath, sessionId)).toBe(true);
@@ -73,14 +78,27 @@ test("two Android seats stay manual while the real CLI fills and plays only seat
     expect(ready.occupiedSeats).toBe(4);
     expect(ready.phase).toBe("READY");
     expect(output.match(/PLAYER_[0-3]: joined/g)).toEqual(["PLAYER_2: joined", "PLAYER_3: joined"]);
-    await request(`/api/v1/rooms/${sessionId}/start`, { token: humans[0], body: { expectedRevision: ready.revision } });
+    await request(`/api/v1/rooms/${sessionId}/start`, { token: humans[0].accessToken, body: { expectedRevision: ready.revision } });
     await until(() => output.includes("Waiting for PLAYER_0 / PLAYER_1 Android"), "wait for humans", () => output);
     const manual = await request(`/api/v1/rooms/${sessionId}`, { method: "GET" });
     await delay(350);
     expect((await request(`/api/v1/rooms/${sessionId}`, { method: "GET" })).revision).toBe(manual.revision);
+    // Advance only the injected authentication clock: reproduce two real 15-minute
+    // expirations in seconds, including refresh-token rotation. Never alter room time.
+    for (let wave = 1; wave <= 2; wave++) {
+      authNow += 16 * 60 * 1000;
+      for (let index = 0; index < humans.length; index++) {
+        humans[index] = await request("/api/v1/auth/refresh", { body: { refreshToken: humans[index].refreshToken } });
+      }
+      await until(() => {
+        if (output.includes("Autoplay failed.")) throw new Error(output);
+        return refreshRequests === wave * 4;
+      }, "both bots renew their original sessions", () => output);
+      expect((await request(`/api/v1/rooms/${sessionId}`, { method: "GET" })).revision).toBe(manual.revision);
+    }
     let humanMoves = 0;
     await until(async () => {
-      for (const token of humans) {
+      for (const { accessToken: token } of humans) {
         const snapshot = await request(`/api/v1/rooms/${sessionId}/snapshot`, { token });
         const actions = snapshot.game.actions;
         const command = actions.mode === "BID" ? actions.biddingActions.find((action) => action.type === "TAKE") || actions.biddingActions[0]
@@ -95,7 +113,7 @@ test("two Android seats stay manual while the real CLI fills and plays only seat
     }, "bounded human and bot turns", () => output);
     expect(output).toContain("Controlled players: PLAYER_2, PLAYER_3");
     expect(output).not.toMatch(/PLAYER_[01]: (TAKE|PASS|PLAY_CARD|joined)/);
-    expect(output).not.toMatch(/atk1_|rtk1_/);
+    expect(output).not.toMatch(/atk1_|art1_|rtk1_/);
     expect(child.exitCode).toBe(null);
   } finally {
     if (child && child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
