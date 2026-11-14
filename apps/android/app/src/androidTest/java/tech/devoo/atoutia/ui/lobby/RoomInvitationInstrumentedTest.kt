@@ -63,6 +63,12 @@ class RoomInvitationInstrumentedTest {
         }
     }
 
+    // Compose idleness does not imply OS window focus. Android denies clipboard reads
+    // to an unfocused application; keep that privacy restriction active in this test.
+    private fun awaitClipboardWindow() {
+        compose.waitUntil(5_000) { compose.runOnUiThread { compose.activity.hasWindowFocus() } }
+    }
+
     private fun clipboard() = compose.activity.getSystemService(ClipboardManager::class.java)
     private fun clearClipboard() = compose.runOnIdle { clipboard().setPrimaryClip(ClipData.newPlainText("", "")) }
     private fun input() = compose.onNodeWithTag("room-invitation-input")
@@ -286,8 +292,10 @@ class RoomInvitationInstrumentedTest {
                 onShareInvitation = { share = RoomInvitationActions.shareIntent(it) }) }
         }
         try {
+            awaitClipboardWindow()
             compose.onNodeWithTag("copy-room-invitation").performScrollTo().assertIsDisplayed().performClick()
             compose.onNodeWithText("Invitation copiée.").performScrollTo().assertIsDisplayed()
+            awaitClipboardWindow()
             compose.runOnIdle {
                 val clip = requireNotNull(clipboard().primaryClip)
                 assertEquals(1, clip.itemCount)
@@ -361,11 +369,13 @@ class RoomInvitationInstrumentedTest {
             SmallScreen { PlayScreen(RoomActionUiState.Idle, value.value, { value.value = it }, {}, { joins++ }, {}) }
         }
         try {
+            awaitClipboardWindow()
             compose.runOnIdle { clipboard().setPrimaryClip(ClipData.newRawUri("Fausse invitation", Uri.parse("https://invalid.test/invitation"))) }
             compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
             compose.onNodeWithTag("invitation-paste-issue", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
             compose.runOnIdle { assertEquals("", value.value); assertEquals(0, joins) }
             compose.runOnIdle { RoomInvitationActions.copy(compose.activity, RoomInvitation.create(code)) }
+            awaitClipboardWindow()
             compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
             compose.runOnIdle { assertEquals(code, value.value); assertEquals(0, joins) }
             compose.runOnIdle { clipboard().setPrimaryClip(ClipData.newPlainText("Invalid", "$code\n$code")) }
@@ -373,6 +383,7 @@ class RoomInvitationInstrumentedTest {
             compose.runOnIdle { assertEquals(code, value.value); assertEquals(0, joins) }
             compose.onNodeWithText("Rejoindre la partie").performScrollTo().assertIsNotEnabled()
             compose.runOnIdle { RoomInvitationActions.copy(compose.activity, RoomInvitation.create(code)) }
+            awaitClipboardWindow()
             compose.onNodeWithTag("paste-room-invitation").performScrollTo().performClick()
             compose.onNodeWithText("Rejoindre la partie").performScrollTo().assertIsEnabled().performClick()
             compose.runOnIdle { assertEquals(1, joins) }
