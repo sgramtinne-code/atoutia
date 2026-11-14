@@ -82,9 +82,94 @@ class LandscapeGameScreenInstrumentedTest {
         val session = fixture()
         show(session)
         assertHandVisible(session)
-        compose.onNodeWithText("Score 82 - 80 / 1000").assertIsDisplayed()
+        compose.onNodeWithTag("hud-own-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("82")
+        compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("80")
+        compose.onNodeWithText("Objectif : 1000").assertIsDisplayed()
         compose.onNodeWithText("Atout ♣ trèfle").assertIsDisplayed()
         compose.onNodeWithText("Retour à l’accueil").assertIsDisplayed()
+    }
+
+    @Test fun activeScoresAndRolesFollowEverySeatAndUpdateWithSnapshot() {
+        val initial = fixture()
+        show(initial, fontScale = 1.3f)
+        for (player in PlayerPosition.entries) {
+            val ownTeam0 = player == PlayerPosition.PLAYER_0 || player == PlayerPosition.PLAYER_2
+            val viewer = forViewer(initial, player, null)
+            val snapshot = viewer.document.snapshot
+            val match = snapshot.match.publicMatch
+            compose.runOnIdle {
+                displayedSession.value = viewer.copy(revision = 42, document = viewer.document.copy(snapshot = snapshot.copy(
+                    match = snapshot.match.copy(publicMatch = match.copy(score = match.score.copy(
+                        targetScore = 1500, scores = TeamPointsSnapshot(1120, 980),
+                    ))),
+                )))
+            }
+            compose.onNodeWithTag("hud-own-score", useUnmergedTree = true).assertIsDisplayed()
+                .assertTextEquals(if (ownTeam0) "1120" else "980")
+            compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertIsDisplayed()
+                .assertTextEquals(if (ownTeam0) "980" else "1120")
+            compose.onNodeWithTag("hud-target").assertIsDisplayed().assertTextEquals("Objectif : 1500")
+            for (tag in listOf("hud-own-score", "hud-opponent-score")) {
+                assertCompleteText("$tag-label")
+                assertCompleteText(tag)
+            }
+            for (seat in PlayerPosition.entries) {
+                val sameTeam = (seat == PlayerPosition.PLAYER_0 || seat == PlayerPosition.PLAYER_2) == ownTeam0
+                compose.onNodeWithTag("table-role-${seat.name}", useUnmergedTree = true).assertIsDisplayed()
+                    .assertTextEquals(when { seat == player -> "Vous"; sameTeam -> "Partenaire"; else -> "Adversaire" })
+                assertCompleteText("table-role-${seat.name}")
+                compose.onNodeWithTag("table-markers-${seat.name}", useUnmergedTree = true)
+                    .assert(SemanticsMatcher.expectValue(SemanticsProperties.Text,
+                        listOf(androidx.compose.ui.text.AnnotatedString(buildString {
+                            append("J${seat.ordinal + 1}")
+                            if (seat == match.dealer) append(" • D")
+                            if (seat == match.taker) append(" • P")
+                            if (seat == match.currentTrick?.currentPlayer) append(" • À jouer")
+                        }))))
+            }
+            assertHandVisible(initial)
+            assertPlayedCardsUnobstructed(match.currentTrick!!.plays)
+            if (player == PlayerPosition.PLAYER_1) captureResult("game-teams.png")
+        }
+        // An updated server score must replace the displayed total without a new screen.
+        compose.runOnIdle { displayedSession.value = initial }
+        compose.onNodeWithTag("hud-own-score", useUnmergedTree = true).assertTextEquals("82")
+        compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertTextEquals("80")
+    }
+
+    @Test fun stackedHudKeepsFourDigitScoresAndUnknownContractReadable() {
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.3f)) {
+                AtoutiaTheme {
+                    Box(Modifier.requiredSize(360.dp, 320.dp).testTag("test-viewport")) {
+                        GameHud(localPlayer = PlayerPosition.PLAYER_3, dealNumber = 12,
+                            dealer = PlayerPosition.PLAYER_1, taker = null, trumpSuit = null,
+                            scoreTeam0 = 1024, scoreTeam1 = 1234, targetScore = 1500, revision = 100)
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("hud-own-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("1234")
+        compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("1024")
+        compose.onNodeWithText("Atout —").assertIsDisplayed()
+        compose.onNodeWithText("Donne 12 · Donneur J2 · Preneur — · R100").assertIsDisplayed()
+        for (tag in listOf("hud-own-score-label", "hud-own-score", "hud-opponent-score-label", "hud-opponent-score", "hud-target")) {
+            assertCompleteText(tag)
+        }
+        captureResult("score-stacked.png")
+    }
+
+    private fun assertCompleteText(tag: String) {
+        val node = compose.onNodeWithTag(tag, useUnmergedTree = true).assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertTrue("Text must be complete on one line: $tag", layouts.single().lineCount == 1 && !layouts.single().hasVisualOverflow)
+        val bounds = node.getUnclippedBoundsInRoot()
+        val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
+        assertTrue("Text must stay inside viewport: $tag / $bounds / $viewport",
+            bounds.left >= viewport.left && bounds.right <= viewport.right &&
+                bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
     }
 
     @Test fun largerTextKeepsCardsVisibleAndOnlyLegalIdleCardsSubmit() {

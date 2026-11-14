@@ -235,6 +235,7 @@ private fun PlayerSeatBadge(
 
     val markers =
         buildList {
+            add("J${player.ordinal + 1}")
             if (
                 player ==
                     dealer
@@ -369,9 +370,13 @@ private fun PlayerSeatBadge(
                         isLocalPlayer
                     ) {
                         "Vous"
+                    } else if (player.matchTeam() == localPlayer.matchTeam()) {
+                        "Partenaire"
                     } else {
-                        player.toDisplayName()
+                        "Adversaire"
                     },
+
+                modifier = Modifier.testTag("table-role-${player.name}"),
 
                 style =
                     if (
@@ -402,6 +407,8 @@ private fun PlayerSeatBadge(
                             separator =
                                 " • ",
                         ),
+
+                    modifier = Modifier.testTag("table-markers-${player.name}"),
 
                     style =
                         MaterialTheme
@@ -520,21 +527,3 @@ private fun PlayerPosition.offsetBy(
 
     return players[index]
 }
-
-private fun PlayerPosition.toDisplayName():
-    String =
-    when (
-        this
-    ) {
-        PlayerPosition.PLAYER_0 ->
-            "Joueur 1"
-
-        PlayerPosition.PLAYER_1 ->
-            "Joueur 2"
-
-        PlayerPosition.PLAYER_2 ->
-            "Joueur 3"
-
-        PlayerPosition.PLAYER_3 ->
-            "Joueur 4"
-    }
