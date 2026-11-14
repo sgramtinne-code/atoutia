@@ -4,13 +4,26 @@
 
 Clarification explicite du développeur après PR nº 18 : les **millions de parties concernent l'entraînement futur des PNJ dans l'IA Lab sur son PC NVIDIA RTX 5070**, pour des styles/méthodes de jeu variés, amusants, distrayants et par niveau. Ne plus les présenter comme une validation moteur manquante ou une campagne de CI. La priorité actuelle est la validation du multijoueur Android. Les lots de 1 000/10 000 déjà livrés restent des tests bornés, sans entraînement GPU. La CI reste bornée. Aucun entraînement ni installation GPU implicite. [Feuille de route IA](docs/AI_LAB_ROADMAP.md). Cette clarification remplace les formulations historiques contraires plus bas.
 
-## Lot courant · résultats de partie lisibles pour chaque joueur
+## Priorités et reprise
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Poursuivre le multijoueur Android, la lisibilité et l’ergonomie pour les personnes âgées. L’entraînement des PNJ sur la RTX 5070 est en pause. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
-Base intégrée **8bb064a** ([PR nº 54](https://github.com/sgramtinne-code/atoutia/pull/54)) : les PNJ du lanceur local renouvellent leurs jetons d’accès, après la livraison du banc deux comptes par la PR nº 53. Les CI de main sont réussies : [moteur/backend](https://github.com/sgramtinne-code/atoutia/actions/runs/43575851525) et [Android JVM/APK/lint](https://github.com/sgramtinne-code/atoutia/actions/runs/43575851558). Le code validé compte **640 tests backend et 266 JVM**. Le test CLI synthétique vérifie deux expirations/rotations et la poursuite des coups. La base Android conserve les **62 instrumentés**, dont 12 invitations, de la [PR nº 52](https://github.com/sgramtinne-code/atoutia/pull/52). Aucun nouveau passage UI n’est attribué au correctif de scripts.
+### Point de reprise — après la PR nº 55
 
-Lot courant : `feat/android-match-result-clarity`. La fin de partie affiche **Victoire !** ou **Défaite** depuis la place locale et les scores libellés **Votre équipe / Adversaires**. Le vainqueur reste celui du snapshot autoritaire ; un vainqueur absent n’est pas déduit des points. Le forfait conserve son motif et son gagnant sans fabriquer de score cible. Les indications de présence et de tour ne sont plus affichées après une fin normale ou par forfait. En paysage, Rejouer reste fixé en bas et les détails/actions secondaires défilent au-dessus. Aucun changement de transport ou de renouvellement Android ; une coupure ne peut pas être expliquée par ces seuls changements d’affichage. Les CI du dernier commit et l’inspection des captures synthétiques restent à obtenir. Total prévu : **65 instrumentés**, dont 16 paysage, et **14 captures**. Aucun résultat nouveau revendiqué avant leur exécution.
+**Code applicatif intégré : `8107b72536f137d7bf059316df66d60ec2d016cc`**, [PR nº 55](https://github.com/sgramtinne-code/atoutia/pull/55), issue du code validé `6ca600f87ff09e6284e9aeaa2d560847dafb0d2a`. L’arbre de fusion `9bf00f597a297cf666f3adaf9ac090d3bc8f0299` est identique à celui du code testé. Les PR nº 53 et 54 sont également intégrées ; ne pas les présenter comme des lots à terminer.
+
+| Livraison récente | État et comportement |
+| --- | --- |
+| [PR nº 53](https://github.com/sgramtinne-code/atoutia/pull/53) · `e8badfd` | Banc local deux comptes Android manuels, deux PNJ, cibles ADB explicites et nouveau salon détecté automatiquement |
+| [PR nº 54](https://github.com/sgramtinne-code/atoutia/pull/54) · `8bb064a` | Renouvellement rotatif des jetons PNJ après `401 AUTH_INVALID`, une seule nouvelle tentative, clés uniquement en mémoire |
+| [PR nº 55](https://github.com/sgramtinne-code/atoutia/pull/55) · `8107b72` | Victoire/Défaite selon la place locale, scores Votre équipe/Adversaires, Rejouer fixe en paysage, présence et marqueur de tour masqués après fin normale ou forfait |
+
+**Preuves du dernier code Android avant fusion :** [moteur/backend](https://github.com/sgramtinne-code/atoutia/actions/runs/43581829599), [Android JVM/APK/lint](https://github.com/sgramtinne-code/atoutia/actions/runs/43581829525) et [Android UI](https://github.com/sgramtinne-code/atoutia/actions/runs/43581829534), tous conclus **success** sur `6ca600f`. Socle : **601 tests moteur, 640 backend, 26 offline, 266 JVM et 65 instrumentés** (dont 16 paysage et 12 invitations). Les **14 captures synthétiques** ont été collectées ; victoire/défaite ont été inspectées à 640 × 320 dp, texte 1,3 et scores à quatre chiffres. Ce sont des preuves de CI, pas une installation sur le PC ou une publication Google Play.
+
+**Push main applicatif `8107b72` :** [moteur/backend](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722029), [Android JVM/APK/lint](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722096), [Android UI](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722065). Les trois conclusions **success** ont été vérifiées au checkpoint du 14 novembre 2026 et consignées dans la PR nº 55 ; relire leur état à la reprise. La [préparation documentaire](https://github.com/sgramtinne-code/atoutia/pulls?q=head%3Adocs%2Fcontinuity-after-match-results) `docs/continuity-after-match-results` ne modifie aucune source, fixture, configuration ou suite applicative ; son SHA de fusion et ses CI sont à consigner dans sa PR, sans commit destiné à inscrire son propre SHA.
+
+**Suite :** lire `AGENTS.md`, `README.md`, `docs/REPRISE.md` et `docs/PROJECT_STATUS.md`, vérifier main/PR/CI, puis poursuivre un lot Android visible et borné. Le prochain candidat est la compréhension du score et des équipes pendant le jeu ; vérifier le code avant de le choisir. L’installation PC du dernier APK doit être confirmée séparément, sans nouvel essai de partie complète imposé pour la seule présentation des résultats. Le renouvellement des scripts PNJ, la restauration d’une partie Android et le diagnostic d’une coupure réseau restent trois sujets distincts. Les données et observations PC restent privées.
+
 
 Le banc de la règle du dernier joueur est intégré à `main` en **e739508** ([PR nº 45](https://github.com/sgramtinne-code/atoutia/pull/45)). Les travaux d’apprentissage des PNJ sont en pause. La [procédure de partie Android à quatre avec coupure et reprise](README.md#essai-android-à-quatre-avec-coupure) est intégrée dans **83c73ab** (PR nº 46). La correction des plis est intégrée par la PR nº 47. Le salon en paysage est intégré par la PR nº 48. La PR nº 49 ajoute « Agrandir la main » : grandes cartes séparées, actions autorisées conservées et retour au jeu après sélection. Les petites mains utilisent mieux la largeur disponible. La PR nº 50 affiche les quatre places occupées ou libres, votre place, votre partenaire et les adversaires. La PR nº 51 améliore les invitations : actions Copier/Partager sur toute la largeur, sections Inviter/Rejoindre côte à côte en paysage et empilées sur largeur étroite, puis confirmation explicite après reconnaissance du texte. La reconnaissance du format ne prouve ni l’existence ni la disponibilité du salon : le serveur reste seul à accepter l’entrée. Le contrôle entre deux comptes est décrit dans la procédure de test dédiée ; les données et observations PC restent privées.
 
@@ -34,7 +47,8 @@ La spécification métier du dépôt est `docs/GAME_RULES.md`, version documenta
 4. Ne jamais modifier directement `main`. Livrer les changements par PR, avec problème résolu, comportement obtenu, validations et limites connues.
 5. Donner les commandes de récupération de branche puis de validation locale. Attendre les résultats nécessaires du développeur pour les contrôles qui exigent son PC, Android ou sa base.
 6. Corriger sur la branche. Fusionner seulement lorsque toutes les validations requises pour le changement sont réussies. Les commits de travail sont permis ; un échec interdit de présenter la branche comme stable ou de la fusionner.
-7. Après fusion, fournir la procédure complète pour revenir sur `main` et le mettre à jour. Vérifier le statut réel de la PR et du commit avant d'annoncer une fusion.
+7. L’autorisation de conduire le projet couvre les décisions courantes, les commits, les PR et leur fusion une fois tous les contrôles applicables réussis. Ne pas redemander une confirmation à chaque choix technique ; demander seulement une information réellement manquante ou une autorisation nouvelle pour une action hors périmètre.
+8. Après fusion, fournir la procédure complète pour revenir sur `main` et le mettre à jour. Vérifier le statut réel de la PR et du commit avant d'annoncer une fusion.
 
 Maintenir **AGENTS.md et README.md à jour avec chaque évolution pertinente** : conserver les directives toujours valables, les ajuster lorsqu'elles changent et actualiser l'état, les commandes et les validations. Mettre également à jour `docs/REPRISE.md` aux points de passage importants. Éviter les changements purement cosmétiques sans information nouvelle.
 
@@ -56,7 +70,7 @@ Ce contrôle ne remplace pas les validations Android, ADB ou de base locale rée
 - Aucune commande destructive telle que `git reset --hard`, `git clean -fd` ou `git push --force` sans nécessité et autorisation explicite.
 - Ne jamais mettre `exit 1` dans une commande destinée au terminal interactif du développeur.
 - Fournir les chemins absolus utiles sur son PC, sous `$HOME/projects/atoutia`. Ne pas confondre ce PC avec l'environnement d'exécution de l'assistant.
-- Redonner le scénario complet nécessaire à la tâche : préparation, démarrage, actions dans Android, vérification et résultats attendus. Éviter de renvoyer à une étape oubliée d'un ancien message.
+- Redonner le scénario complet nécessaire à la tâche : préparation, démarrage, actions dans Android, vérification et résultats attendus. Éviter de renvoyer à une étape oubliée d'un ancien message. Fournir des étapes regroupées et exécutables ; ne pas imposer une confirmation ou une capture à chaque clic, sauf demande explicite de ralentir.
 - Le workflow GitHub remplace les immenses copier-coller. Si un fichier doit exceptionnellement être fourni dans le chat, donner son chemin absolu et son contenu complet ; aucun extrait ou patch à compléter manuellement, ni archive à la place du code.
 - Distinguer état vérifié aujourd'hui, validation historique rapportée par le développeur, proposition et travail restant. Ne jamais convertir un ancien résultat de test en validation actuelle.
 
@@ -116,7 +130,13 @@ Le mode deux comptes est opt-in via `apps/backend/scripts/dev-android-duo.mjs --
 - Règles : conserver le versionnement CLASSIC_LITIGE_WINNER / CLASSIC_LEGACY_LITIGE_TAKER et les replays legacy. Aucun changement silencieux des points attribués à une partie existante.
 - CI du code 8352973 : 601 moteur, 620 backend, 26 offline ; 266 JVM ; 52 instrumentés API36 avec les invitations et le visuel. Bundle inchangé 6e83cc765603d43c8a1307b3ba9b4bcb69b6b459c562dc25b1842b90351c2650. Un APK instrumenté compilé ne prouve pas des tests exécutés.
 
-## Références de continuité
+## Reprise pratique et références de continuité
+
+À l’ouverture d’un nouveau chat, revalider les faits publics depuis GitHub et l’état Git local avant toute mutation. Les anciens worktrees peuvent contenir des changements préparés ou stagés, même si leur contenu a déjà été livré à distance : les préserver et ouvrir un nouveau checkout isolé depuis main. Ne pas réinitialiser ou nettoyer ces répertoires pour faciliter la reprise. Un espace assistant éphémère absent peut être recréé depuis le dépôt ; cela ne prouve pas la perte du projet sur le PC. Ne pas confondre ces deux environnements.
+
+Les trois workflows sont attendus pour une évolution Android. Pour une PR strictement documentaire, vérifier les liens, commandes et références, attendre les workflows réellement déclenchés et conserver la provenance des 65 instrumentés du code applicatif inchangé ; ne pas inventer un nouveau passage UI lorsqu’il ne se déclenche pas. Un APK compilé ne prouve ni une exécution instrumentée ni une installation PC.
+
+
 
 Le [bilan global](docs/PROJECT_STATUS.md) conserve la correspondance des 50 rubriques de règles et 19 rubriques de reprise, les écarts et le périmètre futur. Lire également [REPRISE](docs/REPRISE.md), [ANDROID_REVIEW](docs/ANDROID_REVIEW.md), [ANDROID_OFFLINE](docs/ANDROID_OFFLINE.md), [OFFLINE_BOT_STYLES](docs/OFFLINE_BOT_STYLES.md), [ANDROID_MODE_EXIT](docs/ANDROID_MODE_EXIT.md), [ANDROID_ROOM_INVITATIONS](docs/ANDROID_ROOM_INVITATIONS.md).
 
