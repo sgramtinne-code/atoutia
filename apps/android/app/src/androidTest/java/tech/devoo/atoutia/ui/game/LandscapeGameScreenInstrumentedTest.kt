@@ -18,7 +18,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -56,6 +60,8 @@ class LandscapeGameScreenInstrumentedTest {
     private val bids = mutableListOf<BiddingActionSnapshot>()
     private var replays = 0
     private var retries = 0
+    private var histories = 0
+    private var homes = 0
     private val sync = mutableStateOf(GameSyncState(connection = GameRealtimeStatus.CONNECTED))
     private val displayedSession = mutableStateOf<PlayerGameSession?>(null)
 
@@ -125,7 +131,7 @@ class LandscapeGameScreenInstrumentedTest {
         }
         assertPlayedCardsUnobstructed(plays)
         compose.onNodeWithText("Pli · 4/4").assertIsDisplayed()
-        compose.onNodeWithText("Partie terminée").assertIsDisplayed()
+        compose.onNodeWithTag("match-result-title").assertIsDisplayed().assertTextEquals("Victoire !")
     }
 
     private fun withTrick(session: PlayerGameSession, plays: List<PlayedCardSnapshot>): PlayerGameSession {
@@ -315,8 +321,106 @@ class LandscapeGameScreenInstrumentedTest {
         show(fixture(PlayerActionMode.MATCH_FINISHED))
         compose.onNodeWithTag("player-hand").assertDoesNotExist()
         compose.onNodeWithText("Ancienne erreur de carte").assertDoesNotExist()
-        compose.onNodeWithText("Rejouer").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Rejouer").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, replays) }
+        compose.onNodeWithText("Historique").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Accueil").performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, histories); assertEquals(1, homes) }
+    }
+
+    @Test fun finishedResultUsesEachPlayersOwnTeamAndHidesStalePresence() {
+        val initial = fixture(PlayerActionMode.MATCH_FINISHED)
+        sync.value = GameSyncState(connection = GameRealtimeStatus.RECONNECTING)
+        show(initial, fontScale = 1.3f, presence = reconnectingPresence(initial))
+        for (winner in MatchTeam.entries) for (player in PlayerPosition.entries) {
+            val team0 = player == PlayerPosition.PLAYER_0 || player == PlayerPosition.PLAYER_2
+            val won = (winner == MatchTeam.TEAM_0) == team0
+            compose.runOnIdle { displayedSession.value = forViewer(initial, player, winner) }
+            compose.onNodeWithTag("match-result-title").performScrollTo()
+                .assertIsDisplayed().assertTextEquals(if (won) "Victoire !" else "Défaite")
+            compose.onNodeWithTag("result-own-score", useUnmergedTree = true)
+                .assertIsDisplayed().assertTextEquals(if (won) "1120" else "980")
+            compose.onNodeWithTag("result-opponent-score", useUnmergedTree = true)
+                .assertIsDisplayed().assertTextEquals(if (won) "980" else "1120")
+            for (tag in listOf("result-own-score", "result-opponent-score")) {
+                val layouts = mutableListOf<TextLayoutResult>()
+                val label = compose.onNodeWithTag("$tag-label", useUnmergedTree = true).assertIsDisplayed()
+                label.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                assertTrue("Score label must be complete on one line", layouts.single().lineCount == 1 && !layouts.single().hasVisualOverflow)
+                val points = compose.onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
+                val controls = compose.onNodeWithTag("game-secondary-controls").getUnclippedBoundsInRoot()
+                assertTrue("Score must be fully visible: $points / $controls", points.top >= controls.top && points.bottom <= controls.bottom)
+            }
+            compose.onNodeWithText("Reconnexion").assertDoesNotExist()
+            compose.onNodeWithText("Reconnexion…").assertDoesNotExist()
+            compose.onNodeWithText("Réessayer").assertDoesNotExist()
+            compose.onNodeWithText("En direct").assertDoesNotExist()
+            PlayerPosition.entries.forEach { seat ->
+                compose.onNodeWithTag("table-seat-${seat.name}", useUnmergedTree = true)
+                    .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+            }
+            // The primary action is completely visible at 640 x 320 dp / text 1.3.
+            val replay = compose.onNodeWithTag("match-replay").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
+            val controls = compose.onNodeWithTag("game-secondary-controls").getUnclippedBoundsInRoot()
+            assertTrue("Replay must remain fully visible: $replay / $controls / $viewport",
+                replay.top >= controls.bottom &&
+                    replay.left >= viewport.left && replay.right <= viewport.right &&
+                    replay.top >= viewport.top && replay.bottom <= viewport.bottom && replay.bottom - replay.top >= 48.dp)
+            if (winner == MatchTeam.TEAM_0 && player in listOf(PlayerPosition.PLAYER_0, PlayerPosition.PLAYER_1)) {
+                captureResult(if (won) "result-win.png" else "result-loss.png")
+            }
+        }
+    }
+
+    @Test fun missingWinnerNeverInfersAVictoryFromTheScore() {
+        val initial = fixture(PlayerActionMode.MATCH_FINISHED)
+        show(forViewer(initial, PlayerPosition.PLAYER_0, null))
+        compose.onNodeWithTag("match-result-title").assertIsDisplayed().assertTextEquals("Résultat final")
+        compose.onNodeWithText("Victoire !").assertDoesNotExist()
+        compose.onNodeWithText("Défaite").assertDoesNotExist()
+    }
+
+    @Test fun forfeitUsesTheAuthoritativeWinnerWithoutInventingATargetScore() {
+        val active = fixture()
+        val adjudication = GameRealtimeAdjudicationEvent(active.sessionId,
+            GameRealtimeAdjudication.Forfeit(PlayerPosition.PLAYER_0, MatchTeam.TEAM_0, MatchTeam.TEAM_1, 1000L))
+        show(active, fontScale = 1.3f, presence = reconnectingPresence(active), adjudication = adjudication)
+        compose.onNodeWithText("Défaite").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Votre équipe perd par forfait.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Reconnexion").assertDoesNotExist()
+        compose.onNodeWithText("À jouer", substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("player-hand").assertDoesNotExist()
+        compose.onNodeWithTag("result-own-score", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { displayedSession.value = forViewer(active, PlayerPosition.PLAYER_1, null) }
+        compose.onNodeWithText("Victoire !").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("L’équipe adverse perd par forfait.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Rejouer").assertIsDisplayed()
+    }
+
+    private fun forViewer(session: PlayerGameSession, player: PlayerPosition, winner: MatchTeam?): PlayerGameSession {
+        val snapshot = session.document.snapshot
+        val publicMatch = snapshot.match.publicMatch
+        val points = if (winner == MatchTeam.TEAM_1) TeamPointsSnapshot(publicMatch.score.scores.team1, publicMatch.score.scores.team0) else publicMatch.score.scores
+        return session.copy(player = player, document = session.document.copy(snapshot = snapshot.copy(
+            match = snapshot.match.copy(player = player, publicMatch = publicMatch.copy(score = publicMatch.score.copy(
+                scores = points, winner = winner,
+            ))), actions = snapshot.actions.copy(player = player),
+        )))
+    }
+
+    private fun reconnectingPresence(session: PlayerGameSession) = GameRealtimePresence(
+        sessionId = session.sessionId, players = emptyList(),
+        connectionStates = PlayerPosition.entries.map {
+            GameRealtimeConnectionState(it, GameRealtimeConnectionStateName.RECONNECTING, 1000L, 2000L)
+        }, absences = emptyList(), resolutions = emptyList(),
+    )
+
+    private fun captureResult(name: String) {
+        compose.waitForIdle()
+        val directory = File(compose.activity.cacheDir, "visual-qa").also { check(it.exists() || it.mkdirs()) }
+        val bitmap = compose.onNodeWithTag("test-viewport").captureToImage().asAndroidBitmap()
+        File(directory, name).outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
 
     @Test fun healthySyncHasNoPermanentRefreshButton() {
@@ -396,6 +500,7 @@ class LandscapeGameScreenInstrumentedTest {
         session: PlayerGameSession,
         fontScale: Float = 1f,
         presence: GameRealtimePresence? = null,
+        adjudication: GameRealtimeAdjudicationEvent? = null,
     ) {
         displayedSession.value = session
         compose.setContent {
@@ -406,6 +511,7 @@ class LandscapeGameScreenInstrumentedTest {
                         GameScreen(
                             session = requireNotNull(displayedSession.value),
                             presence = presence,
+                            adjudication = adjudication,
                             playCardState = submitted.value,
                             onPlayCard = { selected.add(it) },
                             onBiddingAction = { bids.add(it) },
@@ -413,8 +519,8 @@ class LandscapeGameScreenInstrumentedTest {
                             onRefresh = { retries++ },
                             onReturnToHome = {},
                             onReplay = { replays++ },
-                            onHistory = {},
-                            onHome = {},
+                            onHistory = { histories++ },
+                            onHome = { homes++ },
                         )
                     }
                 }
@@ -444,8 +550,8 @@ class LandscapeGameScreenInstrumentedTest {
             dealer = PlayerPosition.PLAYER_1,
             phase = when { completed -> DealPhase.FINISHED; bidding -> DealPhase.BIDDING; else -> DealPhase.PLAYING },
             score = PublicMatchScoreSnapshot(
-                targetScore = if (completed) 501 else 1000,
-                scores = TeamPointsSnapshot(if (completed) 568 else 82, 80),
+                targetScore = 1000,
+                scores = TeamPointsSnapshot(if (completed) 1120 else 82, if (completed) 980 else 80),
                 completed = completed,
                 winner = if (completed) MatchTeam.TEAM_0 else null,
             ),
