@@ -396,7 +396,7 @@ internal fun GameScreen(
                             .winningTeam,
 
                     onReplay =
-                        onReplay,
+                        if (includeHand) onReplay else null,
 
                     onHistory =
                         onHistory,
@@ -419,7 +419,7 @@ internal fun GameScreen(
                         score.winner,
 
                     onReplay =
-                        onReplay,
+                        if (includeHand) onReplay else null,
 
                     onHistory =
                         onHistory,
@@ -507,7 +507,7 @@ internal fun GameScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text(
+                            if (!isMatchCompleted) Text(
                                 actionStatus,
                                 modifier = Modifier.fillMaxWidth(),
                                 style = MaterialTheme.typography.titleSmall,
@@ -529,6 +529,7 @@ internal fun GameScreen(
                                 controlsContent(false)
                                 footerContent()
                             }
+                            if (isMatchCompleted && onReplay != null) MatchReplayButton(onReplay)
                         }
                     }
                 }
@@ -838,23 +839,7 @@ private fun MatchCompletionActions(
                 8.dp,
             ),
     ) {
-        if (
-            onReplay !=
-                null
-        ) {
-            Button(
-                onClick =
-                    onReplay,
-
-                modifier =
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("match-replay"),
-            ) {
-                Text(
-                    text =
-                        "Rejouer",
-                )
-            }
-        }
+        if (onReplay != null) MatchReplayButton(onReplay)
 
         if (
             onHistory !=
@@ -892,6 +877,14 @@ private fun MatchCompletionActions(
             }
         }
     }
+}
+
+@Composable
+private fun MatchReplayButton(onReplay: () -> Unit) {
+    Button(
+        onClick = onReplay,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("match-replay"),
+    ) { Text("Rejouer") }
 }
 
 @Composable

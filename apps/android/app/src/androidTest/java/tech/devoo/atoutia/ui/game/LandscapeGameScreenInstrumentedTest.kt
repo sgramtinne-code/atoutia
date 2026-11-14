@@ -128,7 +128,7 @@ class LandscapeGameScreenInstrumentedTest {
         }
         assertPlayedCardsUnobstructed(plays)
         compose.onNodeWithText("Pli · 4/4").assertIsDisplayed()
-        compose.onNodeWithText("Partie terminée").assertIsDisplayed()
+        compose.onNodeWithTag("match-result-title").assertIsDisplayed().assertTextEquals("Victoire !")
     }
 
     private fun withTrick(session: PlayerGameSession, plays: List<PlayedCardSnapshot>): PlayerGameSession {
@@ -318,7 +318,7 @@ class LandscapeGameScreenInstrumentedTest {
         show(fixture(PlayerActionMode.MATCH_FINISHED))
         compose.onNodeWithTag("player-hand").assertDoesNotExist()
         compose.onNodeWithText("Ancienne erreur de carte").assertDoesNotExist()
-        compose.onNodeWithText("Rejouer").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Rejouer").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, replays) }
         compose.onNodeWithText("Historique").performScrollTo().assertIsDisplayed().performClick()
         compose.onNodeWithText("Accueil").performScrollTo().assertIsDisplayed().performClick()
@@ -352,7 +352,7 @@ class LandscapeGameScreenInstrumentedTest {
             val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
             val controls = compose.onNodeWithTag("game-secondary-controls").getUnclippedBoundsInRoot()
             assertTrue("Replay must remain fully visible: $replay / $controls / $viewport",
-                replay.top >= controls.top && replay.bottom <= controls.bottom &&
+                replay.top >= controls.bottom &&
                     replay.left >= viewport.left && replay.right <= viewport.right &&
                     replay.top >= viewport.top && replay.bottom <= viewport.bottom && replay.bottom - replay.top >= 48.dp)
             if (winner == MatchTeam.TEAM_0 && player in listOf(PlayerPosition.PLAYER_0, PlayerPosition.PLAYER_1)) {
@@ -383,7 +383,7 @@ class LandscapeGameScreenInstrumentedTest {
         compose.runOnIdle { displayedSession.value = forViewer(active, PlayerPosition.PLAYER_1, null) }
         compose.onNodeWithText("Victoire !").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("L’équipe adverse perd par forfait.").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Rejouer").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Rejouer").assertIsDisplayed()
     }
 
     private fun forViewer(session: PlayerGameSession, player: PlayerPosition, winner: MatchTeam?): PlayerGameSession {
