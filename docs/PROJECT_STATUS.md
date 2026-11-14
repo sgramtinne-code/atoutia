@@ -8,7 +8,13 @@ Un socle de belote multijoueur locale fonctionne : moteur TypeScript, backend au
 
 **Priorité révisée par le développeur le 30 octobre : reporter le déploiement OVH.** Poursuivre le multijoueur Android, la lisibilité et l’ergonomie pour les personnes âgées. L’entraînement des PNJ sur la RTX 5070 est en pause. Les millions de parties restent un sujet d’apprentissage, sans campagne massive dans la CI. Cette décision remplace l’ancien ordre qui plaçait l’IA après la bêta/diffusion. Ne pas demander de diagnostic VPS, créer de DNS ou reprendre OVH dans ce lot.
 
-## Point de reprise — après la PR nº 55
+## Scores et équipes pendant le jeu — lot en validation
+
+Branche `feat/android-live-score-clarity`, basée sur le main vérifié `2bc76f2` (PR nº 56 intégrée, deux CI documentaires réussies). Le HUD reçoit la place locale et affiche **Votre équipe / Adversaires**, les totaux autoritaires et **Objectif** séparément. La table indique **Vous / Partenaire / Adversaire** avec les numéros J1 à J4 ; donneur, preneur et tour restent identifiés. Le même écran sert au solo et au multijoueur. Aucun calcul de points ou de victoire ajouté à Android.
+
+Deux nouveaux contrôles instrumentés couvrent les quatre places, une mise à jour de snapshot, les scores à quatre chiffres, le texte 1,3 et la disposition empilée avec atout/preneur encore inconnus. Les contrôles existants des cartes, enchères, présences et résultats sont conservés. CI et captures nouvelles restent à vérifier avant fusion ; aucune installation PC revendiquée. Un contrôle court en solo suffit pour cette présentation, sans nouvelle partie complète ni serveur requis.
+
+## Jalon précédent — après la PR nº 55
 
 **Code applicatif intégré : `8107b72536f137d7bf059316df66d60ec2d016cc`**, [PR nº 55](https://github.com/sgramtinne-code/atoutia/pull/55), issue du code validé `6ca600f87ff09e6284e9aeaa2d560847dafb0d2a`. L’arbre de fusion `9bf00f597a297cf666f3adaf9ac090d3bc8f0299` est identique à celui du code testé. Les PR nº 53 et 54 sont également intégrées ; ne pas les présenter comme des lots à terminer.
 

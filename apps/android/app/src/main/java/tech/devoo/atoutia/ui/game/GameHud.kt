@@ -2,7 +2,6 @@ package tech.devoo.atoutia.ui.game
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,264 +14,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.game.CardSuit
+import tech.devoo.atoutia.network.game.MatchTeam
 import tech.devoo.atoutia.network.room.PlayerPosition
 
 @Composable
 fun GameHud(
-    dealNumber:
-        Int,
-
-    dealer:
-        PlayerPosition,
-
-    taker:
-        PlayerPosition?,
-
-    trumpSuit:
-        CardSuit?,
-
-    scoreTeam0:
-        Int,
-
-    scoreTeam1:
-        Int,
-
-    targetScore:
-        Int,
-
-    revision:
-        Int,
-
-    modifier:
-        Modifier =
-        Modifier,
-
-    compact: Boolean = false,
-) {
-    if (compact) {
-        CompactGameHud(
-            dealNumber, dealer, taker, trumpSuit, scoreTeam0, scoreTeam1,
-            targetScore, revision, modifier,
-        )
-        return
-    }
-    Surface(
-        modifier =
-            modifier.fillMaxWidth(),
-
-        shape =
-            RoundedCornerShape(
-                20.dp,
-            ),
-
-        color =
-            MaterialTheme
-                .colorScheme
-                .surfaceVariant
-                .copy(
-                    alpha =
-                        0.42f,
-                ),
-
-        border =
-            BorderStroke(
-                width =
-                    1.dp,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .outlineVariant,
-            ),
-    ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal =
-                            14.dp,
-
-                        vertical =
-                            10.dp,
-                    ),
-        ) {
-            val landscapeLayout =
-                maxWidth >=
-                    520.dp
-
-            Column(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        8.dp,
-                    ),
-            ) {
-                Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    horizontalArrangement =
-                        Arrangement.SpaceBetween,
-
-                    verticalAlignment =
-                        Alignment.CenterVertically,
-                ) {
-                    Column(
-                        verticalArrangement =
-                            Arrangement.spacedBy(
-                                0.dp,
-                            ),
-                    ) {
-                        Text(
-                            text =
-                                "Score",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .labelMedium,
-                        )
-
-                        Text(
-                            text =
-                                "$scoreTeam0 - $scoreTeam1 / $targetScore",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleLarge,
-
-                            fontWeight =
-                                FontWeight.Bold,
-                        )
-                    }
-
-                    Text(
-                        text =
-                            "R$revision",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelMedium,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-                    )
-                }
-
-                if (
-                    landscapeLayout
-                ) {
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
-                        horizontalArrangement =
-                            Arrangement.SpaceEvenly,
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-                        HudMetric(
-                            label =
-                                "Donne",
-
-                            value =
-                                dealNumber.toString(),
-                        )
-
-                        HudMetric(
-                            label =
-                                "Donneur",
-
-                            value =
-                                dealer.toDisplayName(),
-                        )
-
-                        HudMetric(
-                            label =
-                                "Preneur",
-
-                            value =
-                                taker
-                                    ?.toDisplayName()
-                                    ?: "—",
-                        )
-
-                        HudTrumpMetric(
-                            trumpSuit =
-                                trumpSuit,
-                        )
-                    }
-                } else {
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
-                        horizontalArrangement =
-                            Arrangement.SpaceEvenly,
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-                        HudMetric(
-                            label =
-                                "Donne",
-
-                            value =
-                                dealNumber.toString(),
-                        )
-
-                        HudMetric(
-                            label =
-                                "Donneur",
-
-                            value =
-                                dealer.toDisplayName(),
-                        )
-                    }
-
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
-                        horizontalArrangement =
-                            Arrangement.SpaceEvenly,
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-                        HudMetric(
-                            label =
-                                "Preneur",
-
-                            value =
-                                taker
-                                    ?.toDisplayName()
-                                    ?: "—",
-                        )
-
-                        HudTrumpMetric(
-                            trumpSuit =
-                                trumpSuit,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactGameHud(
+    localPlayer: PlayerPosition,
     dealNumber: Int,
     dealer: PlayerPosition,
     taker: PlayerPosition?,
@@ -281,31 +33,41 @@ private fun CompactGameHud(
     scoreTeam1: Int,
     targetScore: Int,
     revision: Int,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
+    val ownTeam0 = localPlayer.matchTeam() == MatchTeam.TEAM_0
+    val ownScore = if (ownTeam0) scoreTeam0 else scoreTeam1
+    val opponentScore = if (ownTeam0) scoreTeam1 else scoreTeam0
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth().testTag("game-hud"),
+        shape = RoundedCornerShape(if (compact) 12.dp else 20.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            Modifier.padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 6.dp else 10.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 8.dp),
         ) {
+            if (compact) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    HudScore("Votre équipe", ownScore, "hud-own-score", Modifier.weight(1f))
+                    HudScore("Adversaires", opponentScore, "hud-opponent-score", Modifier.weight(1f))
+                }
+            } else {
+                Text("Score de partie", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                HudScore("Votre équipe", ownScore, "hud-own-score")
+                HudScore("Adversaires", opponentScore, "hud-opponent-score")
+            }
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Text("Objectif : $targetScore", modifier = Modifier.weight(1f).testTag("hud-target"),
+                    style = MaterialTheme.typography.labelMedium)
                 Text(
-                    "Score $scoreTeam0 - $scoreTeam1 / $targetScore",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    "Atout ${trumpSuit?.toSymbol() ?: "—"} ${trumpSuit?.toDisplayName() ?: ""}",
+                    "Atout ${trumpSuit?.toSymbol() ?: "—"} ${trumpSuit?.toDisplayName() ?: ""}".trim(),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = trumpSuit?.toSuitColor() ?: MaterialTheme.colorScheme.onSurface,
@@ -321,156 +83,18 @@ private fun CompactGameHud(
 }
 
 @Composable
-private fun HudMetric(
-    label:
-        String,
-
-    value:
-        String,
-) {
-    Column(
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                1.dp,
-            ),
+private fun HudScore(label: String, points: Int, tag: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text =
-                label,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
-
-            textAlign =
-                TextAlign.Center,
-        )
-
-        Text(
-            text =
-                value,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            fontWeight =
-                FontWeight.SemiBold,
-
-            textAlign =
-                TextAlign.Center,
-        )
+        Text(label, modifier = Modifier.weight(1f).testTag("$tag-label"),
+            style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+        Text(points.toString(), modifier = Modifier.testTag(tag),
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
 }
-
-@Composable
-private fun HudTrumpMetric(
-    trumpSuit:
-        CardSuit?,
-) {
-    Column(
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                1.dp,
-            ),
-    ) {
-        Text(
-            text =
-                "Atout",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
-
-            textAlign =
-                TextAlign.Center,
-        )
-
-        if (
-            trumpSuit ==
-                null
-        ) {
-            Text(
-                text =
-                    "—",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-            )
-        } else {
-            Row(
-                horizontalArrangement =
-                    Arrangement.spacedBy(
-                        4.dp,
-                    ),
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
-            ) {
-                Text(
-                    text =
-                        trumpSuit.toSymbol(),
-
-                    color =
-                        trumpSuit.toSuitColor(),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.Bold,
-                )
-
-                Text(
-                    text =
-                        trumpSuit.toDisplayName(),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
-                )
-            }
-        }
-    }
-}
-
-private fun PlayerPosition.toDisplayName():
-    String =
-    when (
-        this
-    ) {
-        PlayerPosition.PLAYER_0 ->
-            "Joueur 1"
-
-        PlayerPosition.PLAYER_1 ->
-            "Joueur 2"
-
-        PlayerPosition.PLAYER_2 ->
-            "Joueur 3"
-
-        PlayerPosition.PLAYER_3 ->
-            "Joueur 4"
-    }
 
 private fun CardSuit.toSymbol():
     String =

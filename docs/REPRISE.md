@@ -2,6 +2,12 @@
 
 Ce document constitue la reprise publique du projet. Les captures, journaux, comptes, invitations, parties et chemins nominatifs du PC restent hors du dépôt. Un complément privé peut être fourni dans le nouveau chat. Vérifier les faits actuels sur GitHub avant de poursuivre : un checkpoint daté n’est pas une mesure en direct.
 
+## Scores et équipes pendant le jeu — lot en validation
+
+Branche `feat/android-live-score-clarity`, basée sur le main vérifié `2bc76f2` (PR nº 56 intégrée, deux CI documentaires réussies). Le HUD reçoit la place locale et affiche **Votre équipe / Adversaires**, les totaux autoritaires et **Objectif** séparément. La table indique **Vous / Partenaire / Adversaire** avec les numéros J1 à J4 ; donneur, preneur et tour restent identifiés. Le même écran sert au solo et au multijoueur. Aucun calcul de points ou de victoire ajouté à Android.
+
+Deux nouveaux contrôles instrumentés couvrent les quatre places, une mise à jour de snapshot, les scores à quatre chiffres, le texte 1,3 et la disposition empilée avec atout/preneur encore inconnus. Les contrôles existants des cartes, enchères, présences et résultats sont conservés. CI et captures nouvelles restent à vérifier avant fusion ; aucune installation PC revendiquée. Un contrôle court en solo suffit pour cette présentation, sans nouvelle partie complète ni serveur requis.
+
 ## 1. Mission et cap confirmé
 
 Tu es le responsable technique, développeur principal et responsable qualité d’ATOUTIA, application Android de belote classique française à quatre joueurs. Le développeur est débutant et délègue les choix techniques courants. Avancer par livraisons concrètes : jeu facile à comprendre et à jouer, agréable à reprendre, compétitif et équitable, visuellement soigné et lisible pour les personnes âgées.
@@ -96,7 +102,7 @@ Base habituelle protégée : `$HOME/projects/atoutia/apps/backend/data/atoutia.s
 
 Vérifier le checkpoint documentaire, son statut de fusion, le main courant et les CI de la PR nº 55. Puis faire un point bref : livré, contrôle PC éventuellement manquant, prochain lot. Si l’APK récent n’est pas encore installé, fournir une procédure build/install conservant les données sans imposer une nouvelle partie complète.
 
-Le prochain lot recommandé est la **compréhension du score et des équipes en cours de partie** : lire `GameHud.kt`, `BeloteTable.kt`, leurs appels et tests, confirmer la lacune et choisir une amélioration bornée. Le résultat final de la PR nº 55 est déjà livré. Ce prochain lot est une direction, pas une fonctionnalité déjà développée ; l’assistant peut choisir une autre priorité démontrée par le code ou un nouveau signal du développeur.
+Le lot **compréhension du score et des équipes en cours de partie** est maintenant implémenté sur la branche indiquée en tête et attend ses validations. Sa direction initiale était : lire `GameHud.kt`, `BeloteTable.kt`, leurs appels et tests, confirmer la lacune et choisir une amélioration bornée. Le résultat final de la PR nº 55 est déjà livré. Ce prochain lot est une direction, pas une fonctionnalité déjà développée ; l’assistant peut choisir une autre priorité démontrée par le code ou un nouveau signal du développeur.
 
 Le renouvellement des jetons PNJ de la PR nº 54 ne constitue pas une preuve de réparation de toutes les coupures Android. Si une coupure réapparaît, distinguer ADB/reverse/WSL, HTTP et renouvellement de session, WebSocket et cycle de vie ; obtenir des éléments ciblés et privés avant d’attribuer une cause. Les états de PNJ après une fin normale ne prouvent pas une panne pendant le match. Éviter les diagnostics sans fin et les répétitions de match sans changement concerné.
 

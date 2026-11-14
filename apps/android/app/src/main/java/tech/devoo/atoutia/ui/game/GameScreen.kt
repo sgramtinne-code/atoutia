@@ -243,6 +243,7 @@ internal fun GameScreen(
     val hudContent:
         @Composable (Boolean) -> Unit = { compact ->
             GameHud(
+                localPlayer = session.player,
                 dealNumber =
                     publicMatch.dealNumber,
 
@@ -806,7 +807,7 @@ private fun ResultScoreRow(label: String, points: Int, scoreTag: String) {
     }
 }
 
-private fun PlayerPosition.matchTeam(): MatchTeam = when (this) {
+internal fun PlayerPosition.matchTeam(): MatchTeam = when (this) {
     PlayerPosition.PLAYER_0, PlayerPosition.PLAYER_2 -> MatchTeam.TEAM_0
     PlayerPosition.PLAYER_1, PlayerPosition.PLAYER_3 -> MatchTeam.TEAM_1
 }
