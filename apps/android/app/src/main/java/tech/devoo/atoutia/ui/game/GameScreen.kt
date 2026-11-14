@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
@@ -28,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -188,7 +192,7 @@ internal fun GameScreen(
 
     val currentPlayer =
         if (
-            isForfeitCompleted
+            isMatchCompleted
         ) {
             null
         } else when (
@@ -295,7 +299,7 @@ internal fun GameScreen(
                     publicMatch.turnUpCard,
 
                 presence =
-                    presence,
+                    presence.takeUnless { isMatchCompleted },
 
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -404,6 +408,7 @@ internal fun GameScreen(
                 score.completed
             ) {
                 MatchFinishedPanel(
+                    localPlayer = session.player,
                     team0 =
                         score.scores.team0,
 
@@ -693,7 +698,7 @@ private fun MatchForfeitPanel(
 
             Text(
                 text =
-                    "Victoire ${winningTeam.toDisplayName()}",
+                    matchOutcomeTitle(localPlayer, winningTeam),
 
                 style =
                     MaterialTheme
@@ -722,7 +727,8 @@ private fun MatchForfeitPanel(
 
             Text(
                 text =
-                    "${losingTeam.toDisplayName()} perd la partie.",
+                    if (localPlayer.matchTeam() == losingTeam) "Votre équipe perd par forfait."
+                    else "L’équipe adverse perd par forfait.",
 
                 style =
                     MaterialTheme
@@ -749,6 +755,7 @@ private fun MatchForfeitPanel(
 
 @Composable
 private fun MatchFinishedPanel(
+    localPlayer: PlayerPosition,
     team0: Int,
     team1: Int,
     winner: MatchTeam?,
@@ -756,76 +763,56 @@ private fun MatchFinishedPanel(
     onHistory: (() -> Unit)?,
     onHome: (() -> Unit)?,
 ) {
+    val ownTeam = localPlayer.matchTeam()
+    val won = winner == ownTeam
     OutlinedCard(
-        modifier =
-            Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag("match-result"),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (won) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surface,
+        ),
     ) {
         Column(
-            modifier =
-                Modifier.padding(
-                    20.dp,
-                ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    10.dp,
-                ),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text =
-                    "Résultat final",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleLarge,
-
-                fontWeight =
-                    FontWeight.Bold,
+                text = matchOutcomeTitle(localPlayer, winner),
+                modifier = Modifier.testTag("match-result-title").semantics { heading() },
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
             )
-
-            Text(
-                text =
-                    "$team0 - $team1",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineMedium,
-
-                fontWeight =
-                    FontWeight.Bold,
-            )
-
-            Text(
-                text =
-                    winner
-                        ?.let {
-                            "Victoire ${it.toDisplayName()}"
-                        }
-                        ?: "Partie terminée",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-            )
-
-            MatchCompletionActions(
-                onReplay =
-                    onReplay,
-
-                onHistory =
-                    onHistory,
-
-                onHome =
-                    onHome,
-            )
+            ResultScoreRow("Votre équipe", if (ownTeam == MatchTeam.TEAM_0) team0 else team1, "result-own-score")
+            ResultScoreRow("Adversaires", if (ownTeam == MatchTeam.TEAM_0) team1 else team0, "result-opponent-score")
+            MatchCompletionActions(onReplay, onHistory, onHome)
         }
     }
+}
+
+@Composable
+private fun ResultScoreRow(label: String, points: Int, scoreTag: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+        Text(points.toString(), modifier = Modifier.testTag(scoreTag),
+            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun PlayerPosition.matchTeam(): MatchTeam = when (this) {
+    PlayerPosition.PLAYER_0, PlayerPosition.PLAYER_2 -> MatchTeam.TEAM_0
+    PlayerPosition.PLAYER_1, PlayerPosition.PLAYER_3 -> MatchTeam.TEAM_1
+}
+
+private fun matchOutcomeTitle(localPlayer: PlayerPosition, winner: MatchTeam?): String = when (winner) {
+    null -> "Résultat final"
+    localPlayer.matchTeam() -> "Victoire !"
+    else -> "Défaite"
 }
 
 @Composable
@@ -857,7 +844,7 @@ private fun MatchCompletionActions(
                     onReplay,
 
                 modifier =
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) {
                 Text(
                     text =
@@ -875,7 +862,7 @@ private fun MatchCompletionActions(
                     onHistory,
 
                 modifier =
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) {
                 Text(
                     text =
@@ -893,7 +880,7 @@ private fun MatchCompletionActions(
                     onHome,
 
                 modifier =
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) {
                 Text(
                     text =
@@ -1032,18 +1019,6 @@ private fun PlayerPosition.toDisplayName():
 
         PlayerPosition.PLAYER_3 ->
             "Joueur 4"
-    }
-
-private fun MatchTeam.toDisplayName():
-    String =
-    when (
-        this
-    ) {
-        MatchTeam.TEAM_0 ->
-            "Équipe 0"
-
-        MatchTeam.TEAM_1 ->
-            "Équipe 1"
     }
 
 private fun CardSuit.toDisplayName():
