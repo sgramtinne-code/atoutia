@@ -90,3 +90,31 @@ test("invalid retry settings are rejected before opening a database", async () =
     await assert.rejects(readDevelopmentRoomSessionIds("unused.sqlite", options), RangeError);
   }
 });
+
+// Identity proof has its own synthetic fixture; no account/token tables are read.
+test("duo proof selects distinct account-bound identities without writing or returning them", async () => {
+  const { readDevelopmentDuoAccountProof } = await import("./dev-room-database.mjs");
+  const { path, writer } = fixture();
+  writer.exec("ALTER TABLE live_rooms ADD COLUMN document_json TEXT");
+  const assignments = { PLAYER_0: "pid1_" + "1".repeat(64), PLAYER_1: "pid1_" + "2".repeat(64), PLAYER_2: null, PLAYER_3: null };
+  const document = { formatVersion: 1, sessionId: first, mode: "PRIVATE", room: { managedRoom: { room: { seats: { assignments } } } } };
+  const save = () => writer.prepare("UPDATE live_rooms SET document_json = ? WHERE session_id = ?").run(JSON.stringify(document), first);
+  save();
+  const before = hash(path);
+  assert.equal(await readDevelopmentDuoAccountProof(path, first), true);
+  assert.equal(hash(path), before);
+  assert.equal(await readDevelopmentDuoAccountProof(path, second), false);
+  assignments.PLAYER_1 = null; save();
+  assert.equal(await readDevelopmentDuoAccountProof(path, first), false);
+  assignments.PLAYER_1 = assignments.PLAYER_0; save();
+  await assert.rejects(readDevelopmentDuoAccountProof(path, first), /distinct/);
+  assignments.PLAYER_1 = "unbound"; save();
+  await assert.rejects(readDevelopmentDuoAccountProof(path, first), /distinct/);
+  assignments.PLAYER_1 = "pid1_" + "2".repeat(64); assignments.PLAYER_2 = "unexpected"; save();
+  await assert.rejects(readDevelopmentDuoAccountProof(path, first), /distinct/);
+  assignments.PLAYER_2 = null; document.mode = "RANKED"; save();
+  await assert.rejects(readDevelopmentDuoAccountProof(path, first), /Invalid private/);
+  writer.exec("BEGIN EXCLUSIVE");
+  document.mode = "PRIVATE"; save();
+  assert.equal(await readDevelopmentDuoAccountProof(path, first, { wait: async () => writer.exec("COMMIT") }), true);
+});
