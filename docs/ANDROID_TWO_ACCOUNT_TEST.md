@@ -6,7 +6,7 @@ Ce lot prépare un essai local : pas de serveur public, DNS, OVH, classement ou 
 
 ## Préparer les deux Android
 
-Conserver l’émulateur existant et ses données. Dans Android Studio → Tools → Device Manager, créer un **nouvel** appareil virtuel nommé `Atoutia_Invite`, avec une image disposant des services Google et un profil de téléphone. Une image Google APIs déjà installée convient si la connexion Google y fonctionne. Ne pas relancer deux fois le même AVD, dupliquer ses données de compte ou utiliser Wipe Data. Démarrer ce nouvel appareil une seule fois et attendre son écran d’accueil. Référence : [Device Manager](https://developer.android.com/studio/run/managing-avds).
+Conserver l’émulateur existant et ses données. Dans Android Studio → View → Tool Windows → Device Manager → + → Create Virtual Device, créer un **nouvel** appareil virtuel nommé `Atoutia_Invite`, avec une image disposant des services Google et un profil de téléphone. Une image Google APIs déjà installée convient si la connexion Google y fonctionne. Ne pas relancer deux fois le même AVD, dupliquer ses données de compte ou utiliser Wipe Data. Démarrer ce nouvel appareil une seule fois et attendre son écran d’accueil. Référence : [Device Manager](https://developer.android.com/studio/run/managing-avds).
 
 Dans PowerShell, vérifier les deux appareils :
 
