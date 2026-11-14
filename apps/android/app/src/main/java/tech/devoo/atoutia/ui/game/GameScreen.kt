@@ -773,32 +773,35 @@ private fun MatchFinishedPanel(
         ),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 text = matchOutcomeTitle(localPlayer, winner),
                 modifier = Modifier.testTag("match-result-title").semantics { heading() },
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
-            ResultScoreRow("Votre équipe", if (ownTeam == MatchTeam.TEAM_0) team0 else team1, "result-own-score")
-            ResultScoreRow("Adversaires", if (ownTeam == MatchTeam.TEAM_0) team1 else team0, "result-opponent-score")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ResultScoreColumn("Votre équipe", if (ownTeam == MatchTeam.TEAM_0) team0 else team1,
+                    "result-own-score", Modifier.weight(1f))
+                ResultScoreColumn("Adversaires", if (ownTeam == MatchTeam.TEAM_0) team1 else team0,
+                    "result-opponent-score", Modifier.weight(1f))
+            }
             MatchCompletionActions(onReplay, onHistory, onHome)
         }
     }
 }
 
 @Composable
-private fun ResultScoreRow(label: String, points: Int, scoreTag: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun ResultScoreColumn(label: String, points: Int, scoreTag: String, modifier: Modifier) {
+    Column(
+        modifier = modifier.semantics(mergeDescendants = true) {},
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+        Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
         Text(points.toString(), modifier = Modifier.testTag(scoreTag),
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
     }
@@ -844,7 +847,7 @@ private fun MatchCompletionActions(
                     onReplay,
 
                 modifier =
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("match-replay"),
             ) {
                 Text(
                     text =
@@ -862,7 +865,7 @@ private fun MatchCompletionActions(
                     onHistory,
 
                 modifier =
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("match-history"),
             ) {
                 Text(
                     text =
@@ -880,7 +883,7 @@ private fun MatchCompletionActions(
                     onHome,
 
                 modifier =
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("match-home"),
             ) {
                 Text(
                     text =

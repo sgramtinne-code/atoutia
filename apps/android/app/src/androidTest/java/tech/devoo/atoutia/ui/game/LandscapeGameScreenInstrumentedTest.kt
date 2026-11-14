@@ -348,9 +348,13 @@ class LandscapeGameScreenInstrumentedTest {
                     .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
             }
             // The primary action is completely visible at 640 x 320 dp / text 1.3.
-            val replay = compose.onNodeWithText("Rejouer").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val replay = compose.onNodeWithTag("match-replay").assertIsDisplayed().getUnclippedBoundsInRoot()
             val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
-            assertTrue("Replay must remain fully visible: $replay / $viewport", replay.top >= viewport.top && replay.bottom <= viewport.bottom)
+            val controls = compose.onNodeWithTag("game-secondary-controls").getUnclippedBoundsInRoot()
+            assertTrue("Replay must remain fully visible: $replay / $controls / $viewport",
+                replay.top >= controls.top && replay.bottom <= controls.bottom &&
+                    replay.left >= viewport.left && replay.right <= viewport.right &&
+                    replay.top >= viewport.top && replay.bottom <= viewport.bottom && replay.bottom - replay.top >= 48.dp)
             if (winner == MatchTeam.TEAM_0 && player in listOf(PlayerPosition.PLAYER_0, PlayerPosition.PLAYER_1)) {
                 captureResult(if (won) "result-win.png" else "result-loss.png")
             }
