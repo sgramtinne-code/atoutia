@@ -1,3 +1,5 @@
+import { autoplayPlayers, assertHumanRoom, parseAutoplayArguments } from "./dev-autoplay-mode.mjs";
+
 import {
   WebSocket,
 } from "ws";
@@ -12,19 +14,6 @@ const PLAYER_POSITIONS =
     "PLAYER_2",
     "PLAYER_3",
   ]);
-
-const ANDROID_BOT_PLAYERS =
-  Object.freeze([
-    "PLAYER_1",
-    "PLAYER_2",
-    "PLAYER_3",
-  ]);
-
-const ALL_BOTS_FLAG =
-  "--all-bots";
-
-const ANDROID_PLAYER_0_FLAG =
-  "--android-player-0";
 
 const COMMAND_FORMAT_VERSION =
   1;
@@ -53,20 +42,6 @@ const HUMAN_ACTION_TIMEOUT_MS =
 const MAX_COMMANDS =
   5_000;
 
-function usage() {
-  return [
-    "Usage:",
-    "",
-    "All bots:",
-    "  node apps/backend/scripts/dev-autoplay-room.mjs --all-bots",
-    "",
-    "Android PLAYER_0 + three bots:",
-    "  node apps/backend/scripts/dev-autoplay-room.mjs ms1_<session-id> --android-player-0",
-  ].join(
-    "\n",
-  );
-}
-
 function sleep(
   milliseconds,
 ) {
@@ -79,53 +54,6 @@ function sleep(
         milliseconds,
       );
     },
-  );
-}
-
-function parseArguments() {
-  const first =
-    process.argv[2];
-
-  const second =
-    process.argv[3];
-
-  if (
-    first ===
-      ALL_BOTS_FLAG &&
-    second ===
-      undefined
-  ) {
-    return Object.freeze({
-      mode:
-        "ALL_BOTS",
-
-      sessionId:
-        null,
-    });
-  }
-
-  if (
-    typeof first ===
-      "string" &&
-    /^ms1_[0-9a-f]{32}$/.test(
-      first,
-    ) &&
-    second ===
-      ANDROID_PLAYER_0_FLAG &&
-    process.argv[4] ===
-      undefined
-  ) {
-    return Object.freeze({
-      mode:
-        "ANDROID_PLAYER_0",
-
-      sessionId:
-        first,
-    });
-  }
-
-  throw new Error(
-    usage(),
   );
 }
 
@@ -1440,15 +1368,15 @@ async function autoplay(
     }
 
     if (
-      mode ===
-        "ANDROID_PLAYER_0"
+      mode !==
+        "ALL_BOTS"
     ) {
       if (
         lastHumanWaitRevision !==
           firstSnapshot.revision
       ) {
         console.log(
-          `Waiting for PLAYER_0 Android — revision ${firstSnapshot.revision}.`,
+          `Waiting for ${autoplayPlayers(mode).humans.join(" / ")} Android — revision ${firstSnapshot.revision}.`,
         );
 
         lastHumanWaitRevision =
@@ -1461,7 +1389,7 @@ async function autoplay(
         HUMAN_ACTION_TIMEOUT_MS
       ) {
         throw new Error(
-          "Timed out while waiting for PLAYER_0 Android.",
+          `Timed out while waiting for ${autoplayPlayers(mode).humans.join(" / ")} Android.`,
         );
       }
     } else if (
@@ -1559,9 +1487,10 @@ async function prepareAllBots(
   });
 }
 
-async function prepareAndroidPlayer0(
+async function prepareAndroidPlayers(
   baseUrl,
   sessionId,
+  mode,
 ) {
   const initialRoom =
     await getRoom(
@@ -1569,48 +1498,15 @@ async function prepareAndroidPlayer0(
       sessionId,
     );
 
-  if (
-    initialRoom.phase !==
-      "WAITING_FOR_PLAYERS"
-  ) {
-    throw new Error(
-      `Create a fresh Android room before starting autoplay. Expected WAITING_FOR_PLAYERS, received ${String(initialRoom.phase)}.`,
-    );
-  }
-
-  if (
-    !isSeatOccupied(
-      initialRoom,
-      "PLAYER_0",
-    )
-  ) {
-    throw new Error(
-      "PLAYER_0 must already be occupied by the real Android player.",
-    );
-  }
-
-  for (
-    const player
-    of ANDROID_BOT_PLAYERS
-  ) {
-    if (
-      isSeatOccupied(
-        initialRoom,
-        player,
-      )
-    ) {
-      throw new Error(
-        `${player} is already occupied. Create a fresh Android room so the script can keep the bot authentication tokens.`,
-      );
-    }
-  }
+  assertHumanRoom(initialRoom, mode);
+  const { bots } = autoplayPlayers(mode);
 
   const identities =
     [];
 
   for (
     const player
-    of ANDROID_BOT_PLAYERS
+    of bots
   ) {
     const identity =
       await createAndClaimBot(
@@ -1669,7 +1565,7 @@ async function prepareAndroidPlayer0(
 
 async function main() {
   const argumentsDocument =
-    parseArguments();
+    parseAutoplayArguments(process.argv.slice(2));
 
   const baseUrl =
     process.env
@@ -1699,9 +1595,10 @@ async function main() {
       ? await prepareAllBots(
           baseUrl,
         )
-      : await prepareAndroidPlayer0(
+      : await prepareAndroidPlayers(
           baseUrl,
           argumentsDocument.sessionId,
+          argumentsDocument.mode,
         );
 
   console.log(
