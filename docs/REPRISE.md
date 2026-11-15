@@ -1,12 +1,22 @@
-# Reprise ATOUTIA — checkpoint du 14 novembre 2026
+# Reprise ATOUTIA — checkpoint du 15 novembre 2026
 
 Ce document constitue la reprise publique du projet. Les captures, journaux, comptes, invitations, parties et chemins nominatifs du PC restent hors du dépôt. Un complément privé peut être fourni dans le nouveau chat. Vérifier les faits actuels sur GitHub avant de poursuivre : un checkpoint daté n’est pas une mesure en direct.
 
-## Scores et équipes pendant le jeu — lot en validation
+## Scores et équipes pendant le jeu — PR nº 57
 
-Branche `feat/android-live-score-clarity`, basée sur le main vérifié `2bc76f2` (PR nº 56 intégrée, deux CI documentaires réussies). Le HUD reçoit la place locale et affiche **Votre équipe / Adversaires**, les totaux autoritaires et **Objectif** séparément. La table indique **Vous / Partenaire / Adversaire** avec les numéros J1 à J4 ; donneur, preneur et tour restent identifiés. Le même écran sert au solo et au multijoueur. Aucun calcul de points ou de victoire ajouté à Android.
+**Code Android validé : `43177900488299373441bca83d558ded7687150b`**, [PR nº 57](https://github.com/sgramtinne-code/atoutia/pull/57), branche `feat/android-live-score-clarity`, depuis `2bc76f2` (PR nº 56 intégrée). Vérifier dans la PR le statut de fusion, le SHA de main et les CI après fusion ; ne pas forcer un ancien commit applicatif pour reprendre.
 
-Deux nouveaux contrôles instrumentés couvrent les quatre places, une mise à jour de snapshot, les scores à quatre chiffres, le texte 1,3 et la disposition empilée avec atout/preneur encore inconnus. Les contrôles existants des cartes, enchères, présences et résultats sont conservés. CI et captures nouvelles restent à vérifier avant fusion ; aucune installation PC revendiquée. Un contrôle court en solo suffit pour cette présentation, sans nouvelle partie complète ni serveur requis.
+Le HUD présente **Votre équipe / Adversaires** depuis la place locale, les totaux autoritaires et **Objectif** séparément. En paysage, les deux scores sont l’un sous l’autre, à côté de l’objectif et de l’atout. La table indique **Vous / Partenaire / Adversaire** avec J1–J4 et les marqueurs de donneur, preneur et tour. Les détails donne/donneur/preneur/révision sont conservés dans les commandes défilantes, après les actions ; la main garde son emplacement fixe. Solo et multijoueur partagent ce rendu. Aucun calcul de points ou de victoire ajouté à Android.
+
+| CI sur le code `4317790` | Résultat vérifié | Portée |
+| --- | --- | --- |
+| [Moteur/backend 43693350729](https://github.com/sgramtinne-code/atoutia/actions/runs/43693350729) | success | 601 moteur, 640 backend, 26 offline ; typechecks/builds, bundle, simulations bornées et SQLite synthétique |
+| [Android 43693350725](https://github.com/sgramtinne-code/atoutia/actions/runs/43693350725) | success | 266 JVM, zéro échec/erreur/ignoré ; APK debug/test/release et lint, 13 avertissements et 1 suggestion existants |
+| [Android UI 43693350715](https://github.com/sgramtinne-code/atoutia/actions/runs/43693350715) | success | 67 instrumentés sur AVD API36, dont 18 paysage et 12 invitations |
+
+Deux nouveaux tests paysage vérifient les quatre places, une mise à jour du snapshot, les scores à quatre chiffres, les textes à 1,3 et le HUD empilé avec atout/preneur inconnus. Le contrôle des textes vérifie contenu complet, absence d’ellipse, limites de ligne et de viewport ; seule une tolérance de 0,5 pixel physique couvre les arrondis géométriques. Les assertions existantes sur cartes, enchères, présences, résultats et callbacks sont conservées. Les **16 captures synthétiques** de l’[artefact 14153064585](https://github.com/sgramtinne-code/atoutia/actions/runs/43693350715/artifacts/14153064585) ont été collectées ; `game-teams.png`, `score-stacked.png`, `result-win.png` et `result-loss.png` ont été inspectées.
+
+La clôture documentaire ne modifie pas ce code, ses tests, fixtures, dépendances ou workflows ; vérifier les CI réellement déclenchées sur la tête finale de la PR. Ces preuves ne valent ni installation PC ni compatibilité avec tous les appareils ou toutes les tailles de texte. Un contrôle court en solo après `install -r` suffit pour voir cette présentation, sans nouveau match complet. La compréhension du contrat preneur/défense et le bilan de donne sont des candidats suivants à confirmer depuis le code et les retours disponibles. Les observations PC restent privées ; coupures Android et renouvellement PNJ restent des sujets distincts.
 
 ## 1. Mission et cap confirmé
 
@@ -27,7 +37,7 @@ Lire dans cet ordre :
 
 Vérifier le SHA de main, les PR ouvertes et les conclusions des workflows. Si des liens de captures ont expiré, distinguer leur inspection historique des vérifications encore exécutables : ne pas inventer une nouvelle inspection. Préserver tout travail local non commité ou stagé, y compris dans les anciens worktrees de l’assistant. Si un environnement éphémère a disparu, recréer un checkout depuis GitHub ; ne pas supposer la disparition du projet sur le PC.
 
-## 3. Dernier code applicatif intégré
+## 3. Livraisons antérieures conservées
 
 **PR nº 55 fusionnée : `8107b72536f137d7bf059316df66d60ec2d016cc`.**
 
@@ -40,7 +50,7 @@ Vérifier le SHA de main, les PR ouvertes et les conclusions des workflows. Si d
 
 Ne pas reprendre ces branches comme des fonctionnalités à finir. Le [checkpoint documentaire](https://github.com/sgramtinne-code/atoutia/pulls?q=head%3Adocs%2Fcontinuity-after-match-results) `docs/continuity-after-match-results` actualise seulement les consignes et la reprise ; sa PR est le registre de son SHA de fusion et de ses propres CI. Repartir ensuite du **main réellement courant**, pas d’un ancien SHA applicatif forcé.
 
-## 4. Preuves de validation et provenance
+## 4. Preuves historiques et provenance
 
 Sur `6ca600f`, les trois CI avant fusion sont **success** :
 
@@ -52,9 +62,9 @@ Sur `6ca600f`, les trois CI avant fusion sont **success** :
 
 Les 14 captures de l’[artefact synthétique 14109056727](https://github.com/sgramtinne-code/atoutia/actions/runs/43581829534/artifacts/14109056727) ont été contrôlées ; victoire/défaite inspectées à 640 × 320 dp, texte 1,3 et scores à quatre chiffres. Le test conserve le contrôle du bouton Rejouer entier, des libellés sans débordement, des quatre places, des deux gagnants, du forfait et des callbacks. Une compilation d’APK instrumenté ne remplace pas une exécution de ces tests.
 
-Push main applicatif `8107b72` : [moteur/backend 43582722029](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722029), [Android 43582722096](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722096), [UI 43582722065](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722065). Les trois conclusions **success** ont été vérifiées au checkpoint du 14 novembre 2026 et consignées dans la PR nº 55. Relire leur état à la reprise ; cette preuve ne remplace pas les CI d’un futur changement.
+Push main applicatif `8107b72` : [moteur/backend 43582722029](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722029), [Android 43582722096](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722096), [UI 43582722065](https://github.com/sgramtinne-code/atoutia/actions/runs/43582722065). Les trois conclusions **success** ont été vérifiées au checkpoint du 15 novembre 2026 et consignées dans la PR nº 55. Relire leur état à la reprise ; cette preuve ne remplace pas les CI d’un futur changement.
 
-Le présent lot documentaire ne change ni source, test, fixture, bundle, dépendance ou workflow. Les CI réellement déclenchées pour sa PR restent à vérifier sur son dernier commit. Le workflow UI est filtré par chemins : ne pas revendiquer un nouveau passage pour une modification limitée aux documents ; conserver les preuves du code Android inchangé. Les résultats de CI ne prouvent ni installation sur le PC, ni connexion Google réelle, ni publication.
+La PR nº 56 est le checkpoint documentaire intégré en `2bc76f2` : moteur/backend et Android JVM/APK/lint réussis, aucun nouveau passage UI attendu pour cette PR documentaire. Les preuves du lot scores/équipes sont indiquées en tête et dans la PR nº 57. Les résultats de CI ne prouvent ni installation sur le PC, ni connexion Google réelle, ni publication.
 
 ## 5. Méthode de travail à conserver strictement
 
@@ -84,7 +94,7 @@ Le backend de développement reste sur **127.0.0.1:3000** ; bootstrap activé un
 - Conserver backend et PNJ ouverts pendant le jeu. Un script PNJ arrêté a perdu ses clés en mémoire : ne pas promettre qu’un nouveau processus récupérera les anciennes places. Utiliser un nouveau salon, sans effacer SQLite ou les données Android.
 - Si ADB est `offline`, reprendre la cible concernée et revalider les reverse ; pas de kill-server, Wipe Data, désinstallation ou `pm clear` par défaut. Le démarrage d’un daemon peut nécessiter de remettre les reverse de tous les clients.
 - Une partie déjà pleine/démarrée se reprend avec le même compte et la référence locale existante. Le parcours d’invitation recherche une place libre ; le répéter n’est pas une méthode universelle de reprise.
-- Une mise à jour Android utilise `install -r`. Ne pas annoncer l’installation du résultat de la PR nº 55 sans confirmation PC. Aucun nouveau match complet demandé uniquement pour cette présentation ; la vérification manuelle peut attendre le prochain résultat normal.
+- Une mise à jour Android utilise `install -r`. Ne pas annoncer l’installation d’un APK récent sans confirmation PC. Aucun nouveau match complet demandé uniquement pour cette présentation ; la vérification manuelle peut attendre le prochain résultat normal.
 
 ## 7. Invariants à préserver
 
@@ -100,9 +110,9 @@ Base habituelle protégée : `$HOME/projects/atoutia/apps/backend/data/atoutia.s
 
 ## 8. Première action du prochain chat et limites ouvertes
 
-Vérifier le checkpoint documentaire, son statut de fusion, le main courant et les CI de la PR nº 55. Puis faire un point bref : livré, contrôle PC éventuellement manquant, prochain lot. Si l’APK récent n’est pas encore installé, fournir une procédure build/install conservant les données sans imposer une nouvelle partie complète.
+Vérifier le main courant, le statut de la PR nº 57 et ses contrôles après fusion. Puis faire un point bref : livré, contrôle PC éventuellement manquant, prochain lot. Si l’APK récent n’est pas encore installé, fournir une procédure build/install conservant les données sans imposer une nouvelle partie complète.
 
-Le lot **compréhension du score et des équipes en cours de partie** est maintenant implémenté sur la branche indiquée en tête et attend ses validations. Sa direction initiale était : lire `GameHud.kt`, `BeloteTable.kt`, leurs appels et tests, confirmer la lacune et choisir une amélioration bornée. Le résultat final de la PR nº 55 est déjà livré. Ce prochain lot est une direction, pas une fonctionnalité déjà développée ; l’assistant peut choisir une autre priorité démontrée par le code ou un nouveau signal du développeur.
+Le lot scores/équipes est décrit en tête et dans la PR nº 57 ; ne pas le recommencer comme une fonctionnalité absente. Le résultat final de la PR nº 55 reste intégré. Après ce lot, examiner la compréhension du contrat (équipe preneuse/défense) et le bilan de donne, à partir des DTO disponibles et sans réécrire les règles en Kotlin. Choisir une amélioration bornée selon le code et les retours réellement disponibles.
 
 Le renouvellement des jetons PNJ de la PR nº 54 ne constitue pas une preuve de réparation de toutes les coupures Android. Si une coupure réapparaît, distinguer ADB/reverse/WSL, HTTP et renouvellement de session, WebSocket et cycle de vie ; obtenir des éléments ciblés et privés avant d’attribuer une cause. Les états de PNJ après une fin normale ne prouvent pas une panne pendant le match. Éviter les diagnostics sans fin et les répétitions de match sans changement concerné.
 
