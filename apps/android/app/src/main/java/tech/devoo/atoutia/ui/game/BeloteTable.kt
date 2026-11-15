@@ -335,7 +335,7 @@ private fun PlayerSeatBadge(
                         if (
                             compact
                         ) {
-                            6.dp
+                            2.dp
                         } else {
                             12.dp
                         },
@@ -384,7 +384,7 @@ private fun PlayerSeatBadge(
                     ) {
                         MaterialTheme
                             .typography
-                            .bodySmall
+                            .labelSmall
                     } else {
                         MaterialTheme
                             .typography

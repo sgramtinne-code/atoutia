@@ -109,6 +109,7 @@ class LandscapeGameScreenInstrumentedTest {
             compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertIsDisplayed()
                 .assertTextEquals(if (ownTeam0) "980" else "1120")
             compose.onNodeWithTag("hud-target").assertIsDisplayed().assertTextEquals("Objectif : 1500")
+            if (player == PlayerPosition.PLAYER_0 || player == PlayerPosition.PLAYER_1) captureResult("game-teams.png")
             for (tag in listOf("hud-own-score", "hud-opponent-score")) {
                 assertCompleteText("$tag-label")
                 assertCompleteText(tag)
@@ -150,6 +151,7 @@ class LandscapeGameScreenInstrumentedTest {
                 }
             }
         }
+        captureResult("score-stacked.png")
         compose.onNodeWithTag("hud-own-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("1234")
         compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("1024")
         compose.onNodeWithText("Atout —").assertIsDisplayed()
@@ -164,7 +166,10 @@ class LandscapeGameScreenInstrumentedTest {
         val node = compose.onNodeWithTag(tag, useUnmergedTree = true).assertIsDisplayed()
         val layouts = mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        assertTrue("Text must be complete on one line: $tag", layouts.single().lineCount == 1 && !layouts.single().hasVisualOverflow)
+        val layout = layouts.single()
+        assertTrue("Text must be complete on one line: $tag; lines=${layout.lineCount}, " +
+            "widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}, size=${layout.size}",
+            layout.lineCount == 1 && !layout.hasVisualOverflow)
         val bounds = node.getUnclippedBoundsInRoot()
         val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
         assertTrue("Text must stay inside viewport: $tag / $bounds / $viewport",

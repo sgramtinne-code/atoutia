@@ -92,9 +92,10 @@ private fun HudScore(label: String, points: Int, tag: String, modifier: Modifier
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, modifier = Modifier.weight(1f).testTag("$tag-label"),
-            style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
         Text(points.toString(), modifier = Modifier.testTag(tag),
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+            maxLines = 1, softWrap = false)
     }
 }
 
