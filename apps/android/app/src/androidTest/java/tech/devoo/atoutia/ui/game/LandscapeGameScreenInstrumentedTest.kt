@@ -169,9 +169,15 @@ class LandscapeGameScreenInstrumentedTest {
         val layouts = mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single()
+        // Paragraph geometry is fractional; the rendered node has integer pixel bounds.
+        // Validate the complete line itself, allowing only subpixel rounding, never a clipped glyph or ellipsis.
+        val lineLeft = layout.getLineLeft(0)
+        val lineRight = layout.getLineRight(0)
         assertTrue("Text must be complete on one line: $tag; lines=${layout.lineCount}, " +
-            "widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}, size=${layout.size}",
-            layout.lineCount == 1 && !layout.hasVisualOverflow)
+            "line=[$lineLeft, $lineRight], paragraphWidth=${layout.multiParagraph.width}, size=${layout.size}",
+            layout.lineCount == 1 && !layout.isLineEllipsized(0) &&
+                layout.getLineEnd(0) == layout.layoutInput.text.length && !layout.didOverflowHeight &&
+                lineLeft >= -0.5f && lineRight <= layout.size.width + 0.5f)
         val bounds = node.getUnclippedBoundsInRoot()
         val viewport = compose.onNodeWithTag("test-viewport").getUnclippedBoundsInRoot()
         assertTrue("Text must stay inside viewport: $tag / $bounds / $viewport",
