@@ -325,6 +325,6 @@ jobs:
         run: |
           if [[ "${{ job.status }}" != "success" ]]; then
             tail -100 "$RUNNER_TEMP/atoutia-emulator.log" || true
-            timeout 10s adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:E ClipboardService:V WindowManager:W || true
+            timeout 10s adb -s emulator-5554 logcat -d -s AndroidRuntime:E TestRunner:I ClipboardService:V WindowManager:W || true
           fi
           timeout 10s adb -s emulator-5554 emu kill || true

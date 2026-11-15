@@ -429,6 +429,13 @@ internal fun GameScreen(
                         onHome,
                 )
             }
+            if (!includeHand) {
+                Text(
+                    "Donne ${publicMatch.dealNumber} · Donneur J${publicMatch.dealer.ordinal + 1} · " +
+                        "Preneur ${publicMatch.taker?.let { "J${it.ordinal + 1}" } ?: "—"} · R${session.revision}",
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
             if (local && localBotTitle != null) {
                 Text(localBotTitle, modifier = Modifier.testTag("solo-active-bots"), style = MaterialTheme.typography.titleSmall)
                 if (localBotDetails != null) Text(localBotDetails)

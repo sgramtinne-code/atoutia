@@ -73,11 +73,13 @@ fun GameHud(
                     color = trumpSuit?.toSuitColor() ?: MaterialTheme.colorScheme.onSurface,
                 )
             }
-            Text(
-                "Donne $dealNumber · Donneur J${dealer.ordinal + 1} · " +
-                    "Preneur ${taker?.let { "J${it.ordinal + 1}" } ?: "—"} · R$revision",
-                style = MaterialTheme.typography.labelSmall,
-            )
+            if (!compact) {
+                Text(
+                    "Donne $dealNumber · Donneur J${dealer.ordinal + 1} · " +
+                        "Preneur ${taker?.let { "J${it.ordinal + 1}" } ?: "—"} · R$revision",
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
     }
 }
