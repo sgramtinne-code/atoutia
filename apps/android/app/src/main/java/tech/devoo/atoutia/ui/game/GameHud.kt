@@ -2,10 +2,12 @@ package tech.devoo.atoutia.ui.game
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -101,7 +103,7 @@ private fun HudScore(label: String, points: Int, tag: String, modifier: Modifier
     ) {
         Text(label, modifier = Modifier.weight(1f).testTag("$tag-label"),
             style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
-        Text(points.toString(), modifier = Modifier.widthIn(min = 64.dp).testTag(tag),
+        Text(points.toString(), modifier = Modifier.widthIn(min = 64.dp).width(IntrinsicSize.Max).testTag(tag),
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
             maxLines = 1, softWrap = false, textAlign = TextAlign.End)
     }
