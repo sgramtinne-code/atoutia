@@ -2,6 +2,7 @@ package tech.devoo.atoutia.ui.game
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -235,6 +237,7 @@ private fun PlayerSeatBadge(
 
     val markers =
         buildList {
+            add("J${player.ordinal + 1}")
             if (
                 player ==
                     dealer
@@ -334,7 +337,7 @@ private fun PlayerSeatBadge(
                         if (
                             compact
                         ) {
-                            6.dp
+                            2.dp
                         } else {
                             12.dp
                         },
@@ -369,9 +372,13 @@ private fun PlayerSeatBadge(
                         isLocalPlayer
                     ) {
                         "Vous"
+                    } else if (player.matchTeam() == localPlayer.matchTeam()) {
+                        "Partenaire"
                     } else {
-                        player.toDisplayName()
+                        "Adversaire"
                     },
+
+                modifier = Modifier.width(IntrinsicSize.Max).testTag("table-role-${player.name}"),
 
                 style =
                     if (
@@ -379,7 +386,7 @@ private fun PlayerSeatBadge(
                     ) {
                         MaterialTheme
                             .typography
-                            .bodySmall
+                            .labelSmall
                     } else {
                         MaterialTheme
                             .typography
@@ -402,6 +409,8 @@ private fun PlayerSeatBadge(
                             separator =
                                 " • ",
                         ),
+
+                    modifier = Modifier.testTag("table-markers-${player.name}"),
 
                     style =
                         MaterialTheme
@@ -520,21 +529,3 @@ private fun PlayerPosition.offsetBy(
 
     return players[index]
 }
-
-private fun PlayerPosition.toDisplayName():
-    String =
-    when (
-        this
-    ) {
-        PlayerPosition.PLAYER_0 ->
-            "Joueur 1"
-
-        PlayerPosition.PLAYER_1 ->
-            "Joueur 2"
-
-        PlayerPosition.PLAYER_2 ->
-            "Joueur 3"
-
-        PlayerPosition.PLAYER_3 ->
-            "Joueur 4"
-    }

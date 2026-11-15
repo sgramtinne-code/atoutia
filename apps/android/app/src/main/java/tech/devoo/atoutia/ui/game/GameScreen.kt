@@ -243,6 +243,7 @@ internal fun GameScreen(
     val hudContent:
         @Composable (Boolean) -> Unit = { compact ->
             GameHud(
+                localPlayer = session.player,
                 dealNumber =
                     publicMatch.dealNumber,
 
@@ -426,6 +427,13 @@ internal fun GameScreen(
 
                     onHome =
                         onHome,
+                )
+            }
+            if (!includeHand) {
+                Text(
+                    "Donne ${publicMatch.dealNumber} · Donneur J${publicMatch.dealer.ordinal + 1} · " +
+                        "Preneur ${publicMatch.taker?.let { "J${it.ordinal + 1}" } ?: "—"} · R${session.revision}",
+                    style = MaterialTheme.typography.labelSmall,
                 )
             }
             if (local && localBotTitle != null) {
@@ -806,7 +814,7 @@ private fun ResultScoreRow(label: String, points: Int, scoreTag: String) {
     }
 }
 
-private fun PlayerPosition.matchTeam(): MatchTeam = when (this) {
+internal fun PlayerPosition.matchTeam(): MatchTeam = when (this) {
     PlayerPosition.PLAYER_0, PlayerPosition.PLAYER_2 -> MatchTeam.TEAM_0
     PlayerPosition.PLAYER_1, PlayerPosition.PLAYER_3 -> MatchTeam.TEAM_1
 }
