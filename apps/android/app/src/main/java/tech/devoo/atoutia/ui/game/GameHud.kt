@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -17,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tech.devoo.atoutia.network.game.CardSuit
 import tech.devoo.atoutia.network.game.MatchTeam
@@ -46,32 +48,38 @@ fun GameHud(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            Modifier.padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 6.dp else 10.dp),
+            Modifier.padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 3.dp else 10.dp),
             verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 8.dp),
         ) {
             if (compact) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    HudScore("Votre équipe", ownScore, "hud-own-score", Modifier.weight(1f))
-                    HudScore("Adversaires", opponentScore, "hud-opponent-score", Modifier.weight(1f))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        HudScore("Votre équipe", ownScore, "hud-own-score")
+                        HudScore("Adversaires", opponentScore, "hud-opponent-score")
+                    }
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Objectif : $targetScore", modifier = Modifier.testTag("hud-target"),
+                            style = MaterialTheme.typography.labelMedium)
+                        HudTrump(trumpSuit)
+                    }
                 }
             } else {
                 Text("Score de partie", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 HudScore("Votre équipe", ownScore, "hud-own-score")
                 HudScore("Adversaires", opponentScore, "hud-opponent-score")
-            }
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Objectif : $targetScore", modifier = Modifier.weight(1f).testTag("hud-target"),
-                    style = MaterialTheme.typography.labelMedium)
-                Text(
-                    "Atout ${trumpSuit?.toSymbol() ?: "—"} ${trumpSuit?.toDisplayName() ?: ""}".trim(),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = trumpSuit?.toSuitColor() ?: MaterialTheme.colorScheme.onSurface,
-                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Objectif : $targetScore", modifier = Modifier.weight(1f).testTag("hud-target"),
+                        style = MaterialTheme.typography.labelMedium)
+                    HudTrump(trumpSuit)
+                }
             }
             if (!compact) {
                 Text(
@@ -93,10 +101,20 @@ private fun HudScore(label: String, points: Int, tag: String, modifier: Modifier
     ) {
         Text(label, modifier = Modifier.weight(1f).testTag("$tag-label"),
             style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
-        Text(points.toString(), modifier = Modifier.testTag(tag),
+        Text(points.toString(), modifier = Modifier.widthIn(min = 64.dp).testTag(tag),
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-            maxLines = 1, softWrap = false)
+            maxLines = 1, softWrap = false, textAlign = TextAlign.End)
     }
+}
+
+@Composable
+private fun HudTrump(trumpSuit: CardSuit?) {
+    Text(
+        "Atout ${trumpSuit?.toSymbol() ?: "—"} ${trumpSuit?.toDisplayName() ?: ""}".trim(),
+        modifier = Modifier.testTag("hud-trump"),
+        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
+        color = trumpSuit?.toSuitColor() ?: MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 private fun CardSuit.toSymbol():

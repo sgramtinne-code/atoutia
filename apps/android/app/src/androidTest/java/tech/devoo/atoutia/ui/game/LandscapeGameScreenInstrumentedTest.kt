@@ -110,6 +110,8 @@ class LandscapeGameScreenInstrumentedTest {
                 .assertTextEquals(if (ownTeam0) "980" else "1120")
             compose.onNodeWithTag("hud-target").assertIsDisplayed().assertTextEquals("Objectif : 1500")
             if (player == PlayerPosition.PLAYER_0 || player == PlayerPosition.PLAYER_1) captureResult("game-teams.png")
+            assertCompleteText("hud-target")
+            assertCompleteText("hud-trump")
             for (tag in listOf("hud-own-score", "hud-opponent-score")) {
                 assertCompleteText("$tag-label")
                 assertCompleteText(tag)
@@ -156,7 +158,7 @@ class LandscapeGameScreenInstrumentedTest {
         compose.onNodeWithTag("hud-opponent-score", useUnmergedTree = true).assertIsDisplayed().assertTextEquals("1024")
         compose.onNodeWithText("Atout —").assertIsDisplayed()
         compose.onNodeWithText("Donne 12 · Donneur J2 · Preneur — · R100").assertIsDisplayed()
-        for (tag in listOf("hud-own-score-label", "hud-own-score", "hud-opponent-score-label", "hud-opponent-score", "hud-target")) {
+        for (tag in listOf("hud-own-score-label", "hud-own-score", "hud-opponent-score-label", "hud-opponent-score", "hud-target", "hud-trump")) {
             assertCompleteText(tag)
         }
         captureResult("score-stacked.png")
